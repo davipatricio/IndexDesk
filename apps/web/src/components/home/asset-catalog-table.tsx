@@ -50,7 +50,7 @@ const columns: AssetColumnDef[] = [
         variant="ghost"
         size="sm"
         onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        className="-ml-3 h-8 text-xs font-semibold"
+        className="-ml-3 h-8 font-semibold"
       >
         Ticker
         <ArrowUpDown className="ml-1.5 size-3" />
@@ -59,7 +59,7 @@ const columns: AssetColumnDef[] = [
     cell: ({ row }) => (
       <Link
         href={`/etf/${row.original.ticker.toLowerCase()}`}
-        className="font-bold text-emerald-500 hover:underline inline-flex items-center gap-1.5"
+        className="font-semibold text-primary hover:underline inline-flex items-center gap-1.5"
       >
         {row.original.ticker}
         <Badge variant="outline" className="text-[10px] py-0 px-1 font-normal">
@@ -127,7 +127,9 @@ const columns: AssetColumnDef[] = [
       const isPos = val >= 0;
       return (
         <span
-          className={`inline-flex items-center text-xs font-mono font-semibold ${isPos ? 'text-emerald-500' : 'text-rose-500'}`}
+          className={`inline-flex items-center text-xs font-mono font-semibold ${
+            isPos ? 'text-positive' : 'text-negative'
+          }`}
         >
           {isPos ? (
             <TrendingUp className="size-3 mr-0.5" />
@@ -146,7 +148,9 @@ const columns: AssetColumnDef[] = [
       const val = row.original.changeYtdPercent;
       return (
         <span
-          className={`text-xs font-mono font-semibold ${val >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}
+          className={`text-xs font-mono font-semibold ${
+            val >= 0 ? 'text-positive' : 'text-negative'
+          }`}
         >
           {formatPercent(val)}
         </span>

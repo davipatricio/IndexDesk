@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { fetchAssetByTicker } from '@/lib/api-client';
+import { findCatalogAsset, MOCK_BDRS, type BdrAsset } from '@/lib/mock-catalog';
 import { formatCurrencyBRL, formatPercent } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,8 @@ import {
   Building2,
   Receipt,
   Layers,
+  Globe,
+  Coins,
 } from 'lucide-react';
 
 const integerFormatterBR = new Intl.NumberFormat('pt-BR');
@@ -24,40 +26,65 @@ interface PageProps {
   params: Promise<{ ticker: string }>;
 }
 
+async function getBdrOrFallback(ticker: string): Promise<BdrAsset> {
+  const found = findCatalogAsset(ticker);
+  if (found && found.category === 'BDR') {
+    return found;
+  }
+  const fallback = MOCK_BDRS.find((b) => b.ticker.toLowerCase() === ticker.toLowerCase());
+  if (fallback) return fallback;
+
+  // Generic fallback if not in mock list
+  return {
+    ticker: ticker.toUpperCase(),
+    name: `${ticker.toUpperCase()} Brazilian Depositary Receipt`,
+    manager: 'Instituição Depositária B3',
+    category: 'BDR',
+    subCategory: 'BDR Global',
+    underlyingAsset: `${ticker.slice(0, 4)} (Global)`,
+    country: 'Internacional',
+    managementFee: 0.15,
+    netAssets: 1000000000,
+    shareholders: 25000,
+    lastPrice: 50.0,
+    changeDayPercent: 0.2,
+    changeYtdPercent: 12.0,
+  };
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { ticker } = await params;
-  const asset = await fetchAssetByTicker(ticker);
+  const bdr = await getBdrOrFallback(ticker);
 
   return {
-    title: `${asset.ticker} — Lâmina CVM, Cotação e Tributação`,
-    description: `Análise completa do ETF ${asset.ticker} (${asset.name}): taxa de administração de ${formatPercent(asset.managementFee)} a.a., patrimônio de ${formatCurrencyBRL(asset.netAssets)} e regras fiscais DARF sem isenção de 20k.`,
+    title: `${bdr.ticker} — Lâmina CVM, Cotação e Tributação do BDR`,
+    description: `Análise completa do BDR ${bdr.ticker} (${bdr.name}): lastro no ativo ${bdr.underlyingAsset} (${bdr.country}), taxa base de ${formatPercent(bdr.managementFee)} a.a., patrimônio de ${formatCurrencyBRL(bdr.netAssets)} e regras de tributação sem isenção de 20k.`,
     openGraph: {
-      title: `${asset.ticker} | IndexDesk B3`,
-      description: `Lâmina e inteligência para o ETF ${asset.ticker} (${asset.name})`,
+      title: `${bdr.ticker} | IndexDesk BDRs`,
+      description: `Lâmina e inteligência para o BDR ${bdr.ticker} (${bdr.name})`,
     },
   };
 }
 
-export default async function EtfDetailPage({ params }: PageProps) {
+export default async function BdrDetailPage({ params }: PageProps) {
   const { ticker } = await params;
   if (!ticker) notFound();
 
-  const asset = await fetchAssetByTicker(ticker);
-  const isPositiveDay = asset.changeDayPercent >= 0;
+  const bdr = await getBdrOrFallback(ticker);
+  const isPositiveDay = bdr.changeDayPercent >= 0;
 
   // FinancialProduct Structured Data for Google SEO
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'FinancialProduct',
-    name: asset.name,
-    identifier: asset.ticker,
-    category: asset.category,
+    name: bdr.name,
+    identifier: bdr.ticker,
+    category: 'Brazilian Depositary Receipt (BDR)',
     provider: {
       '@type': 'Organization',
-      name: asset.manager,
+      name: bdr.manager,
     },
-    feesAndCommissionsSpecification: `${asset.managementFee}% ao ano`,
-    description: `Fundo de Índice ${asset.name} negociado na B3 sob o ticker ${asset.ticker}.`,
+    description: `Certificado de Depósito de Valores Mobiliários (BDR) lastreado em ${bdr.underlyingAsset}, negociado na B3 sob o ticker ${bdr.ticker}.`,
   };
 
   return (
@@ -69,10 +96,10 @@ export default async function EtfDetailPage({ params }: PageProps) {
 
       {/* Navigation breadcrumb */}
       <div>
-        <Link href="/">
+        <Link href="/ativos?tab=BDR">
           <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground -ml-2">
             <ArrowLeft className="size-3.5" />
-            Voltar ao Catálogo
+            Voltar ao Catálogo de Ativos
           </Button>
         </Link>
       </div>
@@ -82,22 +109,22 @@ export default async function EtfDetailPage({ params }: PageProps) {
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2.5">
             <h1 className="text-3xl font-bold tracking-tight font-mono text-foreground">
-              {asset.ticker}
+              {bdr.ticker}
             </h1>
             <Badge variant="secondary" className="text-xs font-semibold">
-              {asset.category}
+              BDR
             </Badge>
             <Badge variant="outline" className="text-xs">
-              Classe: {asset.assetClass}
+              Origem: {bdr.country}
             </Badge>
           </div>
-          <p className="text-muted-foreground text-sm font-medium">{asset.name}</p>
+          <p className="text-muted-foreground text-sm font-medium">{bdr.name}</p>
         </div>
 
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-end">
             <span className="text-2xl font-bold font-mono text-foreground">
-              {formatCurrencyBRL(asset.lastPrice)}
+              {formatCurrencyBRL(bdr.lastPrice)}
             </span>
             <span
               className={`text-xs font-mono font-semibold inline-flex items-center ${
@@ -109,11 +136,11 @@ export default async function EtfDetailPage({ params }: PageProps) {
               ) : (
                 <TrendingDown className="size-3 mr-1" />
               )}
-              {formatPercent(asset.changeDayPercent)} (Hoje)
+              {formatPercent(bdr.changeDayPercent)} (Hoje)
             </span>
           </div>
           <a
-            href={`https://br.tradingview.com/chart/?symbol=BMFBOVESPA%3A${asset.ticker}`}
+            href={`https://br.tradingview.com/chart/?symbol=BMFBOVESPA%3A${bdr.ticker}`}
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -125,16 +152,16 @@ export default async function EtfDetailPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Fiscal & Tax Breakdown Warning (Crucial B3 Rule) */}
+      {/* Fiscal & Tax Breakdown Warning for BDRs */}
       <Card variant="warning">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-bold text-warning flex items-center gap-2">
             <ShieldAlert className="size-4" />
-            Atenção Tributária: Regra Fiscal e DARF para ETFs na B3
+            Atenção Tributária: Regra Fiscal e DARF para BDRs na B3
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
-            ETFs de Renda Variável e Renda Fixa possuem regras fiscais específicas e distintas de
-            ações individuais.
+            BDRs de empresas e ETFs globais possuem regras tributárias específicas e não usufruem da
+            isenção de R$ 20.000 para pessoas físicas.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-muted-foreground">
@@ -144,28 +171,32 @@ export default async function EtfDetailPage({ params }: PageProps) {
               Sem Isenção de R$ 20.000
             </span>
             <span>
-              Não existe a faixa de isenção de vendas até R$ 20k/mês. Qualquer lucro líquido apurado
-              na venda de cotas deve recolher IR via DARF (código 6015).
+              A isenção mensal de R$ 20k é restrita a ações brasileiras. Ganhos líquidos apurados em
+              qualquer venda de BDRs são tributados a <strong>15% (Swing Trade)</strong> e{' '}
+              <strong>20% (Day Trade)</strong> via DARF (código 6015).
             </span>
           </div>
+
           <div className="flex flex-col gap-1 p-3 rounded-lg bg-background/80 border">
             <span className="font-semibold text-foreground flex items-center gap-1.5">
-              <Building2 className="size-3.5 text-warning" />
-              Alíquotas de Swing / Day Trade
+              <Coins className="size-3.5 text-warning" />
+              Tributação de Proventos Internacionais
             </span>
             <span>
-              <strong>15%</strong> sobre os ganhos líquidos em operações de Swing Trade e{' '}
-              <strong>20%</strong> em operações de Day Trade.
+              Dividendos pagos pelo ativo no exterior sofrem retenção na fonte no país emissor (ex:
+              30% nos EUA). O saldo líquido recebido no Brasil é apurado via Carnê-Leão / IRPF
+              conforme acordos de bitributação.
             </span>
           </div>
+
           <div className="flex flex-col gap-1 p-3 rounded-lg bg-background/80 border">
             <span className="font-semibold text-foreground flex items-center gap-1.5">
               <Info className="size-3.5 text-warning" />
               Sem Come-Cotas
             </span>
             <span>
-              Diferente dos fundos de investimento tradicionais de condomínio aberto, ETFs
-              negociados em bolsa não sofrem a antecipação semestral de come-cotas.
+              BDRs são certificados de depósito de valores mobiliários e não fundos abertos.
+              Portanto, não há cobrança semestral antecipada de come-cotas.
             </span>
           </div>
         </CardContent>
@@ -173,77 +204,89 @@ export default async function EtfDetailPage({ params }: PageProps) {
 
       {/* Metrics Summary Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 1. Ativo Subjacente */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-muted-foreground font-semibold uppercase">
-              Taxa de Administração
+            <CardTitle className="text-xs text-muted-foreground font-semibold uppercase flex items-center gap-1.5">
+              <Globe className="size-3.5 text-primary" />
+              Ativo Subjacente (Lastro)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold font-mono text-primary truncate">
+              {bdr.underlyingAsset}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Origem geográfica: {bdr.country}.</p>
+          </CardContent>
+        </Card>
+
+        {/* 2. Taxa de Administração Base */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs text-muted-foreground font-semibold uppercase flex items-center gap-1.5">
+              <Receipt className="size-3.5 text-muted-foreground" />
+              Taxa ETF Base / Gestão
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-mono text-foreground">
-              {formatPercent(asset.managementFee)} a.a.
+              {bdr.managementFee > 0 ? `${formatPercent(bdr.managementFee)} a.a.` : '—'}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Cobrada proporcionalmente e deduzida do valor da cota.
+              Taxa de administração do ETF base no exterior.
             </p>
           </CardContent>
         </Card>
 
+        {/* 3. Patrimônio Líquido */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-muted-foreground font-semibold uppercase">
-              Patrimônio Líquido (PL)
+            <CardTitle className="text-xs text-muted-foreground font-semibold uppercase flex items-center gap-1.5">
+              <Building2 className="size-3.5 text-muted-foreground" />
+              Patrimônio em BDRs (B3)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold font-mono text-foreground">
-              {formatCurrencyBRL(asset.netAssets)}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Lâmina diária oficial CVM.</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-muted-foreground font-semibold uppercase">
-              Número de Cotistas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold font-mono text-foreground">
-              {integerFormatterBR.format(asset.shareholders)}
+              {formatCurrencyBRL(bdr.netAssets)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Investidores pessoa física e institucional.
+              Emitido sob custódia de {bdr.manager}.
             </p>
           </CardContent>
         </Card>
 
+        {/* 4. Número de Cotistas */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-muted-foreground font-semibold uppercase">
-              Índice de Referência (Benchmark)
+            <CardTitle className="text-xs text-muted-foreground font-semibold uppercase flex items-center gap-1.5">
+              <Building2 className="size-3.5 text-muted-foreground" />
+              Investidores na B3
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold font-mono text-primary">{asset.benchmark}</div>
-            <p className="text-xs text-muted-foreground mt-1">Estratégia de replicação passiva.</p>
+            <div className="text-2xl font-bold font-mono text-foreground">
+              {integerFormatterBR.format(bdr.shareholders)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Detentores do certificado no Brasil.
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Actions and Next Steps */}
+      {/* Actions and Navigation */}
       <div className="flex flex-wrap items-center gap-3">
-        <Link href={`/comparador?ticker=${asset.ticker}`}>
+        <Link href={`/comparador?ticker=${bdr.ticker}`}>
           <Button variant="outline" size="sm" className="gap-1.5">
             <Layers className="size-3.5" />
-            Adicionar ao Comparador
+            Comparar com outros Ativos
           </Button>
         </Link>
-        <Link href={`/ferramentas/backtest?ticker=${asset.ticker}`}>
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <TrendingUp className="size-3.5" />
-            Simular no Backtest
+        <Link href="/ativos?tab=BDR">
+          <Button variant="secondary" size="sm" className="gap-1.5">
+            <Globe className="size-3.5" />
+            Explorar todos os BDRs
           </Button>
         </Link>
       </div>

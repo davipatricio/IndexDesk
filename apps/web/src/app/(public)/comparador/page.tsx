@@ -53,18 +53,15 @@ export default function ComparadorPage() {
     <div className="container mx-auto px-4 py-8 flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs">
-            Ferramenta Pública
-          </Badge>
           <span className="text-xs text-muted-foreground">Até 6 ativos simultâneos</span>
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2.5">
-          <Layers className="size-8 text-emerald-500" />
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2.5 text-foreground">
+          <Layers className="size-6 text-primary" />
           Comparador de ETFs e BDRs
         </h1>
         <p className="text-muted-foreground text-sm max-w-2xl">
-          Compare lado a lado taxas de administração, histórico de patrimônio líquido, retorno
-          acumulado YTD e alíquotas fiscais.
+          Compare lado a lado taxas de administração, patrimônio líquido, retorno acumulado no ano e
+          regras de tributação.
         </p>
       </div>
 
@@ -87,7 +84,7 @@ export default function ComparadorPage() {
                 variant={isSelected ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => toggleTicker(asset.ticker)}
-                className="gap-1.5 text-xs font-mono"
+                className="gap-1.5 font-mono"
               >
                 {asset.ticker}
                 {isSelected ? <X className="size-3" /> : <Plus className="size-3" />}
@@ -106,8 +103,8 @@ export default function ComparadorPage() {
               {comparedAssets.map((asset) => (
                 <TableHead key={asset.ticker} className="text-xs font-bold text-center font-mono">
                   <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-emerald-500 text-sm">{asset.ticker}</span>
-                    <span className="text-[10px] text-muted-foreground font-sans font-normal truncate max-w-[120px]">
+                    <span className="text-primary text-sm font-semibold">{asset.ticker}</span>
+                    <span className="text-xs text-muted-foreground font-sans font-normal truncate max-w-[120px]">
                       {asset.manager}
                     </span>
                   </div>
@@ -146,7 +143,7 @@ export default function ComparadorPage() {
               {comparedAssets.map((asset) => (
                 <TableCell
                   key={asset.ticker}
-                  className="text-xs text-center font-mono font-bold text-emerald-400"
+                  className="text-xs text-center font-mono font-medium text-foreground"
                 >
                   {formatPercent(asset.managementFee)} a.a.
                 </TableCell>
@@ -167,7 +164,10 @@ export default function ComparadorPage() {
                 Cotação Atual
               </TableCell>
               {comparedAssets.map((asset) => (
-                <TableCell key={asset.ticker} className="text-xs text-center font-mono font-bold">
+                <TableCell
+                  key={asset.ticker}
+                  className="text-xs text-center font-mono font-semibold text-foreground"
+                >
                   {formatCurrencyBRL(asset.lastPrice)}
                 </TableCell>
               ))}
@@ -179,8 +179,8 @@ export default function ComparadorPage() {
               {comparedAssets.map((asset) => (
                 <TableCell
                   key={asset.ticker}
-                  className={`text-xs text-center font-mono font-bold ${
-                    asset.changeYtdPercent >= 0 ? 'text-emerald-500' : 'text-rose-500'
+                  className={`text-xs text-center font-mono font-semibold ${
+                    asset.changeYtdPercent >= 0 ? 'text-positive' : 'text-negative'
                   }`}
                 >
                   {formatPercent(asset.changeYtdPercent)}
@@ -192,10 +192,7 @@ export default function ComparadorPage() {
                 Tributação (IR)
               </TableCell>
               {comparedAssets.map((asset) => (
-                <TableCell
-                  key={asset.ticker}
-                  className="text-[11px] text-center text-muted-foreground"
-                >
+                <TableCell key={asset.ticker} className="text-xs text-center text-muted-foreground">
                   15% Swing / 20% Day Trade (Sem isenção 20k)
                 </TableCell>
               ))}

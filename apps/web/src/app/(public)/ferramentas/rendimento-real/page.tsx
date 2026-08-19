@@ -33,16 +33,16 @@ export default function RendimentoRealPage() {
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs">
-            Calculadora Matemática Oficial
+            Calculadora de Inflação
           </Badge>
           <span className="text-xs text-muted-foreground">Equação de Irving Fisher</span>
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2.5">
-          <Calculator className="size-8 text-emerald-500" />
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2.5 text-foreground">
+          <Calculator className="size-6 text-primary" />
           Calculadora de Rendimento Real (Equação de Fisher)
         </h1>
         <p className="text-muted-foreground text-sm">
-          Descubra a rentabilidade real exata descontando o impacto da inflação (IPCA/IGP-M) sobre a
+          Calcule a rentabilidade real exata descontando o impacto da inflação (IPCA/IGP-M) sobre a
           rentabilidade nominal dos seus investimentos em ETFs e Renda Fixa.
         </p>
       </div>
@@ -51,7 +51,7 @@ export default function RendimentoRealPage() {
         {/* Input Form Card */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-semibold uppercase text-muted-foreground">
+            <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">
               Parâmetros da Simulação
             </CardTitle>
             <CardDescription className="text-xs">
@@ -60,7 +60,7 @@ export default function RendimentoRealPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="nominal-rate" className="text-xs font-semibold">
+              <label htmlFor="nominal-rate" className="text-xs font-medium text-foreground">
                 Taxa Nominal Anual (% a.a.)
               </label>
               <Input
@@ -78,7 +78,7 @@ export default function RendimentoRealPage() {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="inflation-rate" className="text-xs font-semibold">
+              <label htmlFor="inflation-rate" className="text-xs font-medium text-foreground">
                 Taxa de Inflação Acumulada IPCA (% a.a.)
               </label>
               <Input
@@ -98,9 +98,9 @@ export default function RendimentoRealPage() {
         </Card>
 
         {/* Results Card */}
-        <Card className="border-emerald-500/30 bg-emerald-500/5 flex flex-col justify-between">
+        <Card variant="accent" className="flex flex-col justify-between">
           <CardHeader>
-            <CardTitle className="text-sm font-semibold text-emerald-400 uppercase flex items-center gap-1.5">
+            <CardTitle className="text-xs font-semibold text-primary uppercase flex items-center gap-1.5">
               <ShieldCheck className="size-4" />
               Resultado: Taxa Real Exata
             </CardTitle>
@@ -110,7 +110,7 @@ export default function RendimentoRealPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div className="flex flex-col">
-              <span className="text-4xl sm:text-5xl font-extrabold font-mono text-emerald-400">
+              <span className="text-4xl sm:text-5xl font-bold font-mono text-primary">
                 {formatPercent(realYield, 4)}
               </span>
               <span className="text-xs text-muted-foreground mt-1">ao ano acima da inflação</span>
@@ -123,7 +123,7 @@ export default function RendimentoRealPage() {
                   {formatPercent(naiveYield)} a.a.
                 </span>
               </div>
-              <div className="flex justify-between font-mono text-amber-500">
+              <div className="flex justify-between font-mono text-warning">
                 <span>Diferença / Erro matemático:</span>
                 <span className="font-semibold">{formatPercent(mathDifference, 4)} a.a.</span>
               </div>

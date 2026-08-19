@@ -30,7 +30,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#09090b',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#09090b' },
+  ],
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
@@ -42,9 +45,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={cn('dark', 'font-sans', geist.variable)}>
+    <html lang="pt-BR" suppressHydrationWarning className={cn('font-sans', geist.variable)}>
       <head />
-      <body className="min-h-screen bg-background font-sans antialiased flex flex-col selection:bg-emerald-500/20 selection:text-emerald-400">
+      <body className="min-h-screen bg-background font-sans antialiased flex flex-col selection:bg-primary/25">
         <Providers>
           <ServiceWorkerRegistration />
           <Navbar />

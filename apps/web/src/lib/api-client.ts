@@ -50,7 +50,7 @@ export interface BacktestResponse {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-const DEFAULT_ASSETS: AssetDto[] = [
+export const DEFAULT_ASSETS: AssetDto[] = [
   {
     ticker: 'IVVB11',
     name: 'iShares S&P 500 Fundo de Índice',

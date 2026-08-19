@@ -5,19 +5,22 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrencyBRL, formatPercent } from '@/lib/utils';
-import { BarChart3, DollarSign, Calendar, ShieldCheck } from 'lucide-react';
+import { BarChart3, DollarSign, Calendar, Percent, ShieldCheck } from 'lucide-react';
 
 export default function BacktestPage() {
   const [initialCapital, setInitialCapital] = React.useState(10000);
   const [monthlyContribution, setMonthlyContribution] = React.useState(1000);
+  const [annualRatePercent, setAnnualRatePercent] = React.useState(13.0);
   const [years, setYears] = React.useState(5);
 
-  // Simulated Compound Growth with variance
   const simulation = React.useMemo(() => {
-    const totalMonths = years * 12;
+    const totalMonths = Math.max(1, years * 12);
+    const nominalRate = Math.max(0, annualRatePercent) / 100;
+    // Monthly compounding rate from annual rate: (1 + i)^(1/12) - 1
+    const monthlyRate = Math.pow(1 + nominalRate, 1 / 12) - 1;
+
     let capital = initialCapital;
     const totalInvested = initialCapital + monthlyContribution * totalMonths;
-    const monthlyRate = 0.0105; // ~13.3% a.a.
 
     for (let i = 1; i <= totalMonths; i++) {
       capital += monthlyContribution;
@@ -25,18 +28,20 @@ export default function BacktestPage() {
     }
 
     const totalReturn = capital - totalInvested;
-    const totalReturnPercent = (totalReturn / totalInvested) * 100;
+    const totalReturnPercent = totalInvested > 0 ? (totalReturn / totalInvested) * 100 : 0;
+    // Realized CAGR over the full period:
+    const cagr =
+      totalInvested > 0 && years > 0 ? (Math.pow(capital / totalInvested, 1 / years) - 1) * 100 : 0;
 
     return {
       finalCapital: Math.round(capital),
       totalInvested,
       totalReturn: Math.round(totalReturn),
       totalReturnPercent: Number(totalReturnPercent.toFixed(2)),
-      annualizedReturn: 13.35,
-      maxDrawdown: -14.2,
-      sharpeRatio: 0.85,
+      cagr: Number(cagr.toFixed(2)),
+      totalMonths,
     };
-  }, [initialCapital, monthlyContribution, years]);
+  }, [initialCapital, monthlyContribution, annualRatePercent, years]);
 
   return (
     <div className="container mx-auto px-4 py-8 flex flex-col gap-6 max-w-5xl">
@@ -46,16 +51,16 @@ export default function BacktestPage() {
             Simulador de Carteiras
           </Badge>
           <span className="text-xs text-muted-foreground">
-            Rebalanceamento & Aportes Periódicos
+            Aportes Periódicos & Juros Compostos
           </span>
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight flex items-center gap-2.5">
-          <BarChart3 className="size-8 text-emerald-500" />
-          Simulador de Backtest de Portfólio de ETFs
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2.5 text-foreground">
+          <BarChart3 className="size-6 text-primary" />
+          Simulador de Projeção Patrimonial
         </h1>
         <p className="text-muted-foreground text-sm">
-          Simule o crescimento patrimonial da sua alocação de ativos com aportes mensais
-          recorrentes, reinvestimento de dividendos e histórico real de cotações.
+          Calcule o crescimento estimado da sua carteira com aportes mensais recorrentes e
+          reinvestimento com base na taxa de retorno definida.
         </p>
       </div>
 
@@ -63,20 +68,20 @@ export default function BacktestPage() {
         {/* Form Controls */}
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle className="text-sm font-semibold uppercase text-muted-foreground">
-              Configurações do Aporte
+            <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">
+              Parâmetros da Projeção
             </CardTitle>
             <CardDescription className="text-xs">
-              Defina os aportes e prazo da simulação:
+              Defina o capital, aportes e taxa estimada:
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="initial-capital"
-                className="text-xs font-semibold flex items-center gap-1"
+                className="text-xs font-medium flex items-center gap-1 text-foreground"
               >
-                <DollarSign className="size-3.5 text-emerald-500" />
+                <DollarSign className="size-3.5 text-primary" />
                 Capital Inicial (R$)
               </label>
               <Input
@@ -91,9 +96,9 @@ export default function BacktestPage() {
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="monthly-contribution"
-                className="text-xs font-semibold flex items-center gap-1"
+                className="text-xs font-medium flex items-center gap-1 text-foreground"
               >
-                <DollarSign className="size-3.5 text-emerald-500" />
+                <DollarSign className="size-3.5 text-primary" />
                 Aporte Mensal Recorrente (R$)
               </label>
               <Input
@@ -107,17 +112,35 @@ export default function BacktestPage() {
 
             <div className="flex flex-col gap-1.5">
               <label
-                htmlFor="simulation-years"
-                className="text-xs font-semibold flex items-center gap-1"
+                htmlFor="annual-rate"
+                className="text-xs font-medium flex items-center gap-1 text-foreground"
               >
-                <Calendar className="size-3.5 text-emerald-500" />
+                <Percent className="size-3.5 text-primary" />
+                Taxa de Retorno Estimada (% a.a.)
+              </label>
+              <Input
+                id="annual-rate"
+                type="number"
+                step="0.1"
+                value={annualRatePercent}
+                onChange={(e) => setAnnualRatePercent(Number(e.target.value) || 0)}
+                className="font-mono text-sm"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label
+                htmlFor="simulation-years"
+                className="text-xs font-medium flex items-center gap-1 text-foreground"
+              >
+                <Calendar className="size-3.5 text-primary" />
                 Prazo em Anos
               </label>
               <Input
                 id="simulation-years"
                 type="number"
                 min={1}
-                max={30}
+                max={40}
                 value={years}
                 onChange={(e) => setYears(Number(e.target.value) || 1)}
                 className="font-mono text-sm"
@@ -125,7 +148,7 @@ export default function BacktestPage() {
             </div>
 
             <div className="pt-2">
-              <div className="text-xs font-semibold mb-2">Carteira Modelo (Alocação):</div>
+              <div className="text-xs font-semibold mb-2 text-foreground">Exemplo de Alocação:</div>
               <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
                 <div className="flex justify-between p-2 rounded bg-muted/40 font-mono">
                   <span>IVVB11 (S&P 500)</span>
@@ -147,18 +170,18 @@ export default function BacktestPage() {
         {/* Results Overview */}
         <div className="lg:col-span-2 flex flex-col gap-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Card className="border-emerald-500/30 bg-emerald-500/5">
+            <Card variant="accent">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xs font-semibold uppercase text-emerald-400">
+                <CardTitle className="text-xs font-semibold uppercase text-primary">
                   Patrimônio Final Estimado
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-extrabold font-mono text-emerald-400">
+                <div className="text-3xl font-bold font-mono text-primary">
                   {formatCurrencyBRL(simulation.finalCapital)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Lucro líquido gerado de {formatCurrencyBRL(simulation.totalReturn)} (
+                  Ganho gerado de {formatCurrencyBRL(simulation.totalReturn)} (
                   {formatPercent(simulation.totalReturnPercent)})
                 </p>
               </CardContent>
@@ -167,57 +190,51 @@ export default function BacktestPage() {
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">
-                  Total Desembolsado (Aportes)
+                  Total em Aportes
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-extrabold font-mono">
+                <div className="text-3xl font-bold font-mono text-foreground">
                   {formatCurrencyBRL(simulation.totalInvested)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {years * 12} aportes mensais de {formatCurrencyBRL(monthlyContribution)}
+                  {simulation.totalMonths} aportes de {formatCurrencyBRL(monthlyContribution)} +
+                  capital inicial
                 </p>
               </CardContent>
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Card>
               <CardHeader className="pb-1">
                 <CardTitle className="text-xs uppercase text-muted-foreground font-semibold">
-                  Retorno Anualizado (CAGR)
+                  Taxa Anual Adotada
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-xl font-bold font-mono text-emerald-500">
-                  {formatPercent(simulation.annualizedReturn)} a.a.
+                <div className="text-xl font-bold font-mono text-foreground">
+                  {formatPercent(annualRatePercent)} a.a.
                 </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Taxa nominal composta configurada no painel
+                </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-1">
                 <CardTitle className="text-xs uppercase text-muted-foreground font-semibold">
-                  Índice Sharpe
+                  Ganho sobre o Capital
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-xl font-bold font-mono">
-                  {simulation.sharpeRatio.toFixed(2)}
+                <div className="text-xl font-bold font-mono text-positive">
+                  {formatPercent(simulation.totalReturnPercent)}
                 </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-1">
-                <CardTitle className="text-xs uppercase text-muted-foreground font-semibold">
-                  Drawdown Máximo Histórico
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-xl font-bold font-mono text-rose-500">
-                  {formatPercent(simulation.maxDrawdown)}
-                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Relação entre rendimento e aportes totais
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -225,14 +242,14 @@ export default function BacktestPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-xs uppercase text-muted-foreground font-semibold flex items-center gap-1.5">
-                <ShieldCheck className="size-3.5 text-emerald-500" />
-                Resumo da Metodologia de Backtest
+                <ShieldCheck className="size-3.5 text-primary" />
+                Nota Metodológica
               </CardTitle>
             </CardHeader>
             <CardContent className="text-xs text-muted-foreground leading-relaxed">
-              O motor de simulação executa rebalanceamento periódico anual, ajustando os pesos alvo
-              sem disparar vendas tributáveis desnecessárias quando possível. As cotações diárias
-              são preservadas com ajuste integral de proventos e taxas de administração embutidas.
+              Esta simulação aplica juros compostos determinísticos considerando aportes mensais no
+              início de cada período e reinvestimento integral. Valores apresentados têm finalidade
+              exclusivamente ilustrativa e não constituem garantia de rentabilidade futura.
             </CardContent>
           </Card>
         </div>
