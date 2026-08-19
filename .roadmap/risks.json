@@ -1,0 +1,95 @@
+{
+  "$schema": "./schema.json",
+  "document_type": "risks",
+  "schema_version": "1.0.0",
+  "risks": [
+    {
+      "id": "RISK-001",
+      "title": "APIs não oficiais e feeds instáveis",
+      "status": "open",
+      "probability": "high",
+      "impact": "high",
+      "description": "Yahoo, Brapi e feeds de gestoras podem alterar limites, formato ou disponibilidade.",
+      "mitigation": "Adapters isolados, snapshots locais, Polly, circuit breaker, logs de sync, providers de contingência e publicação manual.",
+      "owner": "MarketData",
+      "source_refs": [{ "file": "PROVIDERS.md", "section": "Resumo Consolidado dos Provedores" }]
+    },
+    {
+      "id": "RISK-002",
+      "title": "Custo operacional do TimescaleDB e mensageria",
+      "status": "open",
+      "probability": "medium",
+      "impact": "high",
+      "description": "TimescaleDB, RabbitMQ, Redis e Jaeger podem ser pesados para um projeto único self-hosted.",
+      "mitigation": "Medição de RAM/CPU/backup no spike inicial, profiles Docker opcionais e fallback para PostgreSQL 18 particionado.",
+      "owner": "Platform",
+      "source_refs": [{ "file": "STACK_SETUP.md", "section": "Banco de Dados e Containers" }]
+    },
+    {
+      "id": "RISK-003",
+      "title": "Precisão fiscal e regulatória",
+      "status": "open",
+      "probability": "medium",
+      "impact": "critical",
+      "description": "Alíquotas, come-cotas, DARF, compensação e retenção podem variar por produto e legislação.",
+      "mitigation": "Metadados versionados, fonte/competência explícitas, revisão editorial, disclaimers e testes de cenários; não tratar cálculo como aconselhamento fiscal.",
+      "owner": "Product + Compliance",
+      "source_refs": [{ "file": "PRODUCT.md", "section": "Painel Fiscal e Tributário" }]
+    },
+    {
+      "id": "RISK-004",
+      "title": "Streaming CVM e arquivos grandes",
+      "status": "open",
+      "probability": "medium",
+      "impact": "high",
+      "description": "ZIPs mensais da CVM podem causar picos de memória ou duplicidade se processados de forma ingênua.",
+      "mitigation": "CsvHelper em stream, filtro por CNPJ, NpgsqlBinaryImporter/COPY, idempotência, métricas de linhas e testes com arquivos reais.",
+      "owner": "MarketData",
+      "source_refs": [{ "file": "PROVIDERS_SYNC.md", "section": "Ingestão e Validação em Streaming" }]
+    },
+    {
+      "id": "RISK-005",
+      "title": "Serwist e Turbopack no modo offline",
+      "status": "open",
+      "probability": "medium",
+      "impact": "high",
+      "description": "Service worker, cache de dados e SSR podem apresentar inconsistências entre online/offline e versões de deploy.",
+      "mitigation": "Versionar cache, testar atualização/rollback do worker, separar dados públicos de dados autenticados e validar em dispositivos reais.",
+      "owner": "Web",
+      "source_refs": [{ "file": "STACK_SETUP.md", "section": "PWA & Offline-First" }]
+    },
+    {
+      "id": "RISK-006",
+      "title": "Segurança do backoffice e uploads",
+      "status": "open",
+      "probability": "medium",
+      "impact": "critical",
+      "description": "Admin, CSV/XLSX, Markdown/HTML e PDFs podem introduzir abuso, XSS, arquivos maliciosos ou alterações indevidas.",
+      "mitigation": "RBAC forte, auditoria, sanitização, validação MIME/tamanho, antivírus, storage privado, URLs assinadas e manual override por campo.",
+      "owner": "Security",
+      "source_refs": [{ "file": "PRODUCT.md", "section": "3.5 Painel Administrativo & Backoffice" }]
+    },
+    {
+      "id": "RISK-007",
+      "title": "SEO programático duplicado ou de baixa qualidade",
+      "status": "open",
+      "probability": "medium",
+      "impact": "high",
+      "description": "Combinações de ativos e páginas geradas automaticamente podem criar URLs sem valor ou conteúdo duplicado.",
+      "mitigation": "Whitelist de pares relevantes, canonical URLs, sitemap segmentado, noindex para páginas finas e monitoramento de Search Console.",
+      "owner": "Growth",
+      "source_refs": [{ "file": "SEO_TOOLS.md", "section": "Páginas de Listas Programáticas" }]
+    },
+    {
+      "id": "RISK-008",
+      "title": "Entrega de notificações e storage editorial",
+      "status": "open",
+      "probability": "medium",
+      "impact": "medium",
+      "description": "PDF, email, WhatsApp e relatórios exigem custos, consentimento, filas e política de retenção ainda não definidos.",
+      "mitigation": "Manter conversão opcional, definir provider/consentimento no Phase 02 e implementar abstrações com retry e opt-out.",
+      "owner": "Growth",
+      "source_refs": [{ "file": "SEO_TOOLS.md", "section": "Lead Magnet & Conversão" }]
+    }
+  ]
+}

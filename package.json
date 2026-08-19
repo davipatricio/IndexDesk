@@ -1,0 +1,10 @@
+{
+  "name": "indexdesk",
+  "private": true,
+  "packageManager": "bun@latest",
+  "scripts": {
+    "roadmap:validate": "bun .roadmap/scripts/validate-roadmap.ts",
+    "roadmap:generate": "bun .roadmap/scripts/generate-roadmap.ts",
+    "roadmap:check": "bun run roadmap:validate && bun run roadmap:generate"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "./schema.json",
+  "document_type": "roadmap",
+  "schema_version": "1.0.0",
+  "project": {
+    "id": "indexdesk",
+    "name": "IndexDesk",
+    "description": "Plataforma de inteligência, backtest, analytics e gestão futura de carteiras para ETFs e BDRs da B3."
+  },
+  "source_documents": [
+    { "file": "PRODUCT.md", "section": "Produto, MVP, admin, notícias e roadmap futuro" },
+    { "file": "STACK_SETUP.md", "section": "Stack, monólito modular, PWA, TanStack, gráficos e Turborepo" },
+    { "file": "MODELS.md", "section": "Modelo de dados, séries temporais, carteiras e conteúdo" },
+    { "file": "PROVIDERS.md", "section": "Provedores, ingestão, holdings, cache e contingências" },
+    { "file": "PROVIDERS_SYNC.md", "section": "Local-first, streaming CVM, idempotência e resiliência" },
+    { "file": "SEO_TOOLS.md", "section": "Ferramentas públicas, SEO programático e conversão" },
+    { "file": "CLAUDE.md", "section": "Regras operacionais e resumo arquitetural" }
+  ],
+  "current_state": {
+    "lifecycle": "greenfield",
+    "implementation_status": "documentation_only",
+    "roadmap_tracking_scaffolded": true,
+    "code_scaffolded": false,
+    "git_commits": 0,
+    "completed_task_ids": [],
+    "blockers": [
+      "O monorepo Bun/Turborepo ainda não foi scaffoldado.",
+      "apps/web, apps/backend, infraestrutura Docker e migrations ainda não existem.",
+      "Não há comandos executáveis de build, lint ou testes neste momento."
+    ],
+    "notes": "Os documentos-fonte definem requisitos e decisões de produto, mas não representam implementação entregue. Todas as tarefas do roadmap começam como not_started."
+  },
+  "phase_order": ["PHASE-00", "PHASE-01", "PHASE-02", "PHASE-03"],
+  "updated_at": "2026-08-18"
+}

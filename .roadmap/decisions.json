@@ -1,0 +1,112 @@
+{
+  "$schema": "./schema.json",
+  "document_type": "decisions",
+  "schema_version": "1.0.0",
+  "decisions": [
+    {
+      "id": "DEC-001",
+      "title": "Canonicalizar o bloqueio editorial de metadados",
+      "status": "open",
+      "priority": "P0",
+      "context": "PRODUCT.md e CLAUDE.md usam metadata_lock; MODELS.md define is_manually_overridden e locked_fields.",
+      "options": ["Usar metadata_lock como objeto por campo", "Usar locked_fields JSONB e is_manually_overridden como flag derivada", "Duplicar os dois conceitos"],
+      "recommendation": "Usar locked_fields JSONB como persistência canônica por campo, manter is_manually_overridden como flag de conveniência e expor metadata_lock apenas como contrato de API/editorial.",
+      "impact": "Evita que sincronizações sobrescrevam correções manuais sem bloquear campos não corrigidos.",
+      "source_refs": [
+        { "file": "PRODUCT.md", "section": "3.5 Painel Administrativo & Backoffice" },
+        { "file": "MODELS.md", "section": "2.1 etf_metadata e assets" }
+      ],
+      "decided_at": null
+    },
+    {
+      "id": "DEC-002",
+      "title": "Definir política de cache histórico e SLOs",
+      "status": "open",
+      "priority": "P0",
+      "context": "A documentação menciona TTL infinito/30 dias e metas de <5ms no cache e <10ms no fluxo local.",
+      "options": ["TTL de 30 dias com revalidação", "Persistência efetivamente imutável com invalidação manual", "TTL por classe de dado e SLOs separados"],
+      "recommendation": "Adotar TTL por classe: quotes fechadas persistidas no banco e Redis por 30 dias, dados intraday 15 minutos, macro 24 horas e holdings 7 dias; medir cache hit e endpoint local separadamente.",
+      "impact": "Transforma metas de performance em SLOs verificáveis sem confundir cache com fonte de verdade.",
+      "source_refs": [
+        { "file": "PROVIDERS.md", "section": "Regras de Cache no Redis" },
+        { "file": "PROVIDERS_SYNC.md", "section": "Filosofia Local-First" }
+      ],
+      "decided_at": null
+    },
+    {
+      "id": "DEC-003",
+      "title": "TimescaleDB self-hosted versus PostgreSQL puro",
+      "status": "open",
+      "priority": "P0",
+      "context": "TimescaleDB atende séries temporais, mas o projeto pode preferir PostgreSQL 18 puro se o custo operacional for excessivo.",
+      "options": ["TimescaleDB self-hosted como padrão", "PostgreSQL 18 puro desde o início", "Spike de carga e fallback documentado"],
+      "recommendation": "Começar com TimescaleDB self-hosted em Docker e validar RAM, backup, compressão e throughput; manter migrations compatíveis com particionamento PostgreSQL 18 como fallback.",
+      "impact": "Preserva a estratégia de séries temporais sem comprometer a operação de um projeto único.",
+      "source_refs": [
+        { "file": "STACK_SETUP.md", "section": "Banco de Dados: TimescaleDB Self-Hosted" },
+        { "file": "MODELS.md", "section": "2.2 Séries Temporais" }
+      ],
+      "decided_at": null
+    },
+    {
+      "id": "DEC-004",
+      "title": "Fechar provedores de contingência e storage editorial",
+      "status": "open",
+      "priority": "P1",
+      "context": "FMP, EODHD e HG Brasil aparecem como backups; relatórios e PDFs exigem storage ainda não escolhido.",
+      "options": ["FMP + object storage S3/R2", "EODHD + storage local", "HG Brasil para B3 e object storage gerenciado"],
+      "recommendation": "Escolher por custo e cobertura após um spike; abstrair provider e storage atrás de interfaces no Worker/API, sem acoplar páginas públicas ao fornecedor.",
+      "impact": "Reduz risco de lock-in e permite publicação manual quando um feed não existir.",
+      "source_refs": [
+        { "file": "PROVIDERS.md", "section": "Provedores de Contingência / Backup" },
+        { "file": "PRODUCT.md", "section": "3.6 Hub de Notícias, Relatórios e Fatos Relevantes" }
+      ],
+      "decided_at": null
+    },
+    {
+      "id": "DEC-005",
+      "title": "Validar TanStack DB e biblioteca primária de gráficos",
+      "status": "open",
+      "priority": "P1",
+      "context": "A stack sugere TanStack DB e várias bibliotecas de gráficos, mas ainda não há spike com dados financeiros reais.",
+      "options": ["TanStack DB + Lightweight Charts", "TanStack Store/IndexedDB + Lightweight Charts", "TanStack DB + Recharts/Visx como base"],
+      "recommendation": "Usar Lightweight Charts para séries longas e executar spike comparando TanStack DB, TanStack Store e IndexedDB antes de fixar a camada offline; Recharts fica para gráficos agregados.",
+      "impact": "Evita comprometer o bundle e a experiência offline antes de medir volume real.",
+      "source_refs": [
+        { "file": "STACK_SETUP.md", "section": "Ecossistema TanStack e Guia de Gráficos" },
+        { "file": "CLAUDE.md", "section": "Intended Stack" }
+      ],
+      "decided_at": null
+    },
+    {
+      "id": "DEC-007",
+      "title": "Fixar a toolchain moderna de qualidade do frontend e C#",
+      "status": "open",
+      "priority": "P0",
+      "context": "O setup requer Oxlint/Oxfmt latest, TypeScript 7, tsconfig orientado a bundlers modernos e quality gates para C#.",
+      "options": ["Fixar TypeScript 7 imediatamente", "Usar a versão estável disponível até TypeScript 7 ser publicada", "Adotar outra toolchain de lint/format"],
+      "recommendation": "Usar Oxlint/Oxfmt latest, TypeScript com tsconfig moderno (module preserve, moduleResolution bundler, strict, noEmit) e CSharpier + dotnet format analyzers/style. Fixar TypeScript 7 somente quando a versão estiver publicada e validada com Next.js/Turbopack; até lá, registrar o bloqueio e usar a versão estável mais próxima.",
+      "impact": "Mantém qualidade e compatibilidade com Bun/Turbopack sem instalar uma versão inexistente ou quebrar o pipeline por uma premissa de versão.",
+      "source_refs": [
+        { "file": "STACK_SETUP.md", "section": "Toolchain de Qualidade: Oxlint, Oxfmt, TypeScript 7 e C#" },
+        { "file": "CLAUDE.md", "section": "Intended Stack — JS/TS quality e C# quality" }
+      ],
+      "decided_at": "2026-08-18"
+    },
+    {
+      "id": "DEC-006",
+      "title": "Manter o local-first estrito para calculadoras",
+      "status": "accepted",
+      "priority": "P0",
+      "context": "Ferramentas públicas precisam responder sem depender de BCB ou outro provider no request path.",
+      "options": ["Consultar provider em runtime", "Consultar apenas dados previamente ingeridos localmente", "Permitir fallback runtime somente em erro"],
+      "recommendation": "Calculadoras e páginas públicas leem apenas Postgres/Redis; o Worker ingere BCB, CVM, B3 e demais fontes em background.",
+      "impact": "Mantém latência previsível, resiliência e coerência com PROVIDERS_SYNC.md.",
+      "source_refs": [
+        { "file": "PROVIDERS_SYNC.md", "section": "Filosofia Local-First" },
+        { "file": "SEO_TOOLS.md", "section": "Ferramentas Públicas" }
+      ],
+      "decided_at": "2026-08-18"
+    }
+  ]
+}
