@@ -50,6 +50,7 @@ Este documento define o esquema de banco de dados do **IndexDesk**, estruturado 
 ### 2.1. Módulo Cadastral e Metadados (`Modules.MarketData`)
 
 #### `assets` (Catálogo Principal de Ativos)
+
 Tabela central de identificação de ETFs, BDRs de ETFs, Ações e Índices de Mercado.
 
 ```sql
@@ -75,6 +76,7 @@ CREATE INDEX idx_assets_type ON assets(asset_type);
 ```
 
 #### `etf_metadata` (Dados Específicos e Fiscais de ETFs/BDRs)
+
 Informações tributárias, institucionais e regulatórias.
 
 ```sql
@@ -88,7 +90,7 @@ CREATE TABLE etf_metadata (
     management_fee NUMERIC(5, 4) NOT NULL,         -- Taxa adm: 0.0030 = 0.30% a.a.
     performance_fee NUMERIC(5, 4) NULL,            -- Taxa performance
     tax_domicile tax_domicile_enum NOT NULL DEFAULT 'BRAZIL',
-    
+
     -- Configurações Fiscais e Tributárias (IR / Come-Cotas / Retenção)
     has_come_cotas BOOLEAN NOT NULL DEFAULT FALSE,               -- Maioria dos ETFs de bolsa NÃO tem come-cotas
     income_tax_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.1500,       -- Alíquota Swing Trade padrão (ex: 0.1500 = 15%)
@@ -99,11 +101,11 @@ CREATE TABLE etf_metadata (
     reinvests_dividends BOOLEAN NOT NULL DEFAULT TRUE,           -- ETFs BR acumulam proventos
     tax_classification VARCHAR(120) NULL,                        -- Ex: 'Renda Variável (DARF 15%)', 'Renda Fixa PMR > 720d (Fonte 15%)'
     tax_notes TEXT NULL,                                         -- Instruções detalhadas de apuração e compensação
-    
+
     -- Trava Editorial de Campos Individuais (Admin Backoffice)
     is_manually_overridden BOOLEAN NOT NULL DEFAULT FALSE,
     locked_fields JSONB NOT NULL DEFAULT '[]'::jsonb,            -- Ex: ["management_fee", "manager_name", "tax_classification"]
-    
+
     inception_date DATE NULL,
     description TEXT NULL,
     website_url VARCHAR(500) NULL,
@@ -112,6 +114,7 @@ CREATE TABLE etf_metadata (
 ```
 
 #### `etf_holdings` (Composição e Sobreposição / Overlap)
+
 Histórico e composição de ativos detidos pelo fundo (alimenta a Matriz de Overlap).
 
 ```sql
@@ -136,6 +139,7 @@ CREATE INDEX idx_etf_holdings_ticker ON etf_holdings(holding_ticker) WHERE holdi
 ### 2.2. Séries Temporais de Alta Performance (TimescaleDB)
 
 #### `asset_quotes` (Cotações Diárias B3 / Yahoo Finance)
+
 Tabela convertida em **Hypertable** para consultas em < 5ms e compressão de séries longas.
 
 ```sql
@@ -165,6 +169,7 @@ SELECT add_compression_policy('asset_quotes', INTERVAL '30 days');
 ```
 
 #### `fund_daily_reports` (Informe Diário CVM)
+
 Alimentada pelo streaming da CVM via `NpgsqlBinaryImporter` (`COPY`).
 
 ```sql
@@ -191,6 +196,7 @@ SELECT add_compression_policy('fund_daily_reports', INTERVAL '30 days');
 ```
 
 #### `macro_economic_series` (Séries Econômicas BCB - SGS)
+
 Guarda séries como CDI diário, Selic, IPCA e IGP-M.
 
 ```sql
@@ -205,6 +211,7 @@ SELECT create_hypertable('macro_economic_series', 'date', chunk_time_interval =>
 ```
 
 #### `market_holidays` (Feriados Nacionais e Dias Não Úteis B3 / ANBIMA)
+
 Essencial para cálculo exato de retorno acumulado (base 252 dias úteis) e CDI acumulado.
 
 ```sql
@@ -216,6 +223,7 @@ CREATE TABLE market_holidays (
 ```
 
 #### `asset_corporate_actions` (Splits, Inplits e Desdobramentos)
+
 Permite ajuste retroativo de séries de preços e evita "degraus" falsos nos gráficos.
 
 ```sql
@@ -239,6 +247,7 @@ CREATE INDEX idx_asset_actions ON asset_corporate_actions(asset_id, effective_da
 ### 2.3. Analytics e Métricas Pré-Calculadas (`Modules.Analytics`)
 
 #### `etf_analytics_summary` (Snapshot de Risco e Retorno)
+
 Atualizada após a ingestão para alimentar o catálogo e a página do ETF (`/etf/[ticker]`).
 
 ```sql
@@ -261,6 +270,7 @@ CREATE TABLE etf_analytics_summary (
 ```
 
 #### `asset_dividends` (Proventos e Dividendos)
+
 ```sql
 CREATE TYPE dividend_type_enum AS ENUM ('DIVIDEND', 'JCP', 'AMORTIZATION', 'OTHER');
 
@@ -340,7 +350,8 @@ CREATE TABLE sync_job_logs (
 
 CREATE INDEX idx_sync_logs_date ON sync_job_logs(started_at DESC);
 ```
-```
+
+````
 
 ---
 
@@ -365,7 +376,7 @@ CREATE TABLE saved_backtests (
 );
 
 CREATE INDEX idx_saved_backtests_user ON saved_backtests(user_id) WHERE user_id IS NOT NULL;
-```
+````
 
 ---
 
@@ -375,11 +386,11 @@ Suporta o sistema completo estilo Yahoo Finance / Gorila / Google Finance.
 
 ```sql
 CREATE TYPE transaction_type_enum AS ENUM (
-    'BUY', 
-    'SELL', 
-    'TRANSFER_IN', 
-    'TRANSFER_OUT', 
-    'DIVIDEND_REINVEST', 
+    'BUY',
+    'SELL',
+    'TRANSFER_IN',
+    'TRANSFER_OUT',
+    'DIVIDEND_REINVEST',
     'SPLIT_ADJUSTMENT'
 );
 

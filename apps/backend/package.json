@@ -1,0 +1,16 @@
+{
+  "name": "@indexdesk/backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet build IndexDesk.sln -c Release",
+    "dev": "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet watch --project src/IndexDesk.Api",
+    "lint": "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet format style IndexDesk.sln --verify-no-changes && DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet format analyzers IndexDesk.sln --verify-no-changes",
+    "lint:fix": "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet format style IndexDesk.sln && DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet format analyzers IndexDesk.sln",
+    "format": "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet csharpier format .",
+    "format:check": "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet csharpier check .",
+    "typecheck": "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet build IndexDesk.sln -c Debug",
+    "test": "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet test IndexDesk.sln --logger \"console;verbosity=normal\"",
+    "clean": "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet clean IndexDesk.sln"
+  }
+}

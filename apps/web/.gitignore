@@ -1,0 +1,20 @@
+# Next.js generated output
+.next/
+out/
+.vercel/
+
+# Serwist generated service worker (generated at build time)
+public/sw.js
+public/swe-worker-*.js
+
+# Frontend test and coverage output
+coverage/
+test-results/
+playwright-report/
+
+# Local frontend environment files
+.env*
+!.env.example
+
+# TypeScript incremental build info
+*.tsbuildinfo

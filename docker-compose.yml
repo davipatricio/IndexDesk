@@ -1,0 +1,85 @@
+name: indexdesk-infra
+
+services:
+  timescaledb:
+    image: timescale/timescaledb-ha:pg16-latest
+    container_name: indexdesk-timescaledb
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-indexdesk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-indexdesk_dev_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-indexdesk}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/home/postgres/pgdata/data
+      - ./docker/init-db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-indexdesk} -d ${POSTGRES_DB:-indexdesk}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - indexdesk-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: indexdesk-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-indexdesk_redis_dev}
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', '${REDIS_PASSWORD:-indexdesk_redis_dev}', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - indexdesk-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: indexdesk-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-indexdesk}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-indexdesk_rabbit_dev}
+    ports:
+      - '${RABBITMQ_PORT:-5672}:5672'
+      - '${RABBITMQ_MGMT_PORT:-15672}:15672'
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', 'check_port_connectivity']
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - indexdesk-network
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: indexdesk-jaeger
+    restart: unless-stopped
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - '16686:16686' # Jaeger Web UI
+      - '4317:4317' # OTLP gRPC receiver
+      - '4318:4318' # OTLP HTTP receiver
+    networks:
+      - indexdesk-network
+
+networks:
+  indexdesk-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local

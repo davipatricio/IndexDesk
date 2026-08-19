@@ -1,0 +1,72 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "globalDependencies": [
+    "**/.env.*local",
+    "**/.env",
+    "tsconfig.json",
+    "Directory.Build.props",
+    ".editorconfig"
+  ],
+  "globalEnv": ["NODE_ENV", "DOTNET_ENVIRONMENT", "ASPNETCORE_ENVIRONMENT", "PORT"],
+  "globalPassThroughEnv": [
+    "PATH",
+    "HOME",
+    "DOTNET_ROOT",
+    "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        ".env*",
+        "src/**",
+        "public/**",
+        "*.csproj",
+        "*.sln",
+        "*.props",
+        "*.json",
+        "*.ts",
+        "*.tsx"
+      ],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "out/**", "**/bin/**", "**/obj/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": [],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "src/**",
+        "*.ts",
+        "*.tsx",
+        "*.cs",
+        "*.json",
+        ".oxlintrc.json",
+        "oxlint.config.ts"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "src/**", "*.ts", "*.tsx", "tsconfig.json"]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "inputs": ["$TURBO_DEFAULT$", "src/**", "tests/**", "test/**", "*.ts", "*.tsx", "*.cs"],
+      "outputs": ["coverage/**", "**/TestResults/**", "TestResults/**"]
+    },
+    "format": {
+      "cache": false
+    },
+    "format:check": {
+      "dependsOn": [],
+      "inputs": ["$TURBO_DEFAULT$", "src/**", "tests/**", "*.ts", "*.tsx", "*.cs", "*.json", "*.md"]
+    },
+    "clean": {
+      "cache": false
+    }
+  }
+}

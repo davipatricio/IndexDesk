@@ -1,0 +1,74 @@
+# Dependencies and package manager artifacts
+node_modules/
+.pnp/
+.pnp.js
+.yarn/
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+.pnpm-store/
+
+# Bun
+.bun/
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Next.js / React build artifacts
+.next/
+out/
+.vercel/
+.turbo/
+
+# Coverage and test output
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.nyc_output/
+
+# TypeScript / JavaScript build output
+dist/
+build/
+*.tsbuildinfo
+
+# .NET build artifacts (nested .gitignore files provide package-specific rules too)
+**/bin/
+**/obj/
+**/TestResults/
+**/artifacts/
+
+# IDE and OS files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs and local tooling
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun-debug.log*
+
+# Local databases / generated runtime files
+*.db
+*.db-shm
+*.db-wal
+storage/
+
+# Generated PWA service worker
+apps/web/public/sw.js
+apps/web/public/swe-worker-*.js
+
+# Temporary files
+.tmp/
+tmp/

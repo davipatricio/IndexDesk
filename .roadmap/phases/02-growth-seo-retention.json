@@ -23,7 +23,11 @@
         "priority": "P2",
         "depends_on": ["FND-014", "MVP-011"],
         "source_refs": [{ "file": "MODELS.md", "section": "2.5 Simulações de Backtest Salvas" }],
-        "acceptance_criteria": ["Usuário pode salvar sem duplicação indevida", "Backtest público tem URL estável e política de privacidade", "Resultados são reprodutíveis pela versão dos dados"],
+        "acceptance_criteria": [
+          "Usuário pode salvar sem duplicação indevida",
+          "Backtest público tem URL estável e política de privacidade",
+          "Resultados são reprodutíveis pela versão dos dados"
+        ],
         "tasks": [
           {
             "id": "GROW-001",
@@ -38,7 +42,12 @@
             "depends_on": ["FND-014", "MVP-011"],
             "blocks": ["GROW-003"],
             "source_refs": [{ "file": "MODELS.md", "section": "saved_backtests" }],
-            "acceptance_criteria": ["Usuário autenticado salva simulação", "Anônimo pode compartilhar quando permitido", "Snapshot registra versão/data dos dados", "Delete/revoke funciona"],
+            "acceptance_criteria": [
+              "Usuário autenticado salva simulação",
+              "Anônimo pode compartilhar quando permitido",
+              "Snapshot registra versão/data dos dados",
+              "Delete/revoke funciona"
+            ],
             "deliverables": ["saved backtest API", "share route", "ownership policies"],
             "risks": ["Dados ingeridos depois podem mudar resultado histórico"],
             "notes": "Guardar parâmetros e métricas; recalcular sob demanda com aviso de versão.",
@@ -56,7 +65,12 @@
         "priority": "P2",
         "depends_on": ["MVP-022", "MVP-012", "MVP-018"],
         "source_refs": [{ "file": "SEO_TOOLS.md", "section": "Páginas de Listas Programáticas" }],
-        "acceptance_criteria": ["Rotas têm dados e copy úteis", "Sitemap segmentado é limitado a páginas elegíveis", "Canonical/noindex e lastmod são testados", "Performance de geração runtime é observável"],
+        "acceptance_criteria": [
+          "Rotas têm dados e copy úteis",
+          "Sitemap segmentado é limitado a páginas elegíveis",
+          "Canonical/noindex e lastmod são testados",
+          "Performance de geração runtime é observável"
+        ],
         "tasks": [
           {
             "id": "GROW-002",
@@ -70,8 +84,14 @@
             "epic_id": "PROGRAMSEO",
             "depends_on": ["MVP-022", "MVP-007"],
             "blocks": ["GROW-004"],
-            "source_refs": [{ "file": "SEO_TOOLS.md", "section": "Páginas de Listas Programáticas" }],
-            "acceptance_criteria": ["Cada hub possui descrição e filtros indexáveis", "Dados mostram atualização e origem", "Páginas vazias não são indexadas"],
+            "source_refs": [
+              { "file": "SEO_TOOLS.md", "section": "Páginas de Listas Programáticas" }
+            ],
+            "acceptance_criteria": [
+              "Cada hub possui descrição e filtros indexáveis",
+              "Dados mostram atualização e origem",
+              "Páginas vazias não são indexadas"
+            ],
             "deliverables": ["category hubs", "manager hubs", "SEO metadata"],
             "risks": ["Copy genérico pode ser classificado como conteúdo de baixa qualidade"],
             "notes": "Priorizar hubs com demanda validada.",
@@ -91,8 +111,14 @@
             "epic_id": "PROGRAMSEO",
             "depends_on": ["MVP-012", "GROW-001"],
             "blocks": ["GROW-004"],
-            "source_refs": [{ "file": "SEO_TOOLS.md", "section": "Comparador programático e overlap" }],
-            "acceptance_criteria": ["Whitelist de pares é baseada em relevância", "URLs possuem canonical e dados comparativos únicos", "Sitemap não inclui combinações ilimitadas"],
+            "source_refs": [
+              { "file": "SEO_TOOLS.md", "section": "Comparador programático e overlap" }
+            ],
+            "acceptance_criteria": [
+              "Whitelist de pares é baseada em relevância",
+              "URLs possuem canonical e dados comparativos únicos",
+              "Sitemap não inclui combinações ilimitadas"
+            ],
             "deliverables": ["comparison generator", "overlap pair routes", "sitemap segment"],
             "risks": ["Explosão combinatória e conteúdo duplicado"],
             "notes": "Manter limite e telemetria de indexação.",
@@ -113,7 +139,12 @@
             "depends_on": ["GROW-002", "GROW-003"],
             "blocks": [],
             "source_refs": [{ "file": "PRODUCT.md", "section": "Estratégia de SEO & Growth" }],
-            "acceptance_criteria": ["Métricas não coletam dados sensíveis sem consentimento", "Falhas de sitemap são alertadas", "CWs são acompanhados por rota", "Eventos de funil são definidos"],
+            "acceptance_criteria": [
+              "Métricas não coletam dados sensíveis sem consentimento",
+              "Falhas de sitemap são alertadas",
+              "CWs são acompanhados por rota",
+              "Eventos de funil são definidos"
+            ],
             "deliverables": ["SEO telemetry", "CWV dashboard", "conversion events"],
             "risks": ["Analytics pode aumentar custo e impactar privacidade"],
             "notes": "Separar métricas de produto de dados de carteira.",
@@ -130,8 +161,15 @@
         "status": "not_started",
         "priority": "P2",
         "depends_on": ["FND-014", "GROW-001"],
-        "source_refs": [{ "file": "SEO_TOOLS.md", "section": "Estratégia de Lead Magnet & Conversão Ética" }],
-        "acceptance_criteria": ["Cadastro é opcional para uso básico", "Consentimento e opt-out existem", "Entregas são auditáveis e reprocessáveis", "PDFs e mensagens não expõem dados a terceiros sem autorização"],
+        "source_refs": [
+          { "file": "SEO_TOOLS.md", "section": "Estratégia de Lead Magnet & Conversão Ética" }
+        ],
+        "acceptance_criteria": [
+          "Cadastro é opcional para uso básico",
+          "Consentimento e opt-out existem",
+          "Entregas são auditáveis e reprocessáveis",
+          "PDFs e mensagens não expõem dados a terceiros sem autorização"
+        ],
         "tasks": [
           {
             "id": "GROW-005",
@@ -146,7 +184,12 @@
             "depends_on": ["GROW-001", "DEC-004"],
             "blocks": ["GROW-006"],
             "source_refs": [{ "file": "SEO_TOOLS.md", "section": "Lead Magnet & Conversão" }],
-            "acceptance_criteria": ["PDF contém memória de cálculo e disclaimer", "Arquivo tem expiração/controle de acesso", "Falha de geração pode ser reprocessada", "Não bloqueia ferramenta pública"],
+            "acceptance_criteria": [
+              "PDF contém memória de cálculo e disclaimer",
+              "Arquivo tem expiração/controle de acesso",
+              "Falha de geração pode ser reprocessada",
+              "Não bloqueia ferramenta pública"
+            ],
             "deliverables": ["PDF renderer", "artifact storage", "download flow"],
             "risks": ["PDF com dados financeiros pode exigir proteção adicional"],
             "notes": "Definir object storage em DEC-004.",
@@ -167,8 +210,17 @@
             "depends_on": ["FND-014", "GROW-005"],
             "blocks": ["PORT-005"],
             "source_refs": [{ "file": "SEO_TOOLS.md", "section": "Lead Magnet & Conversão Ética" }],
-            "acceptance_criteria": ["Consentimento é granular e revogável", "Preferências não habilitam envio sem confirmação", "Usuário vê histórico/estado de inscrição", "Jobs de envio têm retry e idempotência"],
-            "deliverables": ["notification preference model", "subscription API", "delivery abstraction"],
+            "acceptance_criteria": [
+              "Consentimento é granular e revogável",
+              "Preferências não habilitam envio sem confirmação",
+              "Usuário vê histórico/estado de inscrição",
+              "Jobs de envio têm retry e idempotência"
+            ],
+            "deliverables": [
+              "notification preference model",
+              "subscription API",
+              "delivery abstraction"
+            ],
             "risks": ["Conformidade LGPD e provider de WhatsApp/email"],
             "notes": "Fica fora do MVP público.",
             "estimated_hours": 20,

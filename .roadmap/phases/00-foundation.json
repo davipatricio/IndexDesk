@@ -7,30 +7,48 @@
     "order": 0,
     "name": "Foundation & Platform Scaffold",
     "objective": "Transformar o repositório de documentação em um monorepo executável, observável e reproduzível.",
-    "status": "not_started",
+    "status": "in_progress",
     "priority": "P0",
     "depends_on": [],
     "source_refs": [
-      { "file": "STACK_SETUP.md", "section": "Visão Geral da Stack Tecnológica" },
-      { "file": "STACK_SETUP.md", "section": "Turborepo + .NET Build System" },
-      { "file": "CLAUDE.md", "section": "Intended Stack" }
+      {
+        "file": "STACK_SETUP.md",
+        "section": "Visão Geral da Stack Tecnológica"
+      },
+      {
+        "file": "STACK_SETUP.md",
+        "section": "Turborepo + .NET Build System"
+      },
+      {
+        "file": "CLAUDE.md",
+        "section": "Intended Stack"
+      }
     ],
     "epics": [
       {
         "id": "BOOTSTRAP",
         "name": "Monorepo Bun + Turborepo",
         "description": "Criar os workspaces e o pipeline único de desenvolvimento do frontend e backend.",
-        "status": "not_started",
+        "status": "complete",
         "priority": "P0",
         "depends_on": [],
-        "source_refs": [{ "file": "STACK_SETUP.md", "section": "Estrutura do Monorepo e Projetos" }],
-        "acceptance_criteria": ["Bun instala e executa o workspace a partir da raiz", "Turbo consegue filtrar e executar tarefas de apps/web e apps/backend", "Nenhum pacote removido (packages/ui, packages/tsconfig e packages/orpc-contract) é recriado"],
+        "source_refs": [
+          {
+            "file": "STACK_SETUP.md",
+            "section": "Estrutura do Monorepo e Projetos"
+          }
+        ],
+        "acceptance_criteria": [
+          "Bun instala e executa o workspace a partir da raiz",
+          "Turbo consegue filtrar e executar tarefas de apps/web e apps/backend",
+          "Nenhum pacote removido (packages/ui, packages/tsconfig e packages/orpc-contract) é recriado"
+        ],
         "tasks": [
           {
             "id": "FND-001",
             "title": "Criar workspace raiz Bun",
             "description": "Adicionar package.json, bunfig e configuração de workspaces apontando para apps/web e ferramentas do monorepo.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "easy",
             "kind": "infrastructure",
@@ -38,20 +56,29 @@
             "epic_id": "BOOTSTRAP",
             "depends_on": [],
             "blocks": ["FND-002", "FND-003"],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "Package Manager / Runtime" }],
-            "acceptance_criteria": ["bun install funciona na raiz", "O workspace declara somente apps previstos", "Scripts raiz apontam para Turbo"],
+            "source_refs": [
+              {
+                "file": "STACK_SETUP.md",
+                "section": "Package Manager / Runtime"
+              }
+            ],
+            "acceptance_criteria": [
+              "bun install funciona na raiz",
+              "O workspace declara somente apps previstos",
+              "Scripts raiz apontam para Turbo"
+            ],
             "deliverables": ["package.json", "bun.lock", "configuração de workspace"],
             "risks": ["Versões atuais de Bun e Next.js podem exigir ajustes de compatibilidade"],
-            "notes": "Registrar versões exatas após o scaffold.",
+            "notes": "Registrar versões exatas após o scaffold. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 3,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           },
           {
             "id": "FND-002",
             "title": "Configurar turbo.json para JS e .NET",
             "description": "Definir tasks dev, build, lint, test, typecheck e generate com cache e dependências para apps/web e apps/backend.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "medium",
             "kind": "infrastructure",
@@ -59,20 +86,29 @@
             "epic_id": "BOOTSTRAP",
             "depends_on": ["FND-001"],
             "blocks": ["FND-004", "FND-005", "FND-006"],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "Turborepo + .NET Build System" }],
-            "acceptance_criteria": ["Turbo executa build/test/dev por filtro", "Saídas bin/obj do .NET são cacheáveis", "Variáveis de ambiente usadas por cada task são declaradas"],
+            "source_refs": [
+              {
+                "file": "STACK_SETUP.md",
+                "section": "Turborepo + .NET Build System"
+              }
+            ],
+            "acceptance_criteria": [
+              "Turbo executa build/test/dev por filtro",
+              "Saídas bin/obj do .NET são cacheáveis",
+              "Variáveis de ambiente usadas por cada task são declaradas"
+            ],
             "deliverables": ["turbo.json", "scripts raiz documentados"],
             "risks": ["Cache de bin/obj pode capturar artefatos dependentes do ambiente"],
-            "notes": "Validar cache local antes de configurar cache remoto.",
+            "notes": "Validar cache local antes de configurar cache remoto. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 6,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           },
           {
             "id": "FND-003",
             "title": "Configurar Oxlint, Oxfmt, TypeScript 7 e quality gates",
             "description": "Definir Oxlint/Oxfmt latest para TypeScript/React/Next.js, TypeScript 7 com tsconfig moderno de bundler e linter/formatter C# com CSharpier e dotnet format.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P1",
             "difficulty": "medium",
             "kind": "operations",
@@ -81,16 +117,39 @@
             "depends_on": ["FND-001"],
             "blocks": ["FND-006"],
             "source_refs": [
-              { "file": "CLAUDE.md", "section": "Intended Stack — JS/TS quality e C# quality" },
-              { "file": "STACK_SETUP.md", "section": "Toolchain de Qualidade: Oxlint, Oxfmt, TypeScript 7 e C#" }
+              {
+                "file": "CLAUDE.md",
+                "section": "Intended Stack — JS/TS quality e C# quality"
+              },
+              {
+                "file": "STACK_SETUP.md",
+                "section": "Toolchain de Qualidade: Oxlint, Oxfmt, TypeScript 7 e C#"
+              }
             ],
-            "acceptance_criteria": ["turbo run lint, format e typecheck têm comandos reais", "Oxlint usa presets TypeScript/React/Next.js e Oxfmt ignora artefatos", "tsconfig usa target/lib modernos, module preserve, moduleResolution bundler, strict, noEmit e verbatimModuleSyntax", "CSharpier check e dotnet format analyzers/style passam sem disputar whitespace", "Falhas de quality gate retornam código não zero"],
-            "deliverables": ["oxlint.config.ts", "oxfmt.config.ts", "tsconfig.json moderno", ".config/dotnet-tools.json com CSharpier", "configuração dotnet format/analyzers", "scripts Turbo lint/format/typecheck"],
-            "risks": ["TypeScript 7 pode ainda não estar publicado no momento do scaffold", "Ferramentas divergentes entre Bun e SDK .NET", "Oxlint type-aware pode aumentar tempo de CI"],
-            "notes": "Fixar TypeScript 7 somente se a versão estiver publicada; caso contrário registrar bloqueio e usar a versão estável mais próxima até a disponibilidade. Não usar dotnet format whitespace junto com CSharpier.",
+            "acceptance_criteria": [
+              "turbo run lint, format e typecheck têm comandos reais",
+              "Oxlint usa presets TypeScript/React/Next.js e Oxfmt ignora artefatos",
+              "tsconfig usa target/lib modernos, module preserve, moduleResolution bundler, strict, noEmit e verbatimModuleSyntax",
+              "CSharpier check e dotnet format analyzers/style passam sem disputar whitespace",
+              "Falhas de quality gate retornam código não zero"
+            ],
+            "deliverables": [
+              "oxlint.config.ts",
+              "oxfmt.config.ts",
+              "tsconfig.json moderno",
+              ".config/dotnet-tools.json com CSharpier",
+              "configuração dotnet format/analyzers",
+              "scripts Turbo lint/format/typecheck"
+            ],
+            "risks": [
+              "TypeScript 7 pode ainda não estar publicado no momento do scaffold",
+              "Ferramentas divergentes entre Bun e SDK .NET",
+              "Oxlint type-aware pode aumentar tempo de CI"
+            ],
+            "notes": "Fixar TypeScript 7 somente se a versão estiver publicada; caso contrário registrar bloqueio e usar a versão estável mais próxima até a disponibilidade. Não usar dotnet format whitespace junto com CSharpier. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 6,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           }
         ]
       },
@@ -98,17 +157,26 @@
         "id": "WEBFOUND",
         "name": "Next.js SSR-First Web Foundation",
         "description": "Scaffoldar o frontend em apps/web com App Router, src e componentes locais.",
-        "status": "not_started",
+        "status": "complete",
         "priority": "P0",
         "depends_on": ["FND-001"],
-        "source_refs": [{ "file": "STACK_SETUP.md", "section": "Arquitetura do Frontend: SSR-First, TanStack Ecosystem & PWA" }],
-        "acceptance_criteria": ["Next.js roda com src/app", "Componentes ficam somente em apps/web", "Uma rota Server Component renderiza HTML no servidor"],
+        "source_refs": [
+          {
+            "file": "STACK_SETUP.md",
+            "section": "Arquitetura do Frontend: SSR-First, TanStack Ecosystem & PWA"
+          }
+        ],
+        "acceptance_criteria": [
+          "Next.js roda com src/app",
+          "Componentes ficam somente em apps/web",
+          "Uma rota Server Component renderiza HTML no servidor"
+        ],
         "tasks": [
           {
             "id": "FND-004",
             "title": "Scaffoldar apps/web com Next.js 16.3",
             "description": "Criar aplicação Next.js com App Router, src directory, TypeScript, Tailwind v4 e estrutura pública/admin reservada.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "medium",
             "kind": "frontend",
@@ -116,20 +184,35 @@
             "epic_id": "WEBFOUND",
             "depends_on": ["FND-001", "FND-002"],
             "blocks": ["FND-007", "MVP-011"],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "Estrutura do Monorepo e Projetos" }],
-            "acceptance_criteria": ["next dev inicia pela raiz via turbo", "src/app e src/components existem", "Não há packages/ui ou apps/docs"],
-            "deliverables": ["apps/web/package.json", "apps/web/src/app", "apps/web/src/components"],
-            "risks": ["Next.js cache components e Turbopack podem exigir flags específicas da versão"],
-            "notes": "Confirmar a documentação da versão antes de configurar cache components.",
+            "source_refs": [
+              {
+                "file": "STACK_SETUP.md",
+                "section": "Estrutura do Monorepo e Projetos"
+              }
+            ],
+            "acceptance_criteria": [
+              "next dev inicia pela raiz via turbo",
+              "src/app e src/components existem",
+              "Não há packages/ui ou apps/docs"
+            ],
+            "deliverables": [
+              "apps/web/package.json",
+              "apps/web/src/app",
+              "apps/web/src/components"
+            ],
+            "risks": [
+              "Next.js cache components e Turbopack podem exigir flags específicas da versão"
+            ],
+            "notes": "Confirmar a documentação da versão antes de configurar cache components. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 8,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           },
           {
             "id": "FND-005",
             "title": "Adicionar Tailwind e Shadcn locais",
             "description": "Configurar design system e componentes gerados dentro de apps/web, sem pacote UI compartilhado.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P1",
             "difficulty": "medium",
             "kind": "frontend",
@@ -137,20 +220,29 @@
             "epic_id": "WEBFOUND",
             "depends_on": ["FND-004"],
             "blocks": ["MVP-011"],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "Estilização & UI" }],
-            "acceptance_criteria": ["Componentes Shadcn são importáveis dentro de apps/web", "Tema claro/escuro base funciona", "Tailwind v4 compila no build"],
+            "source_refs": [
+              {
+                "file": "STACK_SETUP.md",
+                "section": "Estilização & UI"
+              }
+            ],
+            "acceptance_criteria": [
+              "Componentes Shadcn são importáveis dentro de apps/web",
+              "Tema claro/escuro base funciona",
+              "Tailwind v4 compila no build"
+            ],
             "deliverables": ["apps/web/src/components/ui", "tokens e estilos globais"],
             "risks": ["Shadcn depende de decisões de acessibilidade e tema ainda não definidas"],
-            "notes": "Manter componentes simples até o design system ser fechado.",
+            "notes": "Manter componentes simples até o design system ser fechado. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 6,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           },
           {
             "id": "FND-006",
             "title": "Criar configuração de qualidade e testes do web",
             "description": "Adicionar testes unitários/componentes e typecheck para o frontend, integrados ao pipeline Turbo.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P1",
             "difficulty": "medium",
             "kind": "frontend",
@@ -158,20 +250,29 @@
             "epic_id": "WEBFOUND",
             "depends_on": ["FND-003", "FND-004"],
             "blocks": ["MVP-011"],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "Turborepo + .NET Build System" }],
-            "acceptance_criteria": ["Há pelo menos um teste executável", "turbo run test --filter=web funciona", "Falha de typecheck impede o build"],
+            "source_refs": [
+              {
+                "file": "STACK_SETUP.md",
+                "section": "Turborepo + .NET Build System"
+              }
+            ],
+            "acceptance_criteria": [
+              "Há pelo menos um teste executável",
+              "turbo run test --filter=web funciona",
+              "Falha de typecheck impede o build"
+            ],
             "deliverables": ["configuração de testes", "primeiro teste de renderização"],
             "risks": ["Escolha entre Bun test, Vitest e Playwright ainda é uma decisão aberta"],
-            "notes": "Registrar decisão quando houver spike.",
+            "notes": "Registrar decisão quando houver spike. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 6,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           },
           {
             "id": "FND-007",
             "title": "Configurar SSR-first e cache components",
             "description": "Estabelecer convenções de Server Components, prefetch no servidor, cache components e limites explícitos de Client Components.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "architecture",
@@ -179,14 +280,23 @@
             "epic_id": "WEBFOUND",
             "depends_on": ["FND-004"],
             "blocks": ["MVP-011", "MVP-012"],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "Padrão SSR-First + TanStack Query Hydration" }],
-            "acceptance_criteria": ["Página de exemplo entrega HTML com dados pré-renderizados", "Client Components são usados apenas onde há interatividade", "Política de cache é documentada"],
+            "source_refs": [
+              {
+                "file": "STACK_SETUP.md",
+                "section": "Padrão SSR-First + TanStack Query Hydration"
+              }
+            ],
+            "acceptance_criteria": [
+              "Página de exemplo entrega HTML com dados pré-renderizados",
+              "Client Components são usados apenas onde há interatividade",
+              "Política de cache é documentada"
+            ],
             "deliverables": ["convenção de data fetching", "página SSR de exemplo"],
             "risks": ["Cache incorreto pode servir dados financeiros antigos"],
-            "notes": "Validar headers e invalidação com dados fictícios antes de dados reais.",
+            "notes": "Validar headers e invalidação com dados fictícios antes de dados reais. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 8,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           }
         ]
       },
@@ -194,17 +304,26 @@
         "id": "BACKFOUND",
         "name": "Modular Monolith Backend Foundation",
         "description": "Criar a solução .NET única com API, Worker, módulos delimitados e REST/OpenAPI.",
-        "status": "not_started",
+        "status": "complete",
         "priority": "P0",
         "depends_on": ["FND-001", "FND-002"],
-        "source_refs": [{ "file": "STACK_SETUP.md", "section": "Arquitetura do Monólito Modular .NET" }],
-        "acceptance_criteria": ["IndexDesk.Api e IndexDesk.Worker compilam", "Módulos não dependem diretamente entre si sem contrato", "API expõe OpenAPI"],
+        "source_refs": [
+          {
+            "file": "STACK_SETUP.md",
+            "section": "Arquitetura do Monólito Modular .NET"
+          }
+        ],
+        "acceptance_criteria": [
+          "IndexDesk.Api e IndexDesk.Worker compilam",
+          "Módulos não dependem diretamente entre si sem contrato",
+          "API expõe OpenAPI"
+        ],
         "tasks": [
           {
             "id": "FND-008",
             "title": "Criar IndexDesk.sln e hosts .NET",
             "description": "Scaffoldar apps/backend com IndexDesk.Api, IndexDesk.Worker, módulos Auth/MarketData/Analytics e BuildingBlocks.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "backend",
@@ -212,20 +331,34 @@
             "epic_id": "BACKFOUND",
             "depends_on": ["FND-002"],
             "blocks": ["FND-009", "FND-010", "MVP-001"],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "Estrutura do Monorepo e Projetos" }],
-            "acceptance_criteria": ["dotnet build da solução funciona", "API e Worker têm entrypoints independentes", "Portfolio fica reservado para Phase 03"],
-            "deliverables": ["apps/backend/IndexDesk.sln", "IndexDesk.Api", "IndexDesk.Worker", "projetos de módulos"],
+            "source_refs": [
+              {
+                "file": "STACK_SETUP.md",
+                "section": "Estrutura do Monorepo e Projetos"
+              }
+            ],
+            "acceptance_criteria": [
+              "dotnet build da solução funciona",
+              "API e Worker têm entrypoints independentes",
+              "Portfolio fica reservado para Phase 03"
+            ],
+            "deliverables": [
+              "apps/backend/IndexDesk.sln",
+              "IndexDesk.Api",
+              "IndexDesk.Worker",
+              "projetos de módulos"
+            ],
             "risks": ["Compatibilidade entre SDK .NET escolhido e Turborepo"],
-            "notes": "Não recriar microserviços separados nem YARP no MVP.",
+            "notes": "Não recriar microserviços separados nem YARP no MVP. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 12,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           },
           {
             "id": "FND-009",
             "title": "Configurar REST/OpenAPI e cliente tipado",
             "description": "Expor endpoints ASP.NET Core com Scalar/Swagger e gerar cliente consumível pelo Next.js.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "medium",
             "kind": "backend",
@@ -233,20 +366,29 @@
             "epic_id": "BACKFOUND",
             "depends_on": ["FND-008"],
             "blocks": ["MVP-006"],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "Comunicação Web-API" }],
-            "acceptance_criteria": ["OpenAPI é gerado de forma determinística", "Cliente tipado pode chamar um endpoint de health/demo", "oRPC e Elysia não entram no MVP"],
+            "source_refs": [
+              {
+                "file": "STACK_SETUP.md",
+                "section": "Comunicação Web-API"
+              }
+            ],
+            "acceptance_criteria": [
+              "OpenAPI é gerado de forma determinística",
+              "Cliente tipado pode chamar um endpoint de health/demo",
+              "oRPC e Elysia não entram no MVP"
+            ],
             "deliverables": ["configuração OpenAPI", "cliente gerado ou typed fetch"],
             "risks": ["Geração de cliente pode criar arquivos não determinísticos"],
-            "notes": "Escolher @hey-api/openapi-ts ou typed fetch em decisão técnica.",
+            "notes": "Escolher @hey-api/openapi-ts ou typed fetch em decisão técnica. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 8,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           },
           {
             "id": "FND-010",
             "title": "Criar BuildingBlocks de infraestrutura",
             "description": "Separar contratos e integrações comuns de persistência, cache, resiliência, messaging e observabilidade.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "architecture",
@@ -254,14 +396,30 @@
             "epic_id": "BACKFOUND",
             "depends_on": ["FND-008"],
             "blocks": ["FND-013", "MVP-001"],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "BuildingBlocks Shared" }],
-            "acceptance_criteria": ["Cada integração tem uma abstração testável", "Módulos dependem de interfaces e não de clients concretos", "OpenTelemetry pode ser habilitado sem alterar módulos"],
-            "deliverables": ["BuildingBlocks.Common", "Persistence", "Cache", "Resilience", "Messaging", "Observability"],
+            "source_refs": [
+              {
+                "file": "STACK_SETUP.md",
+                "section": "BuildingBlocks Shared"
+              }
+            ],
+            "acceptance_criteria": [
+              "Cada integração tem uma abstração testável",
+              "Módulos dependem de interfaces e não de clients concretos",
+              "OpenTelemetry pode ser habilitado sem alterar módulos"
+            ],
+            "deliverables": [
+              "BuildingBlocks.Common",
+              "Persistence",
+              "Cache",
+              "Resilience",
+              "Messaging",
+              "Observability"
+            ],
             "risks": ["BuildingBlocks podem virar um pacote acoplado demais"],
-            "notes": "Manter apenas abstrações realmente compartilhadas.",
+            "notes": "Manter apenas abstrações realmente compartilhadas. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 16,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           }
         ]
       },
@@ -269,17 +427,26 @@
         "id": "LOCALINFRA",
         "name": "Local Infrastructure & Configuration",
         "description": "Reproduzir a infraestrutura de desenvolvimento com Docker, dados persistentes e segredos fora do Git.",
-        "status": "not_started",
+        "status": "in_progress",
         "priority": "P0",
         "depends_on": [],
-        "source_refs": [{ "file": "STACK_SETUP.md", "section": "Containers" }],
-        "acceptance_criteria": ["docker compose sobe os serviços essenciais", "Volumes e healthchecks estão definidos", "Fallback PostgreSQL puro é documentado"],
+        "source_refs": [
+          {
+            "file": "STACK_SETUP.md",
+            "section": "Containers"
+          }
+        ],
+        "acceptance_criteria": [
+          "docker compose sobe os serviços essenciais",
+          "Volumes e healthchecks estão definidos",
+          "Fallback PostgreSQL puro é documentado"
+        ],
         "tasks": [
           {
             "id": "FND-011",
             "title": "Criar Docker Compose local",
             "description": "Orquestrar TimescaleDB/PostgreSQL 18, Redis, RabbitMQ e Jaeger com volumes, healthchecks e rede local.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "medium",
             "kind": "infrastructure",
@@ -287,20 +454,29 @@
             "epic_id": "LOCALINFRA",
             "depends_on": [],
             "blocks": ["FND-013"],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "Banco de Dados e Observabilidade" }],
-            "acceptance_criteria": ["Serviços iniciam com volumes persistentes", "Healthchecks detectam indisponibilidade", "Jaeger recebe OTLP"],
+            "source_refs": [
+              {
+                "file": "STACK_SETUP.md",
+                "section": "Banco de Dados e Observabilidade"
+              }
+            ],
+            "acceptance_criteria": [
+              "Serviços iniciam com volumes persistentes",
+              "Healthchecks detectam indisponibilidade",
+              "Jaeger recebe OTLP"
+            ],
             "deliverables": ["docker-compose.yml", "volumes e healthchecks"],
             "risks": ["Imagem TimescaleDB PostgreSQL 18 pode não estar disponível/estável"],
-            "notes": "Validar versão da imagem antes de fixar o tag.",
+            "notes": "Validar versão da imagem antes de fixar o tag. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 8,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           },
           {
             "id": "FND-012",
             "title": "Criar .env.example e configuração local",
             "description": "Documentar connection strings, providers, URLs e chaves opcionais sem incluir segredos reais.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "easy",
             "kind": "operations",
@@ -308,14 +484,23 @@
             "epic_id": "LOCALINFRA",
             "depends_on": [],
             "blocks": ["FND-013", "MVP-001"],
-            "source_refs": [{ "file": "PROVIDERS.md", "section": "Variáveis de Ambiente" }],
-            "acceptance_criteria": ["Todos os serviços locais têm defaults documentados", "Segredos ficam fora do repositório", "API e Worker usam a mesma convenção de configuração"],
+            "source_refs": [
+              {
+                "file": "PROVIDERS.md",
+                "section": "Variáveis de Ambiente"
+              }
+            ],
+            "acceptance_criteria": [
+              "Todos os serviços locais têm defaults documentados",
+              "Segredos ficam fora do repositório",
+              "API e Worker usam a mesma convenção de configuração"
+            ],
             "deliverables": [".env.example", "documentação de configuração"],
             "risks": ["Chaves opcionais podem ser confundidas com obrigatórias"],
-            "notes": "Separar providers essenciais do MVP de contingências futuras.",
+            "notes": "Separar providers essenciais do MVP de contingências futuras. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 3,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           },
           {
             "id": "FND-013",
@@ -329,9 +514,22 @@
             "epic_id": "LOCALINFRA",
             "depends_on": ["FND-010", "FND-011"],
             "blocks": ["MVP-001", "MVP-002", "MVP-003"],
-            "source_refs": [{ "file": "MODELS.md", "section": "Esquemas e Tabelas Detalhadas" }],
-            "acceptance_criteria": ["Migrations são repetíveis em banco vazio", "Hypertables e índices são criados quando Timescale está disponível", "Fallback por particionamento é documentado/testável"],
-            "deliverables": ["migrations", "scripts de bootstrap Timescale/Postgres", "seed mínimo de enums"],
+            "source_refs": [
+              {
+                "file": "MODELS.md",
+                "section": "Esquemas e Tabelas Detalhadas"
+              }
+            ],
+            "acceptance_criteria": [
+              "Migrations são repetíveis em banco vazio",
+              "Hypertables e índices são criados quando Timescale está disponível",
+              "Fallback por particionamento é documentado/testável"
+            ],
+            "deliverables": [
+              "migrations",
+              "scripts de bootstrap Timescale/Postgres",
+              "seed mínimo de enums"
+            ],
             "risks": ["Timescale e EF Core podem exigir SQL específico fora do provider padrão"],
             "notes": "Não marcar complete sem restaurar banco vazio e aplicar migrations.",
             "estimated_hours": 16,
@@ -344,17 +542,26 @@
         "id": "PLATFORM",
         "name": "Security, Observability & Engineering Baseline",
         "description": "Estabelecer autenticação, RBAC, tracing, health checks e qualidade mínima antes do MVP.",
-        "status": "not_started",
+        "status": "complete",
         "priority": "P0",
         "depends_on": ["FND-008", "FND-010", "FND-011"],
-        "source_refs": [{ "file": "STACK_SETUP.md", "section": "Observabilidade com OpenTelemetry & Jaeger" }],
-        "acceptance_criteria": ["Admin é separado de usuário comum", "Traces API/Worker aparecem no Jaeger", "Testes e healthchecks falham de forma observável"],
+        "source_refs": [
+          {
+            "file": "STACK_SETUP.md",
+            "section": "Observabilidade com OpenTelemetry & Jaeger"
+          }
+        ],
+        "acceptance_criteria": [
+          "Admin é separado de usuário comum",
+          "Traces API/Worker aparecem no Jaeger",
+          "Testes e healthchecks falham de forma observável"
+        ],
         "tasks": [
           {
             "id": "FND-014",
             "title": "Implementar Auth e RBAC base",
             "description": "Criar users, roles USER/ADMIN/SUPERADMIN, JWT e refresh tokens HttpOnly com endpoints mínimos.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "security",
@@ -362,20 +569,29 @@
             "epic_id": "PLATFORM",
             "depends_on": ["FND-013"],
             "blocks": ["MVP-009", "GROW-001", "PORT-001"],
-            "source_refs": [{ "file": "MODELS.md", "section": "Módulo de Autenticação e Usuários" }],
-            "acceptance_criteria": ["Refresh token não é armazenado em texto puro", "Rotas admin exigem role adequada", "Revogação e expiração são testadas"],
+            "source_refs": [
+              {
+                "file": "MODELS.md",
+                "section": "Módulo de Autenticação e Usuários"
+              }
+            ],
+            "acceptance_criteria": [
+              "Refresh token não é armazenado em texto puro",
+              "Rotas admin exigem role adequada",
+              "Revogação e expiração são testadas"
+            ],
             "deliverables": ["Auth module", "policies RBAC", "testes de autenticação"],
             "risks": ["Erro de cookie/CORS pode quebrar SSR e segurança"],
-            "notes": "Usar Argon2id ou BCrypt conforme decisão de segurança.",
+            "notes": "Usar Argon2id ou BCrypt conforme decisão de segurança. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 20,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           },
           {
             "id": "FND-015",
             "title": "Instrumentar OpenTelemetry e health checks",
             "description": "Adicionar traces, métricas e health checks para API, Worker, Redis, Postgres, RabbitMQ e chamadas de provider.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "operations",
@@ -383,20 +599,33 @@
             "epic_id": "PLATFORM",
             "depends_on": ["FND-010", "FND-011"],
             "blocks": ["MVP-001", "MVP-009"],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "Observabilidade com OpenTelemetry & Jaeger" }],
-            "acceptance_criteria": ["Trace correlaciona Next/API/módulo/Redis/Postgres quando aplicável", "Health endpoint informa dependências", "Falhas de provider têm métricas e correlation id"],
-            "deliverables": ["instrumentação OTel", "health endpoints", "dashboards/logging mínimo"],
+            "source_refs": [
+              {
+                "file": "STACK_SETUP.md",
+                "section": "Observabilidade com OpenTelemetry & Jaeger"
+              }
+            ],
+            "acceptance_criteria": [
+              "Trace correlaciona Next/API/módulo/Redis/Postgres quando aplicável",
+              "Health endpoint informa dependências",
+              "Falhas de provider têm métricas e correlation id"
+            ],
+            "deliverables": [
+              "instrumentação OTel",
+              "health endpoints",
+              "dashboards/logging mínimo"
+            ],
             "risks": ["Cardinalidade alta em métricas financeiras"],
-            "notes": "Nunca registrar tokens ou dados financeiros pessoais nos spans.",
+            "notes": "Nunca registrar tokens ou dados financeiros pessoais nos spans. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 16,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           },
           {
             "id": "FND-016",
             "title": "Configurar testes de integração e CI",
             "description": "Criar pipeline que valida JSON/roadmap, build Turbo, testes web/backend e migrations quando os apps existirem.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P1",
             "difficulty": "hard",
             "kind": "operations",
@@ -404,14 +633,23 @@
             "epic_id": "PLATFORM",
             "depends_on": ["FND-002", "FND-006", "FND-008", "FND-013"],
             "blocks": ["MVP-001"],
-            "source_refs": [{ "file": "CLAUDE.md", "section": "No runnable build/lint/test commands exist yet" }],
-            "acceptance_criteria": ["CI executa validação do roadmap", "CI testa build/lint/test sem segredos", "Teste de integração sobe dependências isoladas ou usa containers efêmeros"],
+            "source_refs": [
+              {
+                "file": "CLAUDE.md",
+                "section": "No runnable build/lint/test commands exist yet"
+              }
+            ],
+            "acceptance_criteria": [
+              "CI executa validação do roadmap",
+              "CI testa build/lint/test sem segredos",
+              "Teste de integração sobe dependências isoladas ou usa containers efêmeros"
+            ],
             "deliverables": ["workflow CI", "fixtures de integração", "documentação de comandos"],
             "risks": ["CI pode ficar pesado com Timescale/RabbitMQ/Jaeger"],
-            "notes": "Adicionar somente depois que os comandos reais estiverem scaffoldados.",
+            "notes": "Adicionar somente depois que os comandos reais estiverem scaffoldados. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 16,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-18"
           }
         ]
       }

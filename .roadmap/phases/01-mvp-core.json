@@ -23,8 +23,14 @@
         "status": "not_started",
         "priority": "P0",
         "depends_on": ["FND-013", "FND-015"],
-        "source_refs": [{ "file": "PROVIDERS_SYNC.md", "section": "O Ciclo de Vida da Sincronização" }],
-        "acceptance_criteria": ["Nenhum request público chama provider externo", "Jobs são idempotentes e observáveis", "Dados ingeridos podem alimentar páginas públicas"],
+        "source_refs": [
+          { "file": "PROVIDERS_SYNC.md", "section": "O Ciclo de Vida da Sincronização" }
+        ],
+        "acceptance_criteria": [
+          "Nenhum request público chama provider externo",
+          "Jobs são idempotentes e observáveis",
+          "Dados ingeridos podem alimentar páginas públicas"
+        ],
         "tasks": [
           {
             "id": "MVP-001",
@@ -39,7 +45,11 @@
             "depends_on": ["FND-008", "FND-010", "FND-012", "FND-015"],
             "blocks": ["MVP-002", "MVP-003", "MVP-004", "MVP-005"],
             "source_refs": [{ "file": "PROVIDERS.md", "section": "Estratégias de Ingestão" }],
-            "acceptance_criteria": ["Cada job tem schedule configurável", "Execuções têm correlation id e sync_job_logs", "Falha de um provider não interrompe os demais"],
+            "acceptance_criteria": [
+              "Cada job tem schedule configurável",
+              "Execuções têm correlation id e sync_job_logs",
+              "Falha de um provider não interrompe os demais"
+            ],
             "deliverables": ["Quartz jobs", "job configuration", "job execution logging"],
             "risks": ["Schedules em UTC podem divergir do pregão local"],
             "notes": "Começar com execução manual habilitada para testes.",
@@ -60,7 +70,11 @@
             "depends_on": ["MVP-001", "FND-013"],
             "blocks": ["MVP-008", "MVP-012", "PORT-003"],
             "source_refs": [{ "file": "PROVIDERS.md", "section": "BCB SGS" }],
-            "acceptance_criteria": ["Séries 12, 11, 433 e 189 persistem com data/valor", "Reprocessamento do período não duplica linhas", "Calculadoras leem somente dados locais"],
+            "acceptance_criteria": [
+              "Séries 12, 11, 433 e 189 persistem com data/valor",
+              "Reprocessamento do período não duplica linhas",
+              "Calculadoras leem somente dados locais"
+            ],
             "deliverables": ["BCB adapter", "macro sync job", "fixtures históricas"],
             "risks": ["Séries BCB podem mudar formato ou semântica"],
             "notes": "Registrar data de coleta e origem no modelo quando necessário.",
@@ -85,9 +99,22 @@
               { "file": "PROVIDERS_SYNC.md", "section": "Ingestão e Validação em Streaming" },
               { "file": "MODELS.md", "section": "fund_daily_reports e etf_holdings" }
             ],
-            "acceptance_criteria": ["Processa arquivo grande sem carregar todo ZIP em RAM", "Filtra CNPJs antes do COPY", "Reexecução é idempotente", "Métricas registram linhas processadas/inseridas/ignoradas"],
-            "deliverables": ["CVM informe adapter", "CDA holdings adapter", "streaming COPY pipeline", "performance test"],
-            "risks": ["Formato/encoding CSV da CVM pode variar", "Upsert após COPY pode exigir staging table"],
+            "acceptance_criteria": [
+              "Processa arquivo grande sem carregar todo ZIP em RAM",
+              "Filtra CNPJs antes do COPY",
+              "Reexecução é idempotente",
+              "Métricas registram linhas processadas/inseridas/ignoradas"
+            ],
+            "deliverables": [
+              "CVM informe adapter",
+              "CDA holdings adapter",
+              "streaming COPY pipeline",
+              "performance test"
+            ],
+            "risks": [
+              "Formato/encoding CSV da CVM pode variar",
+              "Upsert após COPY pode exigir staging table"
+            ],
             "notes": "Usar staging quando constraints impedirem COPY direto em hypertable.",
             "estimated_hours": 32,
             "assignee": null,
@@ -106,8 +133,18 @@
             "depends_on": ["MVP-001", "FND-013"],
             "blocks": ["MVP-006", "MVP-007", "MVP-008"],
             "source_refs": [{ "file": "PROVIDERS.md", "section": "Brapi.dev e Yahoo Finance API" }],
-            "acceptance_criteria": ["Batch quotes são usados quando provider suporta", "Rate limits são aplicados por provider", "Benchmarks e FX são identificados como séries distintas", "Proventos entram no modelo correto"],
-            "deliverables": ["Brapi adapter", "Yahoo adapter", "quote normalization", "dividend sync"],
+            "acceptance_criteria": [
+              "Batch quotes são usados quando provider suporta",
+              "Rate limits são aplicados por provider",
+              "Benchmarks e FX são identificados como séries distintas",
+              "Proventos entram no modelo correto"
+            ],
+            "deliverables": [
+              "Brapi adapter",
+              "Yahoo adapter",
+              "quote normalization",
+              "dividend sync"
+            ],
             "risks": ["Yahoo é não oficial e Brapi possui limites por plano"],
             "notes": "Persistir snapshot local antes de expor ao frontend.",
             "estimated_hours": 24,
@@ -126,8 +163,15 @@
             "epic_id": "INGEST",
             "depends_on": ["MVP-001", "MVP-003"],
             "blocks": ["MVP-008", "MVP-009"],
-            "source_refs": [{ "file": "PROVIDERS.md", "section": "Feeds Oficiais de Gestoras e ANBIMA & B3" }],
-            "acceptance_criteria": ["Holdings recebem origem e data de referência", "Falha de um feed permite fallback ou alerta", "Feriados alimentam market_holidays", "Índices teóricos têm composição versionada"],
+            "source_refs": [
+              { "file": "PROVIDERS.md", "section": "Feeds Oficiais de Gestoras e ANBIMA & B3" }
+            ],
+            "acceptance_criteria": [
+              "Holdings recebem origem e data de referência",
+              "Falha de um feed permite fallback ou alerta",
+              "Feriados alimentam market_holidays",
+              "Índices teóricos têm composição versionada"
+            ],
             "deliverables": ["manager feed adapters", "B3/ANBIMA sync", "source provenance"],
             "risks": ["URLs/formatos de gestoras podem não ser estáveis ou licenciados"],
             "notes": "Upload manual do admin é fallback obrigatório quando não houver provider.",
@@ -147,9 +191,21 @@
             "epic_id": "INGEST",
             "depends_on": ["MVP-002", "MVP-003", "MVP-004", "MVP-005"],
             "blocks": ["MVP-007", "MVP-008", "MVP-009"],
-            "source_refs": [{ "file": "PROVIDERS_SYNC.md", "section": "Resiliência e Tolerância a Falhas" }],
-            "acceptance_criteria": ["Retry usa backoff e respeita rate limit", "Circuit breaker abre e recupera", "Eventos invalidam somente chaves afetadas", "TTL por classe é testado"],
-            "deliverables": ["Polly policies", "cache key strategy", "MassTransit events", "failure tests"],
+            "source_refs": [
+              { "file": "PROVIDERS_SYNC.md", "section": "Resiliência e Tolerância a Falhas" }
+            ],
+            "acceptance_criteria": [
+              "Retry usa backoff e respeita rate limit",
+              "Circuit breaker abre e recupera",
+              "Eventos invalidam somente chaves afetadas",
+              "TTL por classe é testado"
+            ],
+            "deliverables": [
+              "Polly policies",
+              "cache key strategy",
+              "MassTransit events",
+              "failure tests"
+            ],
             "risks": ["Retry duplicado pode sobrecarregar provider ou gerar dados duplicados"],
             "notes": "Histórico fechado: 30 dias; intraday: 15 min; macro: 24h; holdings: 7 dias, pendente de DEC-002.",
             "estimated_hours": 20,
@@ -166,7 +222,11 @@
         "priority": "P0",
         "depends_on": ["FND-009", "FND-013", "MVP-006"],
         "source_refs": [{ "file": "MODELS.md", "section": "Esquemas e Tabelas Detalhadas" }],
-        "acceptance_criteria": ["Contratos OpenAPI cobrem catálogo e séries", "Requests não acessam providers", "Paginação e filtros não carregam datasets inteiros"],
+        "acceptance_criteria": [
+          "Contratos OpenAPI cobrem catálogo e séries",
+          "Requests não acessam providers",
+          "Paginação e filtros não carregam datasets inteiros"
+        ],
         "tasks": [
           {
             "id": "MVP-007",
@@ -180,8 +240,14 @@
             "epic_id": "COREAPI",
             "depends_on": ["MVP-006"],
             "blocks": ["MVP-011", "MVP-012", "MVP-013"],
-            "source_refs": [{ "file": "MODELS.md", "section": "assets, etf_metadata, quotes e analytics" }],
-            "acceptance_criteria": ["Endpoints suportam ticker, tipo, data e paginação", "Dados fiscais mostram origem/atualização", "Queries de séries usam índices/chunk exclusion"],
+            "source_refs": [
+              { "file": "MODELS.md", "section": "assets, etf_metadata, quotes e analytics" }
+            ],
+            "acceptance_criteria": [
+              "Endpoints suportam ticker, tipo, data e paginação",
+              "Dados fiscais mostram origem/atualização",
+              "Queries de séries usam índices/chunk exclusion"
+            ],
             "deliverables": ["MarketData module endpoints", "DTOs OpenAPI", "query tests"],
             "risks": ["Payloads grandes podem degradar SSR e cache"],
             "notes": "Separar resumo de ativo de séries detalhadas.",
@@ -201,9 +267,20 @@
             "epic_id": "COREAPI",
             "depends_on": ["MVP-002", "MVP-004", "MVP-007"],
             "blocks": ["MVP-012", "MVP-013"],
-            "source_refs": [{ "file": "PRODUCT.md", "section": "Comparador e Simulador de Backtest" }],
-            "acceptance_criteria": ["Comparação aceita até seis ativos/índices", "Backtest valida pesos e datas", "Métricas têm testes de casos extremos", "Resultados repetidos podem usar Redis"],
-            "deliverables": ["Analytics endpoints", "backtest request/response contracts", "benchmark tests"],
+            "source_refs": [
+              { "file": "PRODUCT.md", "section": "Comparador e Simulador de Backtest" }
+            ],
+            "acceptance_criteria": [
+              "Comparação aceita até seis ativos/índices",
+              "Backtest valida pesos e datas",
+              "Métricas têm testes de casos extremos",
+              "Resultados repetidos podem usar Redis"
+            ],
+            "deliverables": [
+              "Analytics endpoints",
+              "backtest request/response contracts",
+              "benchmark tests"
+            ],
             "risks": ["Precisão numérica e séries com datas faltantes"],
             "notes": "Motor de cálculo pode usar Span/Memory após profiling, não por premissa.",
             "estimated_hours": 32,
@@ -219,8 +296,14 @@
         "status": "not_started",
         "priority": "P0",
         "depends_on": ["FND-007", "MVP-007", "MVP-008"],
-        "source_refs": [{ "file": "PRODUCT.md", "section": "Catálogo Rico, Comparador e Backtest" }],
-        "acceptance_criteria": ["Páginas públicas são SSR-first", "Dados fiscais e TradingView aparecem por ativo", "Comparador e backtest funcionam sem login"],
+        "source_refs": [
+          { "file": "PRODUCT.md", "section": "Catálogo Rico, Comparador e Backtest" }
+        ],
+        "acceptance_criteria": [
+          "Páginas públicas são SSR-first",
+          "Dados fiscais e TradingView aparecem por ativo",
+          "Comparador e backtest funcionam sem login"
+        ],
         "tasks": [
           {
             "id": "MVP-009",
@@ -234,9 +317,21 @@
             "epic_id": "PUBLICWEB",
             "depends_on": ["MVP-007", "FND-007"],
             "blocks": ["MVP-014", "MVP-016"],
-            "source_refs": [{ "file": "PRODUCT.md", "section": "3.1 Catálogo Rico de ETFs & BDRs" }],
-            "acceptance_criteria": ["HTML inicial contém dados essenciais", "Painel fiscal informa come-cotas, IR e ausência de isenção quando aplicável", "Link TradingView usa símbolo persistido", "Estados vazio/erro são claros"],
-            "deliverables": ["catalog route", "asset detail routes", "tax panel", "TradingView link"],
+            "source_refs": [
+              { "file": "PRODUCT.md", "section": "3.1 Catálogo Rico de ETFs & BDRs" }
+            ],
+            "acceptance_criteria": [
+              "HTML inicial contém dados essenciais",
+              "Painel fiscal informa come-cotas, IR e ausência de isenção quando aplicável",
+              "Link TradingView usa símbolo persistido",
+              "Estados vazio/erro são claros"
+            ],
+            "deliverables": [
+              "catalog route",
+              "asset detail routes",
+              "tax panel",
+              "TradingView link"
+            ],
             "risks": ["Informação fiscal sem fonte/competência pode induzir erro"],
             "notes": "Exibir disclaimer e data de atualização.",
             "estimated_hours": 28,
@@ -256,7 +351,12 @@
             "depends_on": ["MVP-008", "FND-007"],
             "blocks": ["MVP-016"],
             "source_refs": [{ "file": "PRODUCT.md", "section": "3.2 Motor de Comparação" }],
-            "acceptance_criteria": ["URL representa ativos e período", "Limite de seis é validado", "Tabela compara risco/retorno e custos", "Gráfico é acessível e responsivo"],
+            "acceptance_criteria": [
+              "URL representa ativos e período",
+              "Limite de seis é validado",
+              "Tabela compara risco/retorno e custos",
+              "Gráfico é acessível e responsivo"
+            ],
             "deliverables": ["comparison route", "comparison table", "normalized return chart"],
             "risks": ["Séries desalinhadas e volume de dados no browser"],
             "notes": "Usar agregação server-side para séries longas.",
@@ -277,7 +377,12 @@
             "depends_on": ["MVP-008", "FND-005", "FND-006"],
             "blocks": ["MVP-016", "GROW-001"],
             "source_refs": [{ "file": "PRODUCT.md", "section": "3.3 Simulador de Backtest" }],
-            "acceptance_criteria": ["Pesos somam 100%", "Períodos inválidos são rejeitados", "Resultados incluem CAGR/volatilidade/Sharpe/drawdown e retorno real", "Não exige login"],
+            "acceptance_criteria": [
+              "Pesos somam 100%",
+              "Períodos inválidos são rejeitados",
+              "Resultados incluem CAGR/volatilidade/Sharpe/drawdown e retorno real",
+              "Não exige login"
+            ],
             "deliverables": ["backtest form", "result charts", "metrics table"],
             "risks": ["Cálculo pesado pode bloquear API sem limites de tamanho"],
             "notes": "Adicionar limites e cache por input normalizado.",
@@ -295,7 +400,11 @@
         "priority": "P1",
         "depends_on": ["MVP-002", "MVP-003", "MVP-007", "MVP-008"],
         "source_refs": [{ "file": "SEO_TOOLS.md", "section": "Catálogo de Ferramentas Públicas" }],
-        "acceptance_criteria": ["Ferramentas funcionam sem conta", "Cálculos exibem premissas e data de dados", "Nenhuma ferramenta chama provider durante request"],
+        "acceptance_criteria": [
+          "Ferramentas funcionam sem conta",
+          "Cálculos exibem premissas e data de dados",
+          "Nenhuma ferramenta chama provider durante request"
+        ],
         "tasks": [
           {
             "id": "MVP-012",
@@ -309,8 +418,14 @@
             "epic_id": "TOOLS",
             "depends_on": ["MVP-003", "MVP-008"],
             "blocks": ["MVP-016"],
-            "source_refs": [{ "file": "SEO_TOOLS.md", "section": "Matriz de Sobreposição e Tax Drag" }],
-            "acceptance_criteria": ["Overlap mostra holdings repetidos e pesos agregados", "Tax drag explicita premissas US/Irlanda/B3", "Resultados são reproduzíveis"],
+            "source_refs": [
+              { "file": "SEO_TOOLS.md", "section": "Matriz de Sobreposição e Tax Drag" }
+            ],
+            "acceptance_criteria": [
+              "Overlap mostra holdings repetidos e pesos agregados",
+              "Tax drag explicita premissas US/Irlanda/B3",
+              "Resultados são reproduzíveis"
+            ],
             "deliverables": ["overlap calculator", "tax drag calculator", "calculation tests"],
             "risks": ["Holdings de datas diferentes podem gerar comparação enganosa"],
             "notes": "Mostrar data de referência de cada composição.",
@@ -330,9 +445,19 @@
             "epic_id": "TOOLS",
             "depends_on": ["MVP-002", "MVP-007"],
             "blocks": ["MVP-016"],
-            "source_refs": [{ "file": "SEO_TOOLS.md", "section": "Rendimento Real, Equivalência e Fluxo CVM" }],
-            "acceptance_criteria": ["Fórmula Fisher é documentada", "CDI/Selic/IPCA são identificados por série e data", "Fluxo mostra data D+1 e fonte CVM"],
-            "deliverables": ["real yield tool", "fixed income equivalence tool", "CVM flow dashboard"],
+            "source_refs": [
+              { "file": "SEO_TOOLS.md", "section": "Rendimento Real, Equivalência e Fluxo CVM" }
+            ],
+            "acceptance_criteria": [
+              "Fórmula Fisher é documentada",
+              "CDI/Selic/IPCA são identificados por série e data",
+              "Fluxo mostra data D+1 e fonte CVM"
+            ],
+            "deliverables": [
+              "real yield tool",
+              "fixed income equivalence tool",
+              "CVM flow dashboard"
+            ],
             "risks": ["Dados macro incompletos podem produzir intervalos quebrados"],
             "notes": "Não buscar BCB em runtime.",
             "estimated_hours": 20,
@@ -351,8 +476,15 @@
             "epic_id": "TOOLS",
             "depends_on": ["MVP-007", "MVP-009"],
             "blocks": ["MVP-016"],
-            "source_refs": [{ "file": "SEO_TOOLS.md", "section": "Guia & Calculadora de DARF e Regra dos 4%" }],
-            "acceptance_criteria": ["Calcula 15%/20% conforme input e classe", "Mostra código 6015 e vencimento calculado", "Explicita ausência da isenção de R$20k para ETFs", "Regra dos 4% mostra premissas"],
+            "source_refs": [
+              { "file": "SEO_TOOLS.md", "section": "Guia & Calculadora de DARF e Regra dos 4%" }
+            ],
+            "acceptance_criteria": [
+              "Calcula 15%/20% conforme input e classe",
+              "Mostra código 6015 e vencimento calculado",
+              "Explicita ausência da isenção de R$20k para ETFs",
+              "Regra dos 4% mostra premissas"
+            ],
             "deliverables": ["DARF calculator", "retirement calculator", "legal disclaimer"],
             "risks": ["Cálculo tributário precisa de revisão antes de publicação"],
             "notes": "Não apresentar resultado como orientação fiscal individual.",
@@ -369,8 +501,14 @@
         "status": "not_started",
         "priority": "P1",
         "depends_on": ["FND-014", "MVP-003", "MVP-005"],
-        "source_refs": [{ "file": "PRODUCT.md", "section": "3.5 Painel Administrativo & Backoffice" }],
-        "acceptance_criteria": ["Somente ADMIN/SUPERADMIN acessa backoffice", "Overrides não são sobrescritos por worker", "Toda mutação é auditável"],
+        "source_refs": [
+          { "file": "PRODUCT.md", "section": "3.5 Painel Administrativo & Backoffice" }
+        ],
+        "acceptance_criteria": [
+          "Somente ADMIN/SUPERADMIN acessa backoffice",
+          "Overrides não são sobrescritos por worker",
+          "Toda mutação é auditável"
+        ],
         "tasks": [
           {
             "id": "MVP-015",
@@ -384,8 +522,15 @@
             "epic_id": "ADMIN",
             "depends_on": ["FND-014", "FND-013", "MVP-007"],
             "blocks": ["MVP-016"],
-            "source_refs": [{ "file": "MODELS.md", "section": "assets, etf_metadata e audit_logs" }],
-            "acceptance_criteria": ["Admin edita descrição, símbolo TradingView e dados fiscais", "Campos bloqueados são ignorados pelo sync", "Conflitos exibem provider/origem/data", "Audit log guarda antes/depois"],
+            "source_refs": [
+              { "file": "MODELS.md", "section": "assets, etf_metadata e audit_logs" }
+            ],
+            "acceptance_criteria": [
+              "Admin edita descrição, símbolo TradingView e dados fiscais",
+              "Campos bloqueados são ignorados pelo sync",
+              "Conflitos exibem provider/origem/data",
+              "Audit log guarda antes/depois"
+            ],
             "deliverables": ["admin assets routes", "metadata lock API", "audit UI"],
             "risks": ["Modelo metadata_lock ainda requer decisão DEC-001"],
             "notes": "Implementar contrato canônico após decisão.",
@@ -405,8 +550,18 @@
             "epic_id": "ADMIN",
             "depends_on": ["MVP-001", "MVP-015"],
             "blocks": ["MVP-017"],
-            "source_refs": [{ "file": "PRODUCT.md", "section": "Importação Manual e Monitoramento de Sincronizações" }],
-            "acceptance_criteria": ["Upload valida MIME, tamanho, schema e preview", "Trigger manual exige confirmação e permissão", "Logs exibem duração, linhas e erro", "Arquivos não são servidos publicamente sem sanitização/storage seguro"],
+            "source_refs": [
+              {
+                "file": "PRODUCT.md",
+                "section": "Importação Manual e Monitoramento de Sincronizações"
+              }
+            ],
+            "acceptance_criteria": [
+              "Upload valida MIME, tamanho, schema e preview",
+              "Trigger manual exige confirmação e permissão",
+              "Logs exibem duração, linhas e erro",
+              "Arquivos não são servidos publicamente sem sanitização/storage seguro"
+            ],
             "deliverables": ["admin sync routes", "holdings upload pipeline", "sync dashboard"],
             "risks": ["Uploads podem conter payloads maliciosos ou dados inválidos"],
             "notes": "Definir object storage em DEC-004.",
@@ -423,8 +578,18 @@
         "status": "not_started",
         "priority": "P1",
         "depends_on": ["FND-014", "MVP-007", "MVP-016"],
-        "source_refs": [{ "file": "PRODUCT.md", "section": "3.6 Hub de Notícias, Relatórios de Gestoras & Fatos Relevantes" }],
-        "acceptance_criteria": ["Artigos podem ser associados a vários ativos", "Admin pode publicar sem provider", "PDFs têm storage seguro e metadados", "Páginas públicas têm SEO"],
+        "source_refs": [
+          {
+            "file": "PRODUCT.md",
+            "section": "3.6 Hub de Notícias, Relatórios de Gestoras & Fatos Relevantes"
+          }
+        ],
+        "acceptance_criteria": [
+          "Artigos podem ser associados a vários ativos",
+          "Admin pode publicar sem provider",
+          "PDFs têm storage seguro e metadados",
+          "Páginas públicas têm SEO"
+        ],
         "tasks": [
           {
             "id": "MVP-017",
@@ -438,8 +603,15 @@
             "epic_id": "CONTENT",
             "depends_on": ["FND-013", "MVP-016"],
             "blocks": ["MVP-018"],
-            "source_refs": [{ "file": "MODELS.md", "section": "Hub de Notícias, Fatos Relevantes e Relatórios" }],
-            "acceptance_criteria": ["Slug é único e sanitizado", "Conteúdo é sanitizado antes de renderizar", "Associações N:N funcionam", "Status publicado/rascunho é respeitado"],
+            "source_refs": [
+              { "file": "MODELS.md", "section": "Hub de Notícias, Fatos Relevantes e Relatórios" }
+            ],
+            "acceptance_criteria": [
+              "Slug é único e sanitizado",
+              "Conteúdo é sanitizado antes de renderizar",
+              "Associações N:N funcionam",
+              "Status publicado/rascunho é respeitado"
+            ],
             "deliverables": ["content migrations", "content APIs", "admin editor contracts"],
             "risks": ["Markdown/HTML e uploads exigem sanitização e storage"],
             "notes": "Suportar origem automática e author manual.",
@@ -459,8 +631,15 @@
             "epic_id": "CONTENT",
             "depends_on": ["MVP-017", "FND-007"],
             "blocks": ["MVP-021"],
-            "source_refs": [{ "file": "PRODUCT.md", "section": "Hub Central de Pesquisa e Relatórios" }],
-            "acceptance_criteria": ["Páginas são SSR e paginadas", "Notícia vinculada aparece no ativo relacionado", "PDF pode ser visualizado/baixado conforme permissão", "Origem e data são visíveis"],
+            "source_refs": [
+              { "file": "PRODUCT.md", "section": "Hub Central de Pesquisa e Relatórios" }
+            ],
+            "acceptance_criteria": [
+              "Páginas são SSR e paginadas",
+              "Notícia vinculada aparece no ativo relacionado",
+              "PDF pode ser visualizado/baixado conforme permissão",
+              "Origem e data são visíveis"
+            ],
             "deliverables": ["news hub", "reports hub", "asset news section"],
             "risks": ["Conteúdo duplicado e PDFs grandes impactam SEO/performance"],
             "notes": "Usar canonical e noindex onde necessário.",
@@ -477,8 +656,16 @@
         "status": "not_started",
         "priority": "P0",
         "depends_on": ["MVP-009", "MVP-010", "MVP-011", "MVP-018"],
-        "source_refs": [{ "file": "STACK_SETUP.md", "section": "PWA & Offline-First e Guia de Gráficos" }, { "file": "SEO_TOOLS.md", "section": "Infraestrutura Técnica para Dominar o SEO" }],
-        "acceptance_criteria": ["Páginas essenciais são indexáveis e SSR", "Service worker tem estratégia de atualização segura", "Sitemaps cobrem ativos/comparações/ferramentas/conteúdo", "Gráficos suportam séries longas sem travar UI"],
+        "source_refs": [
+          { "file": "STACK_SETUP.md", "section": "PWA & Offline-First e Guia de Gráficos" },
+          { "file": "SEO_TOOLS.md", "section": "Infraestrutura Técnica para Dominar o SEO" }
+        ],
+        "acceptance_criteria": [
+          "Páginas essenciais são indexáveis e SSR",
+          "Service worker tem estratégia de atualização segura",
+          "Sitemaps cobrem ativos/comparações/ferramentas/conteúdo",
+          "Gráficos suportam séries longas sem travar UI"
+        ],
         "tasks": [
           {
             "id": "MVP-019",
@@ -492,8 +679,15 @@
             "epic_id": "SEO_PWA",
             "depends_on": ["FND-004", "FND-007", "MVP-007"],
             "blocks": ["MVP-020"],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "O Ecossistema TanStack no IndexDesk" }],
-            "acceptance_criteria": ["Prefetch/dehydrate/hydrate funciona em página real", "URL state usa nuqs", "Tabelas/listas grandes usam virtualização quando necessário", "DB/offline é isolado de dados autenticados sensíveis"],
+            "source_refs": [
+              { "file": "STACK_SETUP.md", "section": "O Ecossistema TanStack no IndexDesk" }
+            ],
+            "acceptance_criteria": [
+              "Prefetch/dehydrate/hydrate funciona em página real",
+              "URL state usa nuqs",
+              "Tabelas/listas grandes usam virtualização quando necessário",
+              "DB/offline é isolado de dados autenticados sensíveis"
+            ],
             "deliverables": ["TanStack providers", "hydration boundary", "state conventions"],
             "risks": ["TanStack DB ainda está pendente de spike DEC-005"],
             "notes": "Não persistir dados privados em cache público.",
@@ -513,8 +707,18 @@
             "epic_id": "SEO_PWA",
             "depends_on": ["MVP-010", "MVP-011", "DEC-005"],
             "blocks": ["MVP-021"],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "Guia de Gráficos e Visualização de Dados Financeiros" }],
-            "acceptance_criteria": ["Equity/drawdown renderizam séries longas com zoom/pan", "Alocação e métricas têm tooltips acessíveis", "Bundle e performance são medidos", "Biblioteca final fica registrada em decisions.json"],
+            "source_refs": [
+              {
+                "file": "STACK_SETUP.md",
+                "section": "Guia de Gráficos e Visualização de Dados Financeiros"
+              }
+            ],
+            "acceptance_criteria": [
+              "Equity/drawdown renderizam séries longas com zoom/pan",
+              "Alocação e métricas têm tooltips acessíveis",
+              "Bundle e performance são medidos",
+              "Biblioteca final fica registrada em decisions.json"
+            ],
             "deliverables": ["chart components", "performance benchmark", "accessibility checks"],
             "risks": ["Canvas pode dificultar acessibilidade/exportação"],
             "notes": "Sempre oferecer tabela ou dados alternativos acessíveis.",
@@ -534,8 +738,15 @@
             "epic_id": "SEO_PWA",
             "depends_on": ["MVP-019", "MVP-018"],
             "blocks": [],
-            "source_refs": [{ "file": "STACK_SETUP.md", "section": "PWA & Offline-First com Serwist" }],
-            "acceptance_criteria": ["App instala como PWA", "Asset pages usam stale-while-revalidate", "Calculadoras/assets estáticos têm fallback offline", "Deploy atualiza worker sem servir cache incompatível"],
+            "source_refs": [
+              { "file": "STACK_SETUP.md", "section": "PWA & Offline-First com Serwist" }
+            ],
+            "acceptance_criteria": [
+              "App instala como PWA",
+              "Asset pages usam stale-while-revalidate",
+              "Calculadoras/assets estáticos têm fallback offline",
+              "Deploy atualiza worker sem servir cache incompatível"
+            ],
             "deliverables": ["Serwist config", "manifest", "offline UX", "service worker tests"],
             "risks": ["Cache público pode exibir dados financeiros desatualizados sem timestamp"],
             "notes": "Não cachear rotas autenticadas no mesmo escopo público.",
@@ -555,8 +766,16 @@
             "epic_id": "SEO_PWA",
             "depends_on": ["MVP-009", "MVP-010", "MVP-013", "MVP-018"],
             "blocks": ["GROW-002"],
-            "source_refs": [{ "file": "SEO_TOOLS.md", "section": "Structured Data, OpenGraph, Sitemap e Robots" }],
-            "acceptance_criteria": ["FinancialProduct/BreadcrumbList/WebApplication JSON-LD valida", "Sitemap indexa listas de ativos e comparações relevantes", "Sitemaps podem ser gerados em runtime e cacheados", "lastmod usa atualização local ingerida", "Páginas finas têm canonical/noindex"],
+            "source_refs": [
+              { "file": "SEO_TOOLS.md", "section": "Structured Data, OpenGraph, Sitemap e Robots" }
+            ],
+            "acceptance_criteria": [
+              "FinancialProduct/BreadcrumbList/WebApplication JSON-LD valida",
+              "Sitemap indexa listas de ativos e comparações relevantes",
+              "Sitemaps podem ser gerados em runtime e cacheados",
+              "lastmod usa atualização local ingerida",
+              "Páginas finas têm canonical/noindex"
+            ],
             "deliverables": ["metadata helpers", "OG routes", "sitemap index/routes", "robots"],
             "risks": ["Combinações programáticas podem criar conteúdo duplicado"],
             "notes": "Whitelist de comparações no MVP; expansão fica na Phase 02.",

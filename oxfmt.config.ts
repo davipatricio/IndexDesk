@@ -1,0 +1,22 @@
+export default {
+  tabWidth: 2,
+  useTabs: false,
+  semi: true,
+  singleQuote: true,
+  trailingComma: 'all',
+  printWidth: 100,
+  bracketSpacing: true,
+  arrowParens: 'always',
+  ignorePatterns: [
+    '**/node_modules/**',
+    '**/.next/**',
+    '**/dist/**',
+    '**/out/**',
+    '**/coverage/**',
+    '**/bin/**',
+    '**/obj/**',
+    '**/.git/**',
+    '**/.agents/**',
+    '**/next-env.d.ts',
+  ],
+};

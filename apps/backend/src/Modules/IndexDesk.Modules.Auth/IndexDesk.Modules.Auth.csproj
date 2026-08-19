@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>IndexDesk.Modules.Auth</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.2" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.6.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Common\BuildingBlocks.Common.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Persistence\BuildingBlocks.Persistence.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Cache\BuildingBlocks.Cache.csproj" />
+  </ItemGroup>
+</Project>

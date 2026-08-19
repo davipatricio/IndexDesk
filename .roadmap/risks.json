@@ -45,7 +45,9 @@
       "description": "ZIPs mensais da CVM podem causar picos de memória ou duplicidade se processados de forma ingênua.",
       "mitigation": "CsvHelper em stream, filtro por CNPJ, NpgsqlBinaryImporter/COPY, idempotência, métricas de linhas e testes com arquivos reais.",
       "owner": "MarketData",
-      "source_refs": [{ "file": "PROVIDERS_SYNC.md", "section": "Ingestão e Validação em Streaming" }]
+      "source_refs": [
+        { "file": "PROVIDERS_SYNC.md", "section": "Ingestão e Validação em Streaming" }
+      ]
     },
     {
       "id": "RISK-005",

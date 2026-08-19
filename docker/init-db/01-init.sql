@@ -1,0 +1,11 @@
+-- IndexDesk TimescaleDB & PostgreSQL Initialization
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "timescaledb" CASCADE;
+
+-- Create Schemas for Modular Monolith
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE SCHEMA IF NOT EXISTS market_data;
+CREATE SCHEMA IF NOT EXISTS analytics;
+CREATE SCHEMA IF NOT EXISTS portfolio;
+CREATE SCHEMA IF NOT EXISTS audit;

@@ -1,10 +1,30 @@
 {
   "name": "indexdesk",
   "private": true,
-  "packageManager": "bun@latest",
+  "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "lint:oxlint": "oxlint .",
+    "format": "turbo run format",
+    "format:oxfmt": "oxfmt .",
+    "format:check": "turbo run format:check",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "clean": "turbo run clean",
     "roadmap:validate": "bun .roadmap/scripts/validate-roadmap.ts",
     "roadmap:generate": "bun .roadmap/scripts/generate-roadmap.ts",
     "roadmap:check": "bun run roadmap:validate && bun run roadmap:generate"
-  }
+  },
+  "devDependencies": {
+    "oxfmt": "^0.64.0",
+    "oxlint": "^1.79.0",
+    "turbo": "^2.10.11",
+    "typescript": "^7.0.2"
+  },
+  "packageManager": "bun@1.4.0"
 }

@@ -1,0 +1,23 @@
+# .NET generated build output
+**/bin/
+**/obj/
+**/TestResults/
+**/artifacts/
+
+# Local development secrets and configuration
+appsettings.Local.json
+appsettings.*.Local.json
+.env*
+!.env.example
+
+# EF Core local migration/database artifacts
+*.db
+*.db-shm
+*.db-wal
+
+# Coverage output
+coverage/
+
+# dotnet diagnostic output
+*.trx
+*.nupkg
