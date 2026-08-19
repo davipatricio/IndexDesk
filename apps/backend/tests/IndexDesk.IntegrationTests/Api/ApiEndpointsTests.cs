@@ -38,7 +38,7 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task GetAssets_ReturnsListOfEtfs()
+    public async Task GetAssets_ReturnsPaginatedCatalog()
     {
         // Act
         var response = await _client.GetAsync("/api/v1/assets");
@@ -46,8 +46,21 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("IVVB11");
-        content.Should().Contain("BOVA11");
+        content.Should().Contain("items");
+        content.Should().Contain("totalCount");
+    }
+
+    [Fact]
+    public async Task GetAssets_ViaSearchQuery_FiltersByTicker()
+    {
+        // Act
+        var response = await _client.GetAsync("/api/v1/assets?search=WRLD");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("WRLD11");
+        content.Should().NotContain("MXRF11");
     }
 
     [Fact]

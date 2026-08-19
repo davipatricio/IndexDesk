@@ -15,6 +15,8 @@ public sealed record Error(string Code, string Message)
         new("Auth.Unauthorized", message);
 
     public static Error Conflict(string message) => new("Conflict", message);
+
+    public static Error Failure(string code, string message) => new(code, message);
 }
 
 public class Result

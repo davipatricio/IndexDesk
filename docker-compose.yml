@@ -2,7 +2,7 @@ name: indexdesk-infra
 
 services:
   timescaledb:
-    image: timescale/timescaledb-ha:pg16-latest
+    image: timescale/timescaledb:latest-pg16
     container_name: indexdesk-timescaledb
     restart: unless-stopped
     environment:
@@ -12,7 +12,7 @@ services:
     ports:
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
-      - postgres_data:/home/postgres/pgdata/data
+      - postgres_data:/var/lib/postgresql/data
       - ./docker/init-db:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-indexdesk} -d ${POSTGRES_DB:-indexdesk}']

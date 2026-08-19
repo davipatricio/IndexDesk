@@ -11,5 +11,7 @@
     <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Common\BuildingBlocks.Common.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Persistence\BuildingBlocks.Persistence.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Cache\BuildingBlocks.Cache.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Resilience\BuildingBlocks.Resilience.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\BuildingBlocks.Messaging\BuildingBlocks.Messaging.csproj" />
   </ItemGroup>
 </Project>

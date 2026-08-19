@@ -1,29 +1,181 @@
+using IndexDesk.BuildingBlocks.Cache;
 using IndexDesk.BuildingBlocks.Observability;
+using IndexDesk.BuildingBlocks.Persistence;
+using IndexDesk.Modules.MarketData;
+using IndexDesk.Modules.MarketData.Ingestion;
 using IndexDesk.Worker.Jobs;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Quartz;
+using StackExchange.Redis;
 
 var builder = Host.CreateApplicationBuilder(args);
 
-// Observability
+// 1. Observability
 builder.Services.AddIndexDeskObservability(builder.Configuration, "IndexDesk.Worker");
 
-// Quartz.NET Schedulers
+// 2. Persistence (PostgreSQL / TimescaleDB)
+var postgresConnection =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? builder.Configuration.GetConnectionString("Postgres")
+    ?? "Host=localhost;Port=5432;Database=indexdesk;Username=indexdesk;Password=indexdesk_dev_secret;";
+
+builder.Services.AddDbContext<IndexDeskDbContext>(options =>
+{
+    options.UseNpgsql(postgresConnection);
+});
+
+// 3. Redis Cache with InMemory fallback
+var redisConnection =
+    builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379,abortConnect=false";
+try
+{
+    var multiplexer = ConnectionMultiplexer.Connect(redisConnection);
+    builder.Services.AddSingleton<IConnectionMultiplexer>(multiplexer);
+    builder.Services.AddSingleton<ICacheService, RedisCacheService>();
+}
+catch
+{
+    builder.Services.AddDistributedMemoryCache();
+    builder.Services.AddSingleton<ICacheService, WorkerInMemoryCacheFallback>();
+}
+
+// 4. Modules
+builder.Services.AddMarketDataModule(builder.Configuration);
+
+// 5. Quartz.NET Schedulers
 builder.Services.AddQuartz(q =>
 {
+    // BCB Macro indicators (CDI, Selic, IPCA) - Scheduled daily at 23:00 UTC
     var bcbJobKey = new JobKey("BcbSyncJob", "MarketDataIngest");
     q.AddJob<BcbSyncJob>(opts => opts.WithIdentity(bcbJobKey));
-
-    // Scheduled daily at 23:00 UTC
     q.AddTrigger(opts =>
         opts.ForJob(bcbJobKey)
             .WithIdentity("BcbSyncTrigger", "MarketDataIngest")
             .WithCronSchedule("0 0 23 ? * * *")
     );
+
+    // B3 Market Data Daily Sync (MXRF11, VWRA11, GOLD11) - Scheduled Mon-Fri at 22:00 UTC (19:00 BRT)
+    var marketDataJobKey = new JobKey("MarketDataDailySyncJob", "MarketDataIngest");
+    q.AddJob<MarketDataDailySyncJob>(opts => opts.WithIdentity(marketDataJobKey));
+    q.AddTrigger(opts =>
+        opts.ForJob(marketDataJobKey)
+            .WithIdentity("MarketDataDailySyncTrigger", "MarketDataIngest")
+            .WithCronSchedule("0 0 22 ? * MON-FRI *")
+    );
+
+    // Pilot Backfill Job (Manual/On-Demand execution)
+    var backfillJobKey = new JobKey("PilotAssetBackfillJob", "Maintenance");
+    q.AddJob<PilotAssetBackfillJob>(opts => opts.WithIdentity(backfillJobKey).StoreDurably());
 });
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 var host = builder.Build();
+
+// CLI Backfill execution handling (e.g. dotnet run -- --backfill WRLD11)
+var backfillIndex = Array.FindIndex(
+    args,
+    a =>
+        a.Equals("--backfill", StringComparison.OrdinalIgnoreCase)
+        || a.Equals("-b", StringComparison.OrdinalIgnoreCase)
+);
+
+if (backfillIndex >= 0)
+{
+    var targetArg =
+        backfillIndex + 1 < args.Length && !args[backfillIndex + 1].StartsWith('-')
+            ? args[backfillIndex + 1]
+            : "WRLD11";
+
+    using var scope = host.Services.CreateScope();
+    var backfillService = scope.ServiceProvider.GetRequiredService<IAssetBackfillService>();
+
+    Console.WriteLine(
+        $"[IndexDesk.Worker:CLI] Running on-demand historical backfill for '{targetArg}'..."
+    );
+
+    var tickers = targetArg.Split(
+        ',',
+        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+    );
+    foreach (var ticker in tickers)
+    {
+        var startDate = ticker.ToUpperInvariant() switch
+        {
+            "MXRF11" => new DateOnly(2015, 1, 1),
+            "VWRA11" => new DateOnly(2021, 1, 1),
+            "GOLD11" => new DateOnly(2020, 1, 1),
+            "WRLD11" => new DateOnly(2021, 1, 1),
+            _ => new DateOnly(2021, 1, 1),
+        };
+        var endDate = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var result = await backfillService.BackfillAssetAsync(ticker, startDate, endDate);
+        if (result.IsSuccess)
+        {
+            var s = result.Value;
+            Console.WriteLine(
+                $"[IndexDesk.Worker:CLI] SUCCESS for {s.Ticker}: {s.QuotesIngested} quotes, {s.DividendsIngested} dividends via {s.SourceProvider} in {s.ElapsedMilliseconds}ms."
+            );
+        }
+        else
+        {
+            Console.WriteLine(
+                $"[IndexDesk.Worker:CLI] FAILED for {ticker}: {result.Error.Message}"
+            );
+        }
+    }
+
+    return;
+}
+
 host.Run();
+
+public sealed class WorkerInMemoryCacheFallback : ICacheService
+{
+    private readonly Dictionary<string, object> _cache = new();
+
+    public Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default)
+    {
+        if (_cache.TryGetValue(key, out var val) && val is T typed)
+            return Task.FromResult<T?>(typed);
+        return Task.FromResult<T?>(default);
+    }
+
+    public Task SetAsync<T>(
+        string key,
+        T value,
+        TimeSpan? expiration = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (value is not null)
+            _cache[key] = value;
+        return Task.CompletedTask;
+    }
+
+    public Task RemoveAsync(string key, CancellationToken cancellationToken = default)
+    {
+        _cache.Remove(key);
+        return Task.CompletedTask;
+    }
+
+    public async Task<T> GetOrCreateAsync<T>(
+        string key,
+        Func<CancellationToken, Task<T>> factory,
+        TimeSpan? expiration = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var existing = await GetAsync<T>(key, cancellationToken);
+        if (existing is not null)
+            return existing;
+        var created = await factory(cancellationToken);
+        if (created is not null)
+            await SetAsync(key, created, expiration, cancellationToken);
+        return created;
+    }
+}

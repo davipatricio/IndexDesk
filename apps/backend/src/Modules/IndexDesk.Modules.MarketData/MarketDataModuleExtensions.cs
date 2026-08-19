@@ -1,17 +1,80 @@
-using IndexDesk.BuildingBlocks.Cache;
-using IndexDesk.Modules.MarketData.Domain;
+using IndexDesk.Modules.MarketData.Clients;
+using IndexDesk.Modules.MarketData.Ingestion;
+using IndexDesk.Modules.MarketData.Pipeline;
+using IndexDesk.Modules.MarketData.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace IndexDesk.Modules.MarketData;
 
 public static class MarketDataModuleExtensions
 {
-    public static IServiceCollection AddMarketDataModule(this IServiceCollection services)
+    public static IServiceCollection AddMarketDataModule(
+        this IServiceCollection services,
+        IConfiguration? configuration = null
+    )
     {
-        // Register market data services
+        // 1. Validator
+        services.AddSingleton<MarketDataValidator>();
+
+        // 2. Typed Provider HttpClients
+        services.AddHttpClient<BrapiClient>(
+            (sp, client) =>
+            {
+                var baseUrl = configuration?["Providers:Brapi:BaseUrl"] ?? "https://brapi.dev/api/";
+                client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+                client.Timeout = TimeSpan.FromSeconds(15);
+            }
+        );
+
+        services.AddHttpClient<YahooFinanceClient>(
+            (sp, client) =>
+            {
+                var baseUrl =
+                    configuration?["Providers:Yahoo:BaseUrl"]
+                    ?? "https://query1.finance.yahoo.com/";
+                client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+                client.Timeout = TimeSpan.FromSeconds(15);
+            }
+        );
+
+        services.AddHttpClient<HgBrasilClient>(
+            (sp, client) =>
+            {
+                var baseUrl =
+                    configuration?["Providers:HGBrasil:BaseUrl"] ?? "https://api.hgbrasil.com/";
+                client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+                client.Timeout = TimeSpan.FromSeconds(15);
+            }
+        );
+
+        services.AddHttpClient<BcbSeriesClient>(
+            (sp, client) =>
+            {
+                var baseUrl = configuration?["Providers:BCB:BaseUrl"] ?? "https://api.bcb.gov.br/";
+                client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+                client.Timeout = TimeSpan.FromSeconds(20);
+            }
+        );
+
+        // 3. Register as IMarketDataClient collection
+        services.AddScoped<IMarketDataClient>(sp => sp.GetRequiredService<BrapiClient>());
+        services.AddScoped<IMarketDataClient>(sp => sp.GetRequiredService<YahooFinanceClient>());
+        services.AddScoped<IMarketDataClient>(sp => sp.GetRequiredService<HgBrasilClient>());
+
+        // 4. Fallback Engine & Ingestion Services
+        services.AddScoped<IFallbackMarketDataService, FallbackMarketDataService>();
+        services.AddScoped<IAssetBackfillService, AssetBackfillService>();
+        services.AddScoped<IAssetSyncService, AssetSyncService>();
+        services.AddScoped<IBcbSeriesClient>(sp => sp.GetRequiredService<BcbSeriesClient>());
+        services.AddScoped<IMacroEconomicSyncService, MacroEconomicSyncService>();
+
+        // 5. Query / Read APIs
+        services.AddScoped<IAssetQueryService, AssetQueryService>();
+
         return services;
     }
 
@@ -19,202 +82,196 @@ public static class MarketDataModuleExtensions
     {
         var group = app.MapGroup("/api/v1/assets").WithTags("MarketData");
 
+        // Sync and Backfill Trigger Endpoints
+        group
+            .MapPost(
+                "/sync/daily",
+                async (IAssetSyncService syncService, CancellationToken ct) =>
+                {
+                    var result = await syncService.SyncDailyQuotesAsync(cancellationToken: ct);
+                    return result.IsSuccess
+                        ? Results.Ok(result.Value)
+                        : Results.BadRequest(result.Error);
+                }
+            )
+            .WithName("TriggerDailySync")
+            .WithSummary("Trigger incremental daily quote synchronization for pilot assets");
+
+        group
+            .MapPost(
+                "/sync/backfill",
+                async (
+                    string? ticker,
+                    string? startDate,
+                    IAssetBackfillService backfillService,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(ticker))
+                    {
+                        var start = DateOnly.TryParse(startDate, out var parsedStart)
+                            ? parsedStart
+                            : new DateOnly(2021, 1, 1);
+                        var end = DateOnly.FromDateTime(DateTime.UtcNow);
+
+                        var singleResult = await backfillService.BackfillAssetAsync(
+                            ticker,
+                            start,
+                            end,
+                            ct
+                        );
+                        return singleResult.IsSuccess
+                            ? Results.Ok(singleResult.Value)
+                            : Results.BadRequest(singleResult.Error);
+                    }
+
+                    var result = await backfillService.BackfillPilotAssetsAsync(
+                        cancellationToken: ct
+                    );
+                    return result.IsSuccess
+                        ? Results.Ok(result.Value)
+                        : Results.BadRequest(result.Error);
+                }
+            )
+            .WithName("TriggerPilotBackfill")
+            .WithSummary(
+                "Trigger historical backfill for pilot assets or a specific ticker (e.g. WRLD11)"
+            );
+
+        // Macro-economic sync (CDI, Selic, IPCA) used as performance benchmarks
+        group
+            .MapPost(
+                "/sync/macro",
+                async (IMacroEconomicSyncService macroSync, CancellationToken ct) =>
+                {
+                    var result = await macroSync.SyncAllAsync(cancellationToken: ct);
+                    return result.IsSuccess
+                        ? Results.Ok(result.Value)
+                        : Results.BadRequest(result.Error);
+                }
+            )
+            .WithName("TriggerMacroSync")
+            .WithSummary("Trigger BCB macro series sync (CDI, Selic, IPCA) for benchmarks");
+
         group
             .MapGet(
                 "/",
-                async (string? category, string? search, ICacheService cache) =>
+                async (
+                    string? search,
+                    string? assetType,
+                    string? currency,
+                    string? orderBy,
+                    string? orderDirection,
+                    int? page,
+                    int? pageSize,
+                    IAssetQueryService queryService,
+                    CancellationToken ct
+                ) =>
                 {
-                    var cacheKey = $"marketdata:assets:{category ?? "all"}:{search ?? "all"}";
-                    var assets = await cache.GetOrCreateAsync(
-                        cacheKey,
-                        async ct =>
-                        {
-                            await Task.Yield();
-                            var list = new List<AssetDto>
-                            {
-                                new(
-                                    "IVVB11",
-                                    "iShares S&P 500 Fundo de Índice",
-                                    "BlackRock",
-                                    "ETF",
-                                    "Equity",
-                                    "S&P 500",
-                                    0.23m,
-                                    4500000000m,
-                                    185000,
-                                    342.50m,
-                                    0.45m,
-                                    18.2m
-                                ),
-                                new(
-                                    "BOVA11",
-                                    "iShares Ibovespa Fundo de Índice",
-                                    "BlackRock",
-                                    "ETF",
-                                    "Equity",
-                                    "IBOV",
-                                    0.10m,
-                                    12000000000m,
-                                    120000,
-                                    125.80m,
-                                    -0.15m,
-                                    6.4m
-                                ),
-                                new(
-                                    "B5P211",
-                                    "It Now IMA-B 5 P2 Fundo de Índice",
-                                    "Itaú Asset",
-                                    "ETF",
-                                    "FixedIncome",
-                                    "IMA-B 5 P2",
-                                    0.20m,
-                                    3200000000m,
-                                    65000,
-                                    89.20m,
-                                    0.05m,
-                                    8.9m
-                                ),
-                                new(
-                                    "WRLD11",
-                                    "Investo MSCI World Fundo de Índice",
-                                    "Investo",
-                                    "ETF",
-                                    "Equity",
-                                    "MSCI World",
-                                    0.38m,
-                                    1500000000m,
-                                    42000,
-                                    118.40m,
-                                    0.62m,
-                                    16.5m
-                                ),
-                                new(
-                                    "SMAL11",
-                                    "iShares Small Cap Fundo de Índice",
-                                    "BlackRock",
-                                    "ETF",
-                                    "Equity",
-                                    "SMLL",
-                                    0.50m,
-                                    2100000000m,
-                                    58000,
-                                    102.10m,
-                                    -0.80m,
-                                    -2.1m
-                                ),
-                                new(
-                                    "HASH11",
-                                    "Hashdex Nasdaq Crypto Index",
-                                    "Hashdex",
-                                    "ETF",
-                                    "Crypto",
-                                    "NCI",
-                                    1.30m,
-                                    2800000000m,
-                                    140000,
-                                    68.90m,
-                                    2.10m,
-                                    45.3m
-                                ),
-                            };
+                    var p = Math.Max(1, page ?? 1);
+                    var ps = Math.Clamp(pageSize ?? 20, 1, 100);
 
-                            if (!string.IsNullOrWhiteSpace(category))
-                            {
-                                list = list.Where(a =>
-                                        a.Category.Equals(
-                                            category,
-                                            StringComparison.OrdinalIgnoreCase
-                                        )
-                                    )
-                                    .ToList();
-                            }
-
-                            if (!string.IsNullOrWhiteSpace(search))
-                            {
-                                list = list.Where(a =>
-                                        a.Ticker.Contains(
-                                            search,
-                                            StringComparison.OrdinalIgnoreCase
-                                        )
-                                        || a.Name.Contains(
-                                            search,
-                                            StringComparison.OrdinalIgnoreCase
-                                        )
-                                    )
-                                    .ToList();
-                            }
-
-                            return list;
-                        },
-                        TimeSpan.FromMinutes(15)
+                    var result = await queryService.ListAsync(
+                        search,
+                        assetType,
+                        currency,
+                        orderBy,
+                        orderDirection,
+                        p,
+                        ps,
+                        ct
                     );
-
-                    return Results.Ok(assets);
+                    return Results.Ok(result);
                 }
             )
             .WithName("GetAssets")
-            .WithSummary("List ETFs, BDRs and indices with metadata, AUM and performance");
+            .WithSummary(
+                "Search, filter, sort and paginate the asset catalog with on-the-fly performance metrics"
+            );
 
         group
             .MapGet(
-                "/{ticker}",
-                (string ticker) =>
+                "/{ticker}/performance",
+                async (
+                    string ticker,
+                    DateOnly? from,
+                    DateOnly? to,
+                    string? returnType,
+                    bool? includeBenchmarks,
+                    IAssetQueryService queryService,
+                    CancellationToken ct
+                ) =>
                 {
-                    ticker = ticker.ToUpperInvariant();
-                    var asset = new AssetDto(
-                        ticker,
-                        $"{ticker} Fundo de Índice B3",
-                        "Gestora Referência",
-                        "ETF",
-                        "Equity",
-                        "IBOV",
-                        0.20m,
-                        3500000000m,
-                        85000,
-                        142.30m,
-                        0.25m,
-                        12.4m
-                    );
+                    var end = to ?? DateOnly.FromDateTime(DateTime.UtcNow);
+                    var start = from ?? end.AddYears(-1);
 
-                    return Results.Ok(asset);
+                    try
+                    {
+                        var result = await queryService.GetPerformanceAsync(
+                            ticker,
+                            start,
+                            end,
+                            returnType ?? "price",
+                            includeBenchmarks ?? true,
+                            ct
+                        );
+                        return result is null
+                            ? Results.NotFound(new { message = $"Asset '{ticker}' not found." })
+                            : Results.Ok(result);
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        return Results.BadRequest(new { message = ex.Message });
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        return Results.BadRequest(new { message = ex.Message });
+                    }
                 }
             )
-            .WithName("GetAssetByTicker")
-            .WithSummary("Get detailed ETF/BDR sheet by ticker");
+            .WithName("GetAssetPerformance")
+            .WithSummary(
+                "Return between two dates with price/total return and CDI, IPCA, IBOV, S&P 500 benchmark comparison"
+            );
 
         group
             .MapGet(
                 "/{ticker}/quotes",
-                (string ticker, int? days) =>
+                async (
+                    string ticker,
+                    DateOnly? from,
+                    DateOnly? to,
+                    int? days,
+                    IAssetQueryService queryService,
+                    CancellationToken ct
+                ) =>
                 {
-                    var totalDays = days ?? 30;
-                    var quotes = new List<QuoteItem>();
-                    var basePrice = 100m;
-                    var today = DateOnly.FromDateTime(DateTime.UtcNow);
-
-                    for (var i = totalDays; i >= 0; i--)
-                    {
-                        var date = today.AddDays(-i);
-                        var change = (decimal)(Math.Sin(i * 0.3) * 1.5);
-                        var close = Math.Round(basePrice + change + (totalDays - i) * 0.2m, 2);
-                        quotes.Add(
-                            new QuoteItem(
-                                date,
-                                close - 0.5m,
-                                close + 0.8m,
-                                close - 0.6m,
-                                close,
-                                close,
-                                1500000
-                            )
-                        );
-                    }
-
-                    return Results.Ok(quotes);
+                    var quotes = await queryService.GetQuotesAsync(ticker, from, to, days, ct);
+                    return quotes.Count == 0
+                        ? Results.NotFound(new { message = $"No quotes found for '{ticker}'." })
+                        : Results.Ok(quotes);
                 }
             )
             .WithName("GetAssetQuotes")
-            .WithSummary("Get historical daily OHLCV series for TradingView Lightweight Charts");
+            .WithSummary(
+                "Get historical daily OHLCV series for TradingView Lightweight Charts with optional date range"
+            );
+
+        group
+            .MapGet(
+                "/{ticker}",
+                async (string ticker, IAssetQueryService queryService, CancellationToken ct) =>
+                {
+                    var asset = await queryService.GetDetailAsync(ticker, ct);
+                    return asset is null
+                        ? Results.NotFound(new { message = $"Asset '{ticker}' not found." })
+                        : Results.Ok(asset);
+                }
+            )
+            .WithName("GetAssetByTicker")
+            .WithSummary(
+                "Get detailed single-asset sheet including market stats and fiscal raio-x"
+            );
 
         return app;
     }

@@ -1,8 +1,10 @@
 using IndexDesk.BuildingBlocks.Cache;
 using IndexDesk.BuildingBlocks.Observability;
+using IndexDesk.BuildingBlocks.Persistence;
 using IndexDesk.Modules.Analytics;
 using IndexDesk.Modules.Auth;
 using IndexDesk.Modules.MarketData;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Scalar.AspNetCore;
 using StackExchange.Redis;
@@ -11,6 +13,17 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Observability (OpenTelemetry -> Jaeger)
 builder.Services.AddIndexDeskObservability(builder.Configuration, "IndexDesk.Api");
+
+// Persistence (PostgreSQL / TimescaleDB)
+var postgresConnection =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? builder.Configuration.GetConnectionString("Postgres")
+    ?? "Host=localhost;Port=5432;Database=indexdesk;Username=indexdesk;Password=indexdesk_dev_secret;";
+
+builder.Services.AddDbContext<IndexDeskDbContext>(options =>
+{
+    options.UseNpgsql(postgresConnection);
+});
 
 // Redis Cache
 var redisConnection =
@@ -30,7 +43,7 @@ catch
 
 // Add Modules
 builder.Services.AddAuthModule(builder.Configuration);
-builder.Services.AddMarketDataModule();
+builder.Services.AddMarketDataModule(builder.Configuration);
 builder.Services.AddAnalyticsModule();
 
 // Health Checks
