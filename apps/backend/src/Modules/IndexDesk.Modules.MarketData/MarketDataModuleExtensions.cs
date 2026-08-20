@@ -75,6 +75,9 @@ public static class MarketDataModuleExtensions
         // 5. Query / Read APIs
         services.AddScoped<IAssetQueryService, AssetQueryService>();
 
+        // 6. Provider health (sync_job_logs aggregation)
+        services.AddScoped<IProviderHealthService, ProviderHealthService>();
+
         return services;
     }
 
@@ -271,6 +274,23 @@ public static class MarketDataModuleExtensions
             .WithName("GetAssetByTicker")
             .WithSummary(
                 "Get detailed single-asset sheet including market stats and fiscal raio-x"
+            );
+
+        // Provider health — last sync, totals, warnings and errors aggregated from sync_job_logs
+        var healthGroup = app.MapGroup("/api/v1/providers").WithTags("MarketData");
+
+        healthGroup
+            .MapGet(
+                "/health",
+                async (IProviderHealthService healthService, CancellationToken ct) =>
+                {
+                    var health = await healthService.GetProvidersHealthAsync(ct);
+                    return Results.Ok(health);
+                }
+            )
+            .WithName("GetProvidersHealth")
+            .WithSummary(
+                "Aggregate health of market-data providers: status, last sync, totals, warnings and errors"
             );
 
         return app;

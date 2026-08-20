@@ -38,6 +38,21 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
+    public async Task ProvidersHealth_ReturnsAggregateStatus()
+    {
+        // Act
+        var response = await _client.GetAsync("/api/v1/providers/health");
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("status");
+        content.Should().Contain("generatedAt");
+        content.Should().Contain("summary");
+        content.Should().Contain("providers");
+    }
+
+    [Fact]
     public async Task GetAssets_ReturnsPaginatedCatalog()
     {
         // Act

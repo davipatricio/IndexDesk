@@ -48,6 +48,9 @@ public class MacroEconomicSyncService : IMacroEconomicSyncService
 
         foreach (var (code, name) in series)
         {
+            var seriesSw = Stopwatch.StartNew();
+            var seriesStartedAt = DateTimeOffset.UtcNow;
+
             var result = await _bcbClient.GetSeriesAsync(code, start, end, cancellationToken);
             if (result.IsFailure)
             {
@@ -57,6 +60,16 @@ public class MacroEconomicSyncService : IMacroEconomicSyncService
                     code
                 );
                 failed.Add(name);
+                await LogSyncJobAsync(
+                    jobName: $"Sync_{name}",
+                    status: "FAILED",
+                    processed: 0,
+                    updated: 0,
+                    error: result.Error.Message,
+                    timeMs: (int)seriesSw.ElapsedMilliseconds,
+                    startedAt: seriesStartedAt,
+                    cancellationToken: cancellationToken
+                );
                 continue;
             }
 
@@ -66,6 +79,17 @@ public class MacroEconomicSyncService : IMacroEconomicSyncService
                 "[BCB:Sync] Synced {Count} points for series {Name}.",
                 count,
                 name
+            );
+
+            await LogSyncJobAsync(
+                jobName: $"Sync_{name}",
+                status: "SUCCESS",
+                processed: result.Value.Count,
+                updated: count,
+                error: null,
+                timeMs: (int)seriesSw.ElapsedMilliseconds,
+                startedAt: seriesStartedAt,
+                cancellationToken: cancellationToken
             );
         }
 
@@ -122,5 +146,41 @@ public class MacroEconomicSyncService : IMacroEconomicSyncService
         }
 
         return toAdd.Count;
+    }
+
+    private async Task LogSyncJobAsync(
+        string jobName,
+        string status,
+        int processed,
+        int updated,
+        string? error,
+        int timeMs,
+        DateTimeOffset startedAt,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            var log = new SyncJobLogEntity
+            {
+                JobName = jobName,
+                ProviderName = "BCB",
+                Status = status,
+                RecordsProcessed = processed,
+                RecordsUpdated = updated,
+                RecordsSkipped = 0,
+                ErrorDetails = error,
+                ExecutionTimeMs = timeMs,
+                StartedAt = startedAt,
+                CompletedAt = DateTimeOffset.UtcNow,
+            };
+
+            _dbContext.SyncJobLogs.Add(log);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[BCB:SyncLogFailed] Failed to write entry into sync_job_logs.");
+        }
     }
 }
