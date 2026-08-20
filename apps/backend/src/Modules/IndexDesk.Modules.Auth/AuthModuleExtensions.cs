@@ -1,9 +1,11 @@
 using System.Text;
-using IndexDesk.Modules.Auth.Domain;
+using IndexDesk.Modules.Auth.Authorization;
+using IndexDesk.Modules.Auth.Endpoints;
+using IndexDesk.Modules.Auth.Security;
 using IndexDesk.Modules.Auth.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,18 +15,36 @@ namespace IndexDesk.Modules.Auth;
 
 public static class AuthModuleExtensions
 {
+    private const string DefaultSecretKey =
+        "development_super_secret_key_with_at_least_256_bits_for_indexdesk_jwt_signing_token_2026";
+    private const string DefaultIssuer = "IndexDesk.Auth";
+    private const string DefaultAudience = "IndexDesk.Web";
+
     public static IServiceCollection AddAuthModule(
         this IServiceCollection services,
         IConfiguration configuration
     )
     {
         var secret =
-            configuration["Jwt:Secret"]
-            ?? "development_super_secret_key_with_at_least_256_bits_for_indexdesk_jwt_signing_token_2026";
-        var issuer = configuration["Jwt:Issuer"] ?? "IndexDesk.Auth";
-        var audience = configuration["Jwt:Audience"] ?? "IndexDesk.Web";
+            configuration["Jwt:SecretKey"] ?? configuration["Jwt:Secret"] ?? DefaultSecretKey;
+        var issuer = configuration["Jwt:Issuer"] ?? DefaultIssuer;
+        var audience = configuration["Jwt:Audience"] ?? DefaultAudience;
 
-        services.AddScoped<ITokenService, TokenService>();
+        // Security services & token management
+        // Argon2idPasswordHasher and JwtTokenService are stateless -> safe as singletons.
+        services.AddSingleton<IPasswordHasher, Argon2idPasswordHasher>();
+        services.AddSingleton<ITokenService, JwtTokenService>();
+        services.AddScoped<IAuthCookieService, AuthCookieService>();
+
+        // Auth application service
+        services.AddScoped<IAuthService, AuthService>();
+
+        // RBAC authorization engine
+        services.AddSingleton<
+            IAuthorizationPolicyProvider,
+            PermissionAuthorizationPolicyProvider
+        >();
+        services.AddSingleton<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -43,85 +63,19 @@ public static class AuthModuleExtensions
                 };
             });
 
+        // Registers core authorization services (IAuthorizationService,
+        // policy evaluator) required by app.UseAuthorization(), plus the
+        // role-based fallback policies.
         services
             .AddAuthorizationBuilder()
-            .AddPolicy(
-                "AdminOnly",
-                policy =>
-                    policy.RequireRole(UserRole.Admin.ToString(), UserRole.SuperAdmin.ToString())
-            )
-            .AddPolicy(
-                "SuperAdminOnly",
-                policy => policy.RequireRole(UserRole.SuperAdmin.ToString())
-            );
+            .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin", "SuperAdmin"))
+            .AddPolicy("SuperAdminOnly", policy => policy.RequireRole("SuperAdmin"));
 
         return services;
     }
 
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/auth").WithTags("Auth");
-
-        group
-            .MapPost(
-                "/login",
-                (LoginRequest request, ITokenService tokenService) =>
-                {
-                    // Scaffold demo validation
-                    if (
-                        string.IsNullOrWhiteSpace(request.Email)
-                        || string.IsNullOrWhiteSpace(request.Password)
-                    )
-                        return Results.BadRequest(
-                            new { message = "Email and password are required." }
-                        );
-
-                    var mockUser = new User
-                    {
-                        Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                        Email = request.Email,
-                        FullName = "Demo User",
-                        Role = request.Email.Contains("admin") ? UserRole.Admin : UserRole.User,
-                    };
-
-                    var accessToken = tokenService.GenerateAccessToken(mockUser);
-                    var refreshToken = tokenService.GenerateRefreshToken();
-
-                    return Results.Ok(
-                        new LoginResponse(accessToken, refreshToken, mockUser.Role.ToString())
-                    );
-                }
-            )
-            .WithName("Login")
-            .WithSummary("User authentication endpoint returning JWT access token");
-
-        group
-            .MapGet(
-                "/me",
-                (HttpContext context) =>
-                {
-                    var user = context.User;
-                    if (user.Identity?.IsAuthenticated != true)
-                        return Results.Unauthorized();
-
-                    return Results.Ok(
-                        new
-                        {
-                            Email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value,
-                            Name = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value,
-                            Role = user.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
-                        }
-                    );
-                }
-            )
-            .RequireAuthorization()
-            .WithName("GetCurrentUser")
-            .WithSummary("Get authenticated user claims");
-
-        return app;
+        return AuthEndpoints.MapAuthEndpoints(app);
     }
 }
-
-public sealed record LoginRequest(string Email, string Password);
-
-public sealed record LoginResponse(string AccessToken, string RefreshToken, string Role);

@@ -93,18 +93,38 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task AuthLogin_WithValidCredentials_ReturnsTokens()
+    public async Task AuthSignUp_WithInvalidEmail_ReturnsBadRequest()
     {
-        // Arrange
-        var payload = new { email = "investor@indexdesk.com.br", password = "SecurePassword123!" };
+        // Arrange: invalid email fails validation before any DB access.
+        var payload = new
+        {
+            email = "not-an-email",
+            password = "SecurePassword123!",
+            fullName = "Test User",
+        };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/v1/auth/login", payload);
+        var response = await _client.PostAsJsonAsync("/api/v1/auth/signup", payload);
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("accessToken");
-        content.Should().Contain("refreshToken");
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task AuthSignUp_WithWeakPassword_ReturnsBadRequest()
+    {
+        // Arrange: password too short fails validation before any DB access.
+        var payload = new
+        {
+            email = "user@exemplo.com",
+            password = "short",
+            fullName = "Test User",
+        };
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/v1/auth/signup", payload);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 }

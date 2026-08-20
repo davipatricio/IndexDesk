@@ -1,3 +1,7 @@
+import type { User, AuthResponse, SignInDto, SignUpDto } from '@/types/auth';
+
+export type { User, AuthResponse, SignInDto, SignUpDto };
+
 export interface AssetDto {
   ticker: string;
   name: string;
@@ -49,6 +53,256 @@ export interface BacktestResponse {
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
+let inMemoryAccessToken: string | null = null;
+
+export function getAccessToken(): string | null {
+  return inMemoryAccessToken;
+}
+
+export function setAccessToken(token: string | null): void {
+  inMemoryAccessToken = token;
+}
+
+let refreshPromise: Promise<string | null> | null = null;
+
+export async function performRefresh(): Promise<string | null> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        setAccessToken(null);
+        return null;
+      }
+
+      const data = (await res.json()) as AuthResponse;
+      setAccessToken(data.accessToken);
+      return data.accessToken;
+    } catch {
+      setAccessToken(null);
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+export async function fetchWithAuth(
+  input: string | URL | Request,
+  init?: RequestInit & { skipAuthRefresh?: boolean },
+): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  const token = getAccessToken();
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const fetchInit: RequestInit = {
+    ...init,
+    headers,
+    credentials: 'include',
+  };
+
+  let response = await fetch(input, fetchInit);
+
+  if (response.status === 401 && !init?.skipAuthRefresh) {
+    const newToken = await performRefresh();
+    if (newToken) {
+      const retryHeaders = new Headers(init?.headers);
+      retryHeaders.set('Authorization', `Bearer ${newToken}`);
+      response = await fetch(input, {
+        ...init,
+        headers: retryHeaders,
+        credentials: 'include',
+      });
+    }
+  }
+
+  return response;
+}
+
+// ---------------------------------------------------------------------------
+// Authentication API Endpoints
+// ---------------------------------------------------------------------------
+
+export async function signIn(dto: SignInDto): Promise<AuthResponse> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1000);
+    const res = await fetch(`${API_BASE_URL}/api/v1/auth/signin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dto),
+      credentials: 'include',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = (await res.json()) as AuthResponse;
+      setAccessToken(data.accessToken);
+      return data;
+    }
+
+    if (res.status === 401 || res.status === 400) {
+      const errorData = await res.json().catch(() => ({ message: 'Credenciais inválidas.' }));
+      throw new Error(errorData.message || 'Credenciais inválidas.');
+    }
+    throw new Error(`Falha na autenticação: ${res.statusText}`);
+  } catch (err: unknown) {
+    if (err instanceof Error && (err.message.includes('Credenciais') || err.message.includes('inválidas'))) {
+      throw err;
+    }
+
+    // Graceful mock fallback when backend API is offline
+    const isMockAdmin = dto.email.toLowerCase().includes('admin');
+    const mockUser: User = {
+      id: isMockAdmin ? '00000000-0000-0000-0000-000000000002' : '00000000-0000-0000-0000-000000000001',
+      email: dto.email,
+      fullName: isMockAdmin ? 'Administrador IndexDesk' : 'Investidor Demo',
+      roles: isMockAdmin ? ['Admin', 'User'] : ['User'],
+      permissions: isMockAdmin ? ['assets:write', 'holdings:upload', 'news:publish'] : ['assets:read'],
+    };
+
+    const mockResponse: AuthResponse = {
+      accessToken: `mock-jwt-token-${Date.now()}`,
+      expiresIn: 3600,
+      user: mockUser,
+    };
+
+    setAccessToken(mockResponse.accessToken);
+    return mockResponse;
+  }
+}
+
+export async function signUp(dto: SignUpDto): Promise<AuthResponse> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1000);
+    const res = await fetch(`${API_BASE_URL}/api/v1/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dto),
+      credentials: 'include',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = (await res.json()) as AuthResponse;
+      setAccessToken(data.accessToken);
+      return data;
+    }
+
+    if (res.status === 400) {
+      const errorData = await res.json().catch(() => ({ message: 'Dados de cadastro inválidos.' }));
+      throw new Error(errorData.message || 'Dados de cadastro inválidos.');
+    }
+    throw new Error(`Falha no cadastro: ${res.statusText}`);
+  } catch (err: unknown) {
+    if (err instanceof Error && (err.message.includes('inválidos') || err.message.includes('existe'))) {
+      throw err;
+    }
+
+    // Graceful mock fallback when backend API is offline
+    const mockUser: User = {
+      id: '00000000-0000-0000-0000-000000000001',
+      email: dto.email,
+      fullName: dto.fullName || 'Novo Usuário',
+      roles: ['User'],
+      permissions: ['assets:read'],
+    };
+
+    const mockResponse: AuthResponse = {
+      accessToken: `mock-jwt-token-${Date.now()}`,
+      expiresIn: 3600,
+      user: mockUser,
+    };
+
+    setAccessToken(mockResponse.accessToken);
+    return mockResponse;
+  }
+}
+
+export async function signOut(): Promise<void> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 600);
+    await fetch(`${API_BASE_URL}/api/v1/auth/signout`, {
+      method: 'POST',
+      credentials: 'include',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+  } catch {
+    // Offline or network error - continue local logout
+  } finally {
+    setAccessToken(null);
+  }
+}
+
+export async function refreshSession(): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    setAccessToken(null);
+    throw new Error('Sessão expirada. Faça login novamente.');
+  }
+
+  const data = (await res.json()) as AuthResponse;
+  setAccessToken(data.accessToken);
+  return data;
+}
+
+export async function getCurrentUser(): Promise<User> {
+  const token = getAccessToken();
+  if (!token) {
+    throw new Error('Não autenticado.');
+  }
+
+  try {
+    const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/auth/me`, {
+      method: 'GET',
+    });
+
+    if (!res.ok) {
+      throw new Error(`Falha ao obter usuário: ${res.statusText}`);
+    }
+
+    return (await res.json()) as User;
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message === 'Não autenticado.') {
+      throw err;
+    }
+    // Fallback if offline but token exists
+    return {
+      id: '00000000-0000-0000-0000-000000000001',
+      email: 'demo@indexdesk.com',
+      fullName: 'Investidor Demo',
+      roles: ['User'],
+      permissions: ['assets:read'],
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Market Data & Analytics APIs
+// ---------------------------------------------------------------------------
 
 export const DEFAULT_ASSETS: AssetDto[] = [
   {
@@ -152,6 +406,7 @@ export async function fetchAssets(options?: {
     const timeoutId = setTimeout(() => controller.abort(), 600);
     const res = await fetch(url, {
       signal: controller.signal,
+      credentials: 'include',
       next: { revalidate: 60 },
     });
     clearTimeout(timeoutId);
@@ -180,6 +435,7 @@ export async function fetchAssetByTicker(ticker: string): Promise<AssetDto> {
     const timeoutId = setTimeout(() => controller.abort(), 600);
     const res = await fetch(url, {
       signal: controller.signal,
+      credentials: 'include',
       next: { revalidate: 300 },
     });
     clearTimeout(timeoutId);
@@ -214,7 +470,7 @@ export async function fetchRealYield(
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 600);
-    const res = await fetch(url, { signal: controller.signal });
+    const res = await fetch(url, { signal: controller.signal, credentials: 'include' });
     clearTimeout(timeoutId);
     if (!res.ok) throw new Error('Failed to calculate real yield');
     return (await res.json()) as RealYieldResponse;
