@@ -27,7 +27,7 @@
     "implementation_status": "scaffolded",
     "roadmap_tracking_scaffolded": true,
     "code_scaffolded": true,
-    "git_commits": 0,
+    "git_commits": 1,
     "completed_task_ids": [
       "FND-001",
       "FND-002",
@@ -43,15 +43,24 @@
       "FND-012",
       "FND-014",
       "FND-015",
-      "FND-016"
+      "FND-016",
+      "MVP-001",
+      "MVP-002",
+      "MVP-003",
+      "MVP-004",
+      "MVP-005",
+      "MVP-006",
+      "MVP-007",
+      "MVP-008"
     ],
     "blockers": [
       "FND-013 permanece pendente: migrations não foram aplicadas porque containers Docker não foram iniciados, conforme solicitado.",
       "O SDK .NET local usa DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 porque libicu não está instalado no Debian sem sudo.",
       "OpenTelemetry.Exporter.OpenTelemetryProtocol 1.11.1 registra o advisory NU1902 e deve ser atualizado antes de produção."
     ],
-    "notes": "Setup inicial do monorepo IndexDesk concluído sem commit: Bun + Turborepo, Next.js 16.3.1 SSR/PWA, shadcn Base UI Nova, Vitest, solução modular .NET 9, Docker Compose, CI e instruções escopadas. Páginas atuais são scaffold demonstrativo; o desenvolvimento de produto permanece nas fases seguintes."
+    "notes": "Setup inicial do monorepo IndexDesk concluído sem commit: Bun + Turborepo, Next.js 16.3.1 SSR/PWA, shadcn Base UI Nova, Vitest, solução modular .NET 9, Docker Compose, CI e instruções escopadas. Páginas atuais são scaffold demonstrativo; o desenvolvimento de produto permanece nas fases seguintes. Commit 5f4ba25 adicionou sync multi-provider de mercado, fallback & APIs de query no backend .NET.",
+    "latest_commit": "5f4ba25 feat(backend): multi-provider market data ingest, fallback & query APIs"
   },
   "phase_order": ["PHASE-00", "PHASE-01", "PHASE-02", "PHASE-03"],
-  "updated_at": "2026-08-18"
+  "updated_at": "2026-08-19"
 }
