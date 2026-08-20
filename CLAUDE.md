@@ -50,7 +50,7 @@ IndexDesk is a web platform (Brazilian market) focused on **ETFs and ETF BDRs** 
   - **Recharts** (or Shadcn/Tremor Charts) — SVG for portfolio allocation (donut/pie) and metrics comparison bars.
   - **Visx (Airbnb) / TanStack React Charts** — custom complex visuals (ETF Overlap Venn diagrams, correlation heatmaps).
 - **Turborepo** (latest) is the monorepo orchestrator **and build system** — it drives build/lint/test/dev across every workspace, including the `.NET` backend in `apps/backend` (via `turbo.json` tasks caching `bin/` and `obj/`, e.g. `turbo run build --filter=backend`). Treat it as the single entry point for all workspace operations.
-- **Frontend-Backend Communication:** Standard **REST + OpenAPI (Scalar / Swagger)** with typed client generation in Next.js (`@hey-api/openapi-ts` or typed fetch). _(oRPC / Elysia+Bun are dropped for now, reserved for future consideration if needed)._
+- **Frontend-Backend Communication:** Standard **REST + OpenAPI (Scalar)** with typed client generation in Next.js (`@hey-api/openapi-ts` or typed fetch). _(oRPC / Elysia+Bun are dropped for now, reserved for future consideration if needed)._
 
 No product build/lint/test commands exist yet — the monorepo/backend is not scaffolded. The root only has roadmap tracking commands (`bun run roadmap:validate`, `bun run roadmap:generate`, `bun run roadmap:check`). Do not fabricate product commands.
 
@@ -58,7 +58,7 @@ No product build/lint/test commands exist yet — the monorepo/backend is not sc
 
 `apps/backend/IndexDesk.sln` structured as a **Modular Monolith** in .NET 9/10 (C# 12/13):
 
-- **`IndexDesk.Api`** — Single ASP.NET Core HTTP host with Minimal APIs / Controllers, OpenAPI documentation (Scalar/Swagger), and OpenTelemetry middleware.
+- **`IndexDesk.Api`** — Single ASP.NET Core HTTP host with Minimal APIs / Controllers, OpenAPI documentation (Scalar), and OpenTelemetry middleware.
 - **`IndexDesk.Worker`** — Background worker host running **Quartz.NET** schedulers for external data ingestion (BCB, CVM, Brapi, Yahoo).
 - **`Modules/`** — Strictly bounded domain modules:
   - **`Auth`** — users, JWT, HttpOnly-cookie refresh tokens, Argon2id/BCrypt hashing.

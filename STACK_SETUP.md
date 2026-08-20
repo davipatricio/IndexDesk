@@ -20,7 +20,7 @@
 | **Estado UI & URL**           | **zustand + nuqs**                                 | `zustand` para estado de cliente efêmero; `nuqs` para estado tipado na URL (filtros de busca, tickers).                                                                               |
 | **Estilização & UI**          | **Tailwind CSS v4 + Shadcn UI**                    | Design System rápido, otimizado e responsivo (componentes colocados em `apps/web`).                                                                                                   |
 | **Gráficos & Visualização**   | **TradingView Lightweight Charts + Recharts**      | Canvas de 60fps para séries temporais financeiras (cotações/backtests) + SVG para alocação/donut.                                                                                     |
-| **Comunicação Web-API**       | **REST + OpenAPI (Scalar / Swagger)**              | Endpoints REST no .NET com OpenAPI e cliente tipado no Next.js (`@hey-api/openapi-ts` ou fetch tipado).                                                                               |
+| **Comunicação Web-API**       | **REST + OpenAPI (Scalar)**                         | Endpoints REST no .NET com OpenAPI e cliente tipado no Next.js (`@hey-api/openapi-ts` ou fetch tipado).                                                                               |
 | **Backend**                   | **Monólito Modular .NET 9/10 (C# 12/13)**          | Solução única modular com divisão estrita de domínios em projetos/pastas.                                                                                                             |
 | **Banco de Dados**            | **PostgreSQL 18 + TimescaleDB (Self-Hosted)**      | Séries temporais financeiras via Docker. _(Fallback: PostgreSQL 18 particionado por data)._                                                                                           |
 | **Cache & In-Memory**         | **Redis**                                          | Cache de cotações, agregados e respostas do Backtest.                                                                                                                                 |
@@ -119,7 +119,7 @@ Para uma plataforma de inteligência de ETFs e BDRs, recomendamos a abordagem h�
                                      ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                    IndexDesk.Api (Host HTTP Único)                      │
-│   - Endpoints Minimal APIs / Controllers com OpenAPI (Scalar / Swagger) │
+│   - Endpoints Minimal APIs / Controllers com OpenAPI (Scalar)            │
 │   - Autenticação JWT & Cookies HttpOnly                                 │
 │   - OpenTelemetry Instrumentation Middleware                            │
 └──────────────┬─────────────────────┬─────────────────────┬──────────────┘

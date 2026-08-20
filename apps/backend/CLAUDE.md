@@ -10,7 +10,7 @@
 A single **Modular Monolith** solution (`IndexDesk.sln`, .NET 9, C# 13) with two hosts and strictly bounded
 domain modules:
 
-- **`IndexDesk.Api`** — ASP.NET Core HTTP host. Minimal API endpoint groups + OpenAPI (Swagger in dev, Scalar UI).
+- **`IndexDesk.Api`** — ASP.NET Core HTTP host. Minimal API endpoint groups + OpenAPI served by Scalar UI (dev only).
 - **`IndexDesk.Worker`** — background host. **Quartz.NET** schedulers for external data ingestion.
 - **`Modules/`** — domain boundaries: `Auth`, `MarketData`, `Analytics`, `Portfolio` (Fase 2/3).
 - **`BuildingBlocks/`** — shared infra: `Common`, `Persistence`, `Cache`, `Resilience`, `Messaging`, `Observability`.
@@ -113,7 +113,8 @@ public static class XModuleExtensions
 
 ### API host specifics (`IndexDesk.Api/Program.cs`)
 
-- JWT Bearer + HttpOnly refresh cookies (Auth module). Swagger UI + Scalar in Development only.
+- JWT Bearer + HttpOnly refresh cookies (Auth module). Scalar UI (`/scalar/v1`) in Development only — served by
+  `Microsoft.AspNetCore.OpenApi` (`MapOpenApi()`), **no Swashbuckle/Swagger**.
 - CORS policy `"AllowWeb"` allows the web origin (`Web:AppUrl`, default `http://localhost:3000`) with credentials.
 - Health check at `/health`. Root `/` returns status + `/scalar/v1` doc link.
 - `public partial class Program {}` is required for `WebApplicationFactory` integration tests — do not remove.
