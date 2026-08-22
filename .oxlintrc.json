@@ -22,6 +22,21 @@
     "react/no-unstable-nested-components": "off",
     "nextjs/no-html-link-for-pages": "error"
   },
+  "overrides": [
+    {
+      "files": [
+        "**/src/components/ui/scrub-number-input.tsx",
+        "**/src/hooks/use-controllable-state.tsx",
+        "**/src/lib/scrub-number-overflow.ts",
+        "**/src/lib/scrub-number-math.ts"
+      ],
+      "rules": {
+        "react-hooks/exhaustive-deps": "off",
+        "react/refs": "off",
+        "react/set-state-in-effect": "off"
+      }
+    }
+  ],
   "ignorePatterns": [
     "**/node_modules/**",
     "**/.next/**",

@@ -33,6 +33,7 @@ All data is fetched from the .NET API (`apps/backend`) — **never call external
 | Tables/Forms/Virtual/Hotkeys | **`@tanstack/react-table ^9.1`**, **`react-form ^1.33`**, **`react-virtual ^3.14`**, **`react-hotkeys ^0.10`**             |                                                                                                 |
 | URL state                    | **`nuqs ^2.9.6`** (wrapped by `NuqsAdapter` in `providers.tsx`)                                                            |                                                                                                 |
 | Client state                 | **`zustand ^5.0.15`** + **`@tanstack/store` / `@tanstack/db`** (offline layer)                                             |                                                                                                 |
+| Registry extras              | `calligraph ^1.4`, `motion ^13`                                                                                             | Deps pulled by the vendored `@kinetic/scrub-number-field`; do not import directly in app code.  |
 | Tests                        | **Vitest ^3.0.7** + Testing Library + `jsdom`                                                                              | `vitest.config.ts`, `vitest.setup.ts`.                                                          |
 
 ## 3. Commands (run from repo root via Turborepo, or `cd apps/web`)
@@ -74,6 +75,47 @@ bun test:coverage      # vitest run --coverage
   `@/lib/utils`, `@/hooks`. Always import via `@/`, never relative paths across folders.
 - `src/lib/utils.ts` exports `cn()` (clsx + tailwind-merge). Variants use `class-variance-authority`.
 - Animations: `tw-animate-css`. Icons: `lucide-react` (already in `optimizePackageImports`).
+
+### 4.1 Third-party registries (policy)
+
+Official shadcn already ships **Base UI variants** for every core primitive (`ui.shadcn.com/docs/components/base/*`);
+with `style: "base-nova"` the plain CLI form resolves to them. Only reach for a third-party registry when the
+official set lacks the component.
+
+**Primitive rule:** this app standardizes on **`@base-ui/react`**. Never install *interactive* components built on
+Radix UI or other primitive libs — they duplicate primitives, split focus/a11y behavior and add bundle weight.
+Visual-only registries (charts on Recharts, OG images on Satori) carry no primitive and are exempt.
+
+**Priority order**
+
+1. Official: `bunx shadcn@latest add <name>` (resolves base-nova / Base UI).
+2. Base UI-native registries (`registries` map in `components.json`): `@kinetic`, `@basecn`, `@coss`, `@lumiui`.
+3. Visual-only: `@evilcharts` (Recharts-styled), `@ogimagecn` (Satori OG images).
+4. `@reui` — lookup/reference only for patterns; do **not** install as a dependency source by default.
+
+**Approved registry items and their destination**
+
+| Registry item | Destination here | Status |
+| :--- | :--- | :--- |
+| `@kinetic/scrub-number-field` | Numeric inputs in backtest/calculators (`ScrubNumberField`) | Installed; used by `terminal-backtest.tsx` |
+| `@evilcharts/*` (area/donut/bar) | Allocation donut + comparison bars when those surfaces are built | Approved, install on first render site |
+| `@kibo-ui/file-upload` | Admin CSV holdings upload (MVP-016) | Approved, install with the admin feature |
+| `@dsikeres1/*` date-range picker | Backtest/comparador period selection if native dates fall short | Candidate |
+| `@ogimagecn/*` | Dynamic per-ticker OG images (MVP-022) | Approved |
+| Rich-text editor for admin reports (MVP-017) | Decide between `@prosekit` (lighter) and `@shadcn-editor` (Lexical); avoid `@plate` (heavy) | Open decision |
+| `@lytenyte` grid | Only if TanStack Table + react-virtual cannot handle 10y+ daily quote tables | Fallback |
+
+**Banned categories:** animation libraries (`@magicui`, `@aceternity`, `@animate-ui`, `@react-bits` — violate the
+project MOTION ≤ 3 / anti-slop rules), template dashboards (`@bundui`, `@shadcnblocks`, …), ready-made theme packs,
+AI/chat/billing/auth/maps/web3 collections (no product use case; auth is our own JWT backend).
+
+**Rules of engagement**
+
+- Install an item only when its render site exists — no dead components parked in `src/components/ui`.
+- Vendored files are ours: fix real bugs in place (e.g. strict-mode fixes) and silence intentional patterns via
+  targeted `overrides` in the root `.oxlintrc.json` (see the `scrub-number-*` / `use-controllable-state` block),
+  never blanket ignores.
+- Review the installed source at add time (registry code runs in our bundle).
 
 ## 5. Architecture & conventions
 

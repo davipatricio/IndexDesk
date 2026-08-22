@@ -33,6 +33,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { ScrubNumberField } from '@/components/ui/scrub-number-input';
 import {
   Select,
   SelectContent,
@@ -192,15 +193,15 @@ function AllocationRow({
         <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
           Peso %
         </span>
-        <Input
-          type="number"
+        <ScrubNumberField
           min={0}
           max={100}
-          step="0.01"
+          step={1}
+          smallStep={0.1}
+          largeStep={10}
+          format={{ maximumFractionDigits: 2 }}
           value={allocation.weightPercent}
-          onChange={(event) =>
-            onChange({ ...allocation, weightPercent: Number(event.target.value) || 0 })
-          }
+          onValueChange={(value) => onChange({ ...allocation, weightPercent: value })}
           className="h-8 font-mono text-xs"
           aria-label={`Peso de ${allocation.ticker}`}
         />
@@ -396,12 +397,14 @@ export function TerminalBacktest() {
                 <span className="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   <DollarSign className="size-3" /> Capital inicial
                 </span>
-                <Input
-                  type="number"
+                <ScrubNumberField
                   min={0}
-                  step="100"
+                  step={100}
+                  smallStep={50}
+                  largeStep={1000}
+                  format={{ style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }}
                   value={initialAmount}
-                  onChange={(event) => setInitialAmount(Number(event.target.value) || 0)}
+                  onValueChange={setInitialAmount}
                   className="font-mono text-sm"
                 />
               </label>
@@ -409,12 +412,14 @@ export function TerminalBacktest() {
                 <span className="mb-1 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   <WalletCards className="size-3" /> Aporte mensal
                 </span>
-                <Input
-                  type="number"
+                <ScrubNumberField
                   min={0}
-                  step="100"
+                  step={100}
+                  smallStep={50}
+                  largeStep={1000}
+                  format={{ style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }}
                   value={monthlyContribution}
-                  onChange={(event) => setMonthlyContribution(Number(event.target.value) || 0)}
+                  onValueChange={setMonthlyContribution}
                   className="font-mono text-sm"
                 />
               </label>

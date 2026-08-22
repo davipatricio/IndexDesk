@@ -49,6 +49,11 @@ Alocação/top-10/donut → `recharts` (SVG, tokens Tailwind) · Venn overlap/he
 
 - shadcn CLI resolve para base-nova: `bunx shadcn@latest add <component>` → `src/components/ui`.
   Não hand-rollar primitivo que o shadcn fornece.
+- Registries de terceiros (política completa em `apps/web/CLAUDE.md` §4.1): shadcn oficial primeiro
+  (variantes Base UI em `/docs/components/base/*`); interativos só Base UI-native (`@kinetic`, `@basecn`),
+  nunca Radix; visual-only isento (`@evilcharts` Recharts, `@ogimagecn` Satori); `@reui` só consulta.
+  Instalar apenas com local de render existente; bugs de vendor corrigidos in place + override
+  cirúrgico em `.oxlintrc.json`. Instalado hoje: `@kinetic/scrub-number-field` (inputs numéricos do backtest).
 - Aliases: `@/components`, `@/components/ui`, `@/lib`, `@/lib/utils`, `@/hooks`. Nunca paths relativos entre pastas.
 - `cn()` de `@/lib/utils`; variantes com CVA; ícones lucide-react; animações tw-animate-css.
 - Testes co-localizados (`*.test.ts(x)` ou `src/lib/__tests__/`); `bun test` / `test:coverage`.
