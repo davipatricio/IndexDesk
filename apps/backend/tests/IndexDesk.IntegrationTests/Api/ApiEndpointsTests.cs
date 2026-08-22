@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
@@ -9,6 +10,13 @@ namespace IndexDesk.IntegrationTests.Api;
 public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private readonly HttpClient _client;
+
+    private sealed record PagedAssetsResponse(
+        IReadOnlyList<JsonElement> Items,
+        int Page,
+        int PageSize,
+        long TotalCount
+    );
 
     public ApiEndpointsTests(WebApplicationFactory<Program> factory)
     {
@@ -66,16 +74,58 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task GetAssets_ViaSearchQuery_FiltersByTicker()
+    public async Task GetAssets_ViaSearchQuery_ReturnsAValidEmptyPageWhenNoRowsMatch()
     {
-        // Act
-        var response = await _client.GetAsync("/api/v1/assets?search=WRLD");
+        // The catalog is local database state; integration tests must not require a seeded ticker.
+        var response = await _client.GetAsync("/api/v1/assets?search=NO_SUCH_TICKER");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var payload = await response.Content.ReadFromJsonAsync<PagedAssetsResponse>();
+        payload.Should().NotBeNull();
+        payload!.Items.Should().BeEmpty();
+        payload.TotalCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task GetAssetByTicker_WhenMissing_ReturnsNotFound()
+    {
+        var response = await _client.GetAsync("/api/v1/assets/NO_SUCH_TICKER");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task GetAssetQuotes_WhenMissing_ReturnsNotFound()
+    {
+        var response = await _client.GetAsync("/api/v1/assets/NO_SUCH_TICKER/quotes");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task GetAssetPerformance_WhenMissing_ReturnsNotFound()
+    {
+        var response = await _client.GetAsync("/api/v1/assets/NO_SUCH_TICKER/performance");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Backtest_WhenPersistedSeriesAreUnavailable_ReturnsServiceUnavailable()
+    {
+        var response = await _client.PostAsJsonAsync(
+            "/api/v1/analytics/backtest",
+            new
+            {
+                initialAmount = 10_000,
+                monthlyContribution = 500,
+                allocations = new[] { new { ticker = "NO_SUCH_TICKER", weightPercent = 100 } },
+            }
+        );
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
         var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("WRLD11");
-        content.Should().NotContain("MXRF11");
+        content.Should().Contain("Analytics.BacktestUnavailable");
     }
 
     [Fact]

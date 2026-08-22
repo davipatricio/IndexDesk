@@ -438,17 +438,22 @@ public class AssetQueryService : IAssetQueryService
     {
         var isFii = assetType.Equals("FII", StringComparison.OrdinalIgnoreCase);
         var isBdr = assetType.StartsWith("BDR", StringComparison.OrdinalIgnoreCase);
-        var isEtf = assetType.Equals("ETF", StringComparison.OrdinalIgnoreCase);
+        var isEtf =
+            assetType.Equals("ETF", StringComparison.OrdinalIgnoreCase)
+            || assetType.Equals("BDR_ETF", StringComparison.OrdinalIgnoreCase);
 
-        var taxDomicile = isBdr || ticker.StartsWith("VWRA") ? "IRELAND_UCITS" : "BRAZIL";
-        var foreignWithholding = taxDomicile == "IRELAND_UCITS" ? 15m : 0m;
+        var isVwra = ticker.Equals("VWRA11", StringComparison.OrdinalIgnoreCase);
+        var taxDomicile = isVwra ? "IRELAND_UCITS" : "BRAZIL";
+        var foreignWithholding = isVwra ? 15m : 0m;
 
         var summary =
             isFii
                 ? "FIIs são isentos de IR sobre rendimentos distribuídos (Lei 8.668/93); o ganho de capital na venda é tributado em até 20% (swing trade)."
+            : isVwra
+                ? "VWRA11 é um BDR de ETF UCITS acumulador domiciliado na Irlanda: ganho de capital de 15% no swing trade e 20% no day trade, recolhido via DARF 6015. Não há isenção de R$ 20 mil/mês nem come-cotas; dividendos são reinvestidos no fundo e a retenção norte-americana é de 15% no nível do veículo."
             : isBdr
-                ? "BDRs de ETF no exterior: ganho de capital 15% (swing). Retenção de imposto na fonte no exterior entre 15%–30% sobre dividendos."
-            : "ETF de bolsa: ganho de capital 15% (swing) / 20% (day trade). Não há isenção de R$ 20k/mês para ETFs.";
+                ? "BDRs de ETF no exterior: ganho de capital 15% (swing) e 20% (day trade). Não há isenção de R$ 20 mil/mês; retenção estrangeira sobre dividendos depende do domicílio."
+            : "ETF de bolsa: ganho de capital 15% (swing) / 20% (day trade). Não há isenção de R$ 20 mil/mês para ETFs.";
 
         return new FiscalProfileDto(
             TaxDomicile: taxDomicile,

@@ -2,19 +2,22 @@ import type { User, AuthResponse, SignInDto, SignUpDto } from '@/types/auth';
 
 export type { User, AuthResponse, SignInDto, SignUpDto };
 
+/** Compact asset row returned by GET /api/v1/assets. */
 export interface AssetDto {
   ticker: string;
   name: string;
-  manager: string;
-  category: string;
-  assetClass: string;
-  benchmark: string;
-  managementFee: number;
-  netAssets: number;
-  shareholders: number;
-  lastPrice: number;
-  changeDayPercent: number;
-  changeYtdPercent: number;
+  assetType: string;
+  currency: string;
+  benchmarkSymbol: string | null;
+  lastPrice: number | null;
+  changeDayPercent: number | null;
+  return1mPercent: number | null;
+  return12mPercent: number | null;
+  annualizedVolatilityPercent: number | null;
+  sharpeRatio: number | null;
+  maxDrawdownPercent: number | null;
+  firstQuoteDate: string | null;
+  lastQuoteDate: string | null;
 }
 
 export interface QuoteItem {
@@ -25,6 +28,80 @@ export interface QuoteItem {
   close: number;
   adjustedClose: number;
   volume: number;
+}
+
+/** Rich single-asset response returned by GET /api/v1/assets/{ticker}. */
+export interface AssetFiscalData {
+  taxDomicile: 'BRAZIL' | 'USA' | 'IRELAND_UCITS' | 'OTHER';
+  isEtf: boolean;
+  isBdr: boolean;
+  isFii: boolean;
+  incomeTaxRatePercent: number;
+  dayTradeTaxRatePercent: number;
+  hasComeCotas: boolean;
+  hasMonthlySalesTaxExemption: boolean;
+  isTaxWithheldAtSource: boolean;
+  foreignDividendWithholdingPercent: number;
+  taxSummary: string;
+}
+
+export interface AssetDetailDto {
+  ticker: string;
+  name: string;
+  assetType: string;
+  cnpj: string | null;
+  isin: string | null;
+  currency: string;
+  tradingViewSymbol: string | null;
+  stats: AssetQuoteStatsDto;
+  fiscal: AssetFiscalData;
+}
+
+export interface AssetQuoteStatsDto {
+  lastPrice: number | null;
+  changeDayPercent: number | null;
+  return1mPercent: number | null;
+  return6mPercent: number | null;
+  return12mPercent: number | null;
+  returnYtdPercent: number | null;
+  annualizedVolatilityPercent: number | null;
+  sharpeRatio: number | null;
+  maxDrawdownPercent: number | null;
+  firstQuoteDate: string | null;
+  lastQuoteDate: string | null;
+}
+
+
+export interface PerformanceResponse {
+  ticker: string;
+  from: string;
+  to: string;
+  startPrice: number;
+  endPrice: number;
+  priceReturnPercent: number;
+  totalReturnPercent: number;
+  annualizedReturnPercent: number;
+  dividendPayments: number;
+  dividendsTotal: number;
+  benchmarks: Array<{
+    code: string;
+    name: string;
+    returnPercent: number;
+    available: boolean;
+  }>;
+}
+
+export interface QuoteQueryOptions {
+  from?: string;
+  to?: string;
+  days?: number;
+}
+
+export interface PerformanceQueryOptions {
+  from?: string;
+  to?: string;
+  returnType?: 'price' | 'total';
+  includeBenchmarks?: boolean;
 }
 
 export interface RealYieldResponse {
@@ -136,103 +213,51 @@ export async function fetchWithAuth(
 // Authentication API Endpoints
 // ---------------------------------------------------------------------------
 
+async function readApiError(response: Response, fallback: string): Promise<Error> {
+  const payload = (await response.json().catch(() => null)) as
+    | { message?: unknown; title?: unknown }
+    | null;
+  const message =
+    typeof payload?.message === 'string'
+      ? payload.message
+      : typeof payload?.title === 'string'
+        ? payload.title
+        : fallback;
+  return new Error(message);
+}
+
 export async function signIn(dto: SignInDto): Promise<AuthResponse> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1000);
-    const res = await fetch(`${API_BASE_URL}/api/v1/auth/signin`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dto),
-      credentials: 'include',
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/signin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dto),
+    credentials: 'include',
+  });
 
-    if (res.ok) {
-      const data = (await res.json()) as AuthResponse;
-      setAccessToken(data.accessToken);
-      return data;
-    }
-
-    if (res.status === 401 || res.status === 400) {
-      const errorData = await res.json().catch(() => ({ message: 'Credenciais inválidas.' }));
-      throw new Error(errorData.message || 'Credenciais inválidas.');
-    }
-    throw new Error(`Falha na autenticação: ${res.statusText}`);
-  } catch (err: unknown) {
-    if (err instanceof Error && (err.message.includes('Credenciais') || err.message.includes('inválidas'))) {
-      throw err;
-    }
-
-    // Graceful mock fallback when backend API is offline
-    const isMockAdmin = dto.email.toLowerCase().includes('admin');
-    const mockUser: User = {
-      id: isMockAdmin ? '00000000-0000-0000-0000-000000000002' : '00000000-0000-0000-0000-000000000001',
-      email: dto.email,
-      fullName: isMockAdmin ? 'Administrador IndexDesk' : 'Investidor Demo',
-      roles: isMockAdmin ? ['Admin', 'User'] : ['User'],
-      permissions: isMockAdmin ? ['assets:write', 'holdings:upload', 'news:publish'] : ['assets:read'],
-    };
-
-    const mockResponse: AuthResponse = {
-      accessToken: `mock-jwt-token-${Date.now()}`,
-      expiresIn: 3600,
-      user: mockUser,
-    };
-
-    setAccessToken(mockResponse.accessToken);
-    return mockResponse;
+  if (!response.ok) {
+    throw await readApiError(response, `Falha na autenticação: ${response.statusText}`);
   }
+
+  const data = (await response.json()) as AuthResponse;
+  setAccessToken(data.accessToken);
+  return data;
 }
 
 export async function signUp(dto: SignUpDto): Promise<AuthResponse> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1000);
-    const res = await fetch(`${API_BASE_URL}/api/v1/auth/signup`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dto),
-      credentials: 'include',
-      signal: controller.signal,
-    });
-    clearTimeout(timeoutId);
+  const response = await fetch(`${API_BASE_URL}/api/v1/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dto),
+    credentials: 'include',
+  });
 
-    if (res.ok) {
-      const data = (await res.json()) as AuthResponse;
-      setAccessToken(data.accessToken);
-      return data;
-    }
-
-    if (res.status === 400) {
-      const errorData = await res.json().catch(() => ({ message: 'Dados de cadastro inválidos.' }));
-      throw new Error(errorData.message || 'Dados de cadastro inválidos.');
-    }
-    throw new Error(`Falha no cadastro: ${res.statusText}`);
-  } catch (err: unknown) {
-    if (err instanceof Error && (err.message.includes('inválidos') || err.message.includes('existe'))) {
-      throw err;
-    }
-
-    // Graceful mock fallback when backend API is offline
-    const mockUser: User = {
-      id: '00000000-0000-0000-0000-000000000001',
-      email: dto.email,
-      fullName: dto.fullName || 'Novo Usuário',
-      roles: ['User'],
-      permissions: ['assets:read'],
-    };
-
-    const mockResponse: AuthResponse = {
-      accessToken: `mock-jwt-token-${Date.now()}`,
-      expiresIn: 3600,
-      user: mockUser,
-    };
-
-    setAccessToken(mockResponse.accessToken);
-    return mockResponse;
+  if (!response.ok) {
+    throw await readApiError(response, `Falha no cadastro: ${response.statusText}`);
   }
+
+  const data = (await response.json()) as AuthResponse;
+  setAccessToken(data.accessToken);
+  return data;
 }
 
 export async function signOut(): Promise<void> {
@@ -275,121 +300,19 @@ export async function getCurrentUser(): Promise<User> {
     throw new Error('Não autenticado.');
   }
 
-  try {
-    const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/auth/me`, {
-      method: 'GET',
-    });
+  const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/auth/me`, { method: 'GET' });
 
-    if (!res.ok) {
-      throw new Error(`Falha ao obter usuário: ${res.statusText}`);
-    }
-
-    return (await res.json()) as User;
-  } catch (err: unknown) {
-    if (err instanceof Error && err.message === 'Não autenticado.') {
-      throw err;
-    }
-    // Fallback if offline but token exists
-    return {
-      id: '00000000-0000-0000-0000-000000000001',
-      email: 'demo@indexdesk.com',
-      fullName: 'Investidor Demo',
-      roles: ['User'],
-      permissions: ['assets:read'],
-    };
+  if (!res.ok) {
+    setAccessToken(null);
+    throw await readApiError(res, `Falha ao obter usuário: ${res.statusText}`);
   }
+
+  return (await res.json()) as User;
 }
 
 // ---------------------------------------------------------------------------
 // Market Data & Analytics APIs
 // ---------------------------------------------------------------------------
-
-export const DEFAULT_ASSETS: AssetDto[] = [
-  {
-    ticker: 'IVVB11',
-    name: 'iShares S&P 500 Fundo de Índice',
-    manager: 'BlackRock',
-    category: 'ETF',
-    assetClass: 'Equity',
-    benchmark: 'S&P 500',
-    managementFee: 0.23,
-    netAssets: 4500000000,
-    shareholders: 185000,
-    lastPrice: 342.5,
-    changeDayPercent: 0.45,
-    changeYtdPercent: 18.2,
-  },
-  {
-    ticker: 'BOVA11',
-    name: 'iShares Ibovespa Fundo de Índice',
-    manager: 'BlackRock',
-    category: 'ETF',
-    assetClass: 'Equity',
-    benchmark: 'IBOV',
-    managementFee: 0.1,
-    netAssets: 12000000000,
-    shareholders: 120000,
-    lastPrice: 125.8,
-    changeDayPercent: -0.15,
-    changeYtdPercent: 6.4,
-  },
-  {
-    ticker: 'B5P211',
-    name: 'It Now IMA-B 5 P2 Fundo de Índice',
-    manager: 'Itaú Asset',
-    category: 'ETF',
-    assetClass: 'FixedIncome',
-    benchmark: 'IMA-B 5 P2',
-    managementFee: 0.2,
-    netAssets: 3200000000,
-    shareholders: 65000,
-    lastPrice: 89.2,
-    changeDayPercent: 0.05,
-    changeYtdPercent: 8.9,
-  },
-  {
-    ticker: 'WRLD11',
-    name: 'Investo MSCI World Fundo de Índice',
-    manager: 'Investo',
-    category: 'ETF',
-    assetClass: 'Equity',
-    benchmark: 'MSCI World',
-    managementFee: 0.38,
-    netAssets: 1500000000,
-    shareholders: 42000,
-    lastPrice: 118.4,
-    changeDayPercent: 0.62,
-    changeYtdPercent: 16.5,
-  },
-  {
-    ticker: 'SMAL11',
-    name: 'iShares Small Cap Fundo de Índice',
-    manager: 'BlackRock',
-    category: 'ETF',
-    assetClass: 'Equity',
-    benchmark: 'SMLL',
-    managementFee: 0.5,
-    netAssets: 2100000000,
-    shareholders: 58000,
-    lastPrice: 102.1,
-    changeDayPercent: -0.8,
-    changeYtdPercent: -2.1,
-  },
-  {
-    ticker: 'HASH11',
-    name: 'Hashdex Nasdaq Crypto Index',
-    manager: 'Hashdex',
-    category: 'ETF',
-    assetClass: 'Crypto',
-    benchmark: 'NCI',
-    managementFee: 1.3,
-    netAssets: 2800000000,
-    shareholders: 140000,
-    lastPrice: 68.9,
-    changeDayPercent: 2.1,
-    changeYtdPercent: 45.3,
-  },
-];
 
 export async function fetchAssets(options?: {
   category?: string;
@@ -401,65 +324,72 @@ export async function fetchAssets(options?: {
 
   const url = `${API_BASE_URL}/api/v1/assets${params.toString() ? `?${params.toString()}` : ''}`;
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 600);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      credentials: 'include',
-      next: { revalidate: 60 },
-    });
-    clearTimeout(timeoutId);
-    if (!res.ok) throw new Error(`Failed to fetch assets: ${res.statusText}`);
-    return (await res.json()) as AssetDto[];
-  } catch {
-    // Graceful fallback for offline / mock dev
-    let list = [...DEFAULT_ASSETS];
-    if (options?.category) {
-      list = list.filter((a) => a.category.toLowerCase().includes(options.category!.toLowerCase()));
-    }
-    if (options?.search) {
-      const q = options.search.toLowerCase();
-      list = list.filter(
-        (a) => a.ticker.toLowerCase().includes(q) || a.name.toLowerCase().includes(q),
-      );
-    }
-    return list;
+  const res = await fetch(url, { credentials: 'include', next: { revalidate: 60 } });
+  if (!res.ok) throw await readApiError(res, `Falha ao obter ativos: ${res.statusText}`);
+
+  const payload: unknown = await res.json();
+  if (Array.isArray(payload)) return payload as AssetDto[];
+  if (payload && typeof payload === 'object') {
+    const items = (payload as { items?: unknown }).items;
+    if (Array.isArray(items)) return items as AssetDto[];
   }
+  throw new Error('Resposta inválida do catálogo de ativos.');
 }
 
 export async function fetchAssetByTicker(ticker: string): Promise<AssetDto> {
-  const url = `${API_BASE_URL}/api/v1/assets/${encodeURIComponent(ticker.toUpperCase())}`;
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 600);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      credentials: 'include',
-      next: { revalidate: 300 },
-    });
-    clearTimeout(timeoutId);
-    if (!res.ok) throw new Error(`Asset not found: ${ticker}`);
-    return (await res.json()) as AssetDto;
-  } catch {
-    const found = DEFAULT_ASSETS.find((a) => a.ticker.toUpperCase() === ticker.toUpperCase());
-    if (found) return found;
+  const normalizedTicker = ticker.trim().toUpperCase();
+  const url = `${API_BASE_URL}/api/v1/assets/${encodeURIComponent(normalizedTicker)}`;
+  const res = await fetch(url, { credentials: 'include', next: { revalidate: 300 } });
+  if (!res.ok) throw await readApiError(res, `Ativo não encontrado: ${normalizedTicker}`);
+  return (await res.json()) as AssetDto;
+}
 
-    return {
-      ticker: ticker.toUpperCase(),
-      name: `${ticker.toUpperCase()} Fundo de Índice B3`,
-      manager: 'Gestora Referência',
-      category: 'ETF',
-      assetClass: 'Equity',
-      benchmark: 'IBOV',
-      managementFee: 0.2,
-      netAssets: 3500000000,
-      shareholders: 85000,
-      lastPrice: 142.3,
-      changeDayPercent: 0.25,
-      changeYtdPercent: 12.4,
-    };
+/** Fetch the nested market and fiscal sheet from GET /api/v1/assets/{ticker}. */
+export async function fetchAssetDetail(ticker: string): Promise<AssetDetailDto> {
+  const upperTicker = ticker.toUpperCase();
+  const url = `${API_BASE_URL}/api/v1/assets/${encodeURIComponent(upperTicker)}`;
+  const res = await fetch(url, { credentials: 'include', next: { revalidate: 300 } });
+  if (!res.ok) throw await readApiError(res, `Ativo não encontrado: ${upperTicker}`);
+  return (await res.json()) as AssetDetailDto;
+}
+
+/** Fetch daily OHLCV data from GET /api/v1/assets/{ticker}/quotes. */
+export async function fetchAssetQuotes(
+  ticker: string,
+  options?: QuoteQueryOptions,
+): Promise<QuoteItem[]> {
+  const upperTicker = ticker.toUpperCase();
+  const params = new URLSearchParams();
+  if (options?.from) params.set('from', options.from);
+  if (options?.to) params.set('to', options.to);
+  if (options?.days !== undefined) params.set('days', String(options.days));
+  const query = params.toString();
+  const url = `${API_BASE_URL}/api/v1/assets/${encodeURIComponent(upperTicker)}/quotes${query ? `?${query}` : ''}`;
+
+  const res = await fetch(url, { credentials: 'include', next: { revalidate: 900 } });
+  if (!res.ok) throw await readApiError(res, `Cotações não encontradas: ${upperTicker}`);
+  return (await res.json()) as QuoteItem[];
+}
+
+/** Fetch return metrics from GET /api/v1/assets/{ticker}/performance. */
+export async function fetchAssetPerformance(
+  ticker: string,
+  options?: PerformanceQueryOptions,
+): Promise<PerformanceResponse> {
+  const upperTicker = ticker.toUpperCase();
+  const params = new URLSearchParams();
+  if (options?.from) params.set('from', options.from);
+  if (options?.to) params.set('to', options.to);
+  if (options?.returnType) params.set('returnType', options.returnType);
+  if (options?.includeBenchmarks !== undefined) {
+    params.set('includeBenchmarks', String(options.includeBenchmarks));
   }
+  const query = params.toString();
+  const url = `${API_BASE_URL}/api/v1/assets/${encodeURIComponent(upperTicker)}/performance${query ? `?${query}` : ''}`;
+
+  const res = await fetch(url, { credentials: 'include', next: { revalidate: 900 } });
+  if (!res.ok) throw await readApiError(res, `Desempenho não encontrado: ${upperTicker}`);
+  return (await res.json()) as PerformanceResponse;
 }
 
 export async function fetchRealYield(
@@ -467,21 +397,7 @@ export async function fetchRealYield(
   inflationRate: number,
 ): Promise<RealYieldResponse> {
   const url = `${API_BASE_URL}/api/v1/analytics/real-yield?nominalRate=${nominalRate}&inflationRate=${inflationRate}`;
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 600);
-    const res = await fetch(url, { signal: controller.signal, credentials: 'include' });
-    clearTimeout(timeoutId);
-    if (!res.ok) throw new Error('Failed to calculate real yield');
-    return (await res.json()) as RealYieldResponse;
-  } catch {
-    const nom = nominalRate > 1 ? nominalRate / 100 : nominalRate;
-    const inf = inflationRate > 1 ? inflationRate / 100 : inflationRate;
-    const real = ((1 + nom) / (1 + inf) - 1) * 100;
-    return {
-      nominalRate,
-      inflationRate,
-      realYieldPercent: Number(real.toFixed(4)),
-    };
-  }
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) throw await readApiError(res, `Falha ao calcular juro real: ${res.statusText}`);
+  return (await res.json()) as RealYieldResponse;
 }

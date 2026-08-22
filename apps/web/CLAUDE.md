@@ -83,12 +83,20 @@ bun test:coverage      # vitest run --coverage
 
 ### Data fetching client (`src/lib/api-client.ts`)
 
-- Typed DTOs (`AssetDto`, `QuoteItem`, `BacktestRequest/Response`, `RealYieldResponse`).
+- Typed DTOs (`AssetDto`, `AssetDetailDto`, `QuoteItem`, `PerformanceResponse`,
+  `BacktestRequest/Response`, `RealYieldResponse`). Keep DTOs aligned with the generated OpenAPI
+  contract; do not widen them with page-specific mock fields.
 - Base URL: `process.env.NEXT_PUBLIC_API_URL` (default `http://localhost:5000`). API routes are `/api/v1/*`.
 - Uses `fetch(..., { next: { revalidate } })` for ISR at the route boundary
   (asset list `revalidate: 60`, single asset `revalidate: 300`).
-- **Graceful offline fallback**: every fetcher catches and returns `DEFAULT_ASSETS` / computed mock so the
-  UI works without the backend. Keep this pattern for new fetchers (offline-first is a product requirement).
+- **API-only data source (NON-NEGOTIABLE):** market-data and analytics fetchers must call the local
+  .NET API and must not import fixture catalogs, synthesize unknown assets, or calculate replacement
+  responses when the request fails. Preserve an empty array returned by the API as a valid empty state.
+- Fetchers must surface transport and HTTP failures as `Error` values so route-level error boundaries and
+  client query states can render a truthful error/retry UI. A `404` for an asset/detail/quote/performance
+  endpoint is not a successful mock response.
+- Authentication may retain its explicitly documented session behavior, but market-data fallbacks must
+  never be used to make a catalog or asset page appear populated while the API is unavailable.
 
 ### App routing layout
 

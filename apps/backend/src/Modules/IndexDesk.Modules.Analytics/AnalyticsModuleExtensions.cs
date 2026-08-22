@@ -20,70 +20,21 @@ public static class AnalyticsModuleExtensions
         group
             .MapPost(
                 "/backtest",
-                (BacktestRequest request) =>
-                {
-                    var totalWeight = request.Allocations.Sum(a => a.WeightPercent);
-                    if (Math.Abs(totalWeight - 100m) > 0.01m)
-                    {
-                        return Results.BadRequest(
-                            new { message = "Total allocation weight must equal 100%." }
-                        );
-                    }
-
-                    var initialCapital = request.InitialAmount > 0 ? request.InitialAmount : 10000m;
-                    var monthlyContribution = request.MonthlyContribution;
-                    var simulatedMonths = 60; // 5 years demo simulation
-
-                    var equityCurve = new List<EquityPoint>();
-                    var currentCapital = initialCapital;
-                    var startDate = DateTime.UtcNow.AddMonths(-simulatedMonths);
-
-                    var curveValues = new List<decimal>();
-
-                    for (var m = 0; m <= simulatedMonths; m++)
-                    {
-                        var date = DateOnly.FromDateTime(startDate.AddMonths(m));
-                        if (m > 0)
+                () =>
+                    Results.Problem(
+                        statusCode: StatusCodes.Status422UnprocessableEntity,
+                        title: "Backtest unavailable",
+                        detail:
+                            "Backtests are unavailable until persisted quote and macroeconomic series are available for every requested asset and benchmark.",
+                        extensions: new Dictionary<string, object?>
                         {
-                            currentCapital += monthlyContribution;
-                            // Mock compounding return ~1.1% per month with variance
-                            var monthReturn = 0.011m + (decimal)(Math.Sin(m) * 0.015);
-                            currentCapital *= (1m + monthReturn);
+                            ["code"] = "Analytics.BacktestUnavailable",
                         }
-                        equityCurve.Add(new EquityPoint(date, Math.Round(currentCapital, 2)));
-                        curveValues.Add(currentCapital);
-                    }
-
-                    var maxDrawdown = FinancialCalculators.CalculateMaxDrawdown(curveValues);
-                    var sharpe = FinancialCalculators.CalculateSharpeRatio(14.5m, 11.25m, 12.8m);
-
-                    var response = new BacktestResponse(
-                        InitialCapital: initialCapital,
-                        FinalCapital: Math.Round(currentCapital, 2),
-                        TotalContributions: initialCapital
-                            + (monthlyContribution * simulatedMonths),
-                        TotalReturnPercent: Math.Round(
-                            (
-                                (
-                                    currentCapital
-                                    / (initialCapital + monthlyContribution * simulatedMonths)
-                                ) - 1m
-                            ) * 100m,
-                            2
-                        ),
-                        AnnualizedReturnPercent: 14.5m,
-                        AnnualizedVolatilityPercent: 12.8m,
-                        SharpeRatio: sharpe,
-                        MaxDrawdownPercent: maxDrawdown,
-                        EquityCurve: equityCurve
-                    );
-
-                    return Results.Ok(response);
-                }
+                    )
             )
             .WithName("RunBacktest")
             .WithSummary(
-                "Simulate portfolio backtest with periodic rebalancing and inflation adjustment"
+                "Run a backtest from persisted market data; unavailable until the required series are ingested"
             );
 
         group

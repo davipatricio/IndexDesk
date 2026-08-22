@@ -107,6 +107,15 @@ builder.Services.AddOpenApi(options =>
 
 var app = builder.Build();
 
+// Development databases do not have migrations yet; create the local schema before
+// serving the first request. Market data is populated only by ingestion jobs.
+if (app.Environment.IsDevelopment())
+{
+    await using var scope = app.Services.CreateAsyncScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<IndexDeskDbContext>();
+    await dbContext.Database.EnsureCreatedAsync();
+}
+
 // Configure Middleware Pipeline
 if (app.Environment.IsDevelopment())
 {

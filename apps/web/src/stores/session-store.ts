@@ -2,10 +2,17 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
-import type { MockAccount } from '@/lib/mock-accounts';
 import type { User } from '@/types/auth';
 
-export function userToMockAccount(user: User): MockAccount {
+export interface UserAccount {
+  id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'investor';
+  initials: string;
+}
+
+export function userToAccount(user: User): UserAccount {
   const isAdmin = user.roles.some(
     (r) => r.toLowerCase() === 'admin' || r.toLowerCase() === 'superadmin',
   );
@@ -24,19 +31,6 @@ export function userToMockAccount(user: User): MockAccount {
   };
 }
 
-export function mockAccountToUser(account: MockAccount): User {
-  const isAdmin = account.role === 'admin';
-  return {
-    id: account.id,
-    email: account.email,
-    fullName: account.name,
-    roles: isAdmin ? ['Admin', 'User'] : ['User'],
-    permissions: isAdmin
-      ? ['assets:write', 'holdings:upload', 'news:publish']
-      : ['assets:read'],
-  };
-}
-
 function syncSessionCookie(sessionId: string | null) {
   if (typeof document === 'undefined') return;
   if (sessionId) {
@@ -48,16 +42,12 @@ function syncSessionCookie(sessionId: string | null) {
   }
 }
 
-function isMockAccount(identity: MockAccount | User): identity is MockAccount {
-  return 'initials' in identity && typeof (identity as MockAccount).role === 'string';
-}
-
 interface SessionState {
   user: User | null;
-  account: MockAccount | null;
+  account: UserAccount | null;
   /** Flips to `true` once persisted storage has been rehydrated. */
   isReady: boolean;
-  signIn: (identity: MockAccount | User) => void;
+  signIn: (user: User) => void;
   signOut: () => void;
   setUser: (user: User | null) => void;
 }
@@ -101,16 +91,10 @@ export const useSessionStore = create<SessionState>()(
       user: null,
       account: null,
       isReady: false,
-      signIn: (identity) => {
-        if (isMockAccount(identity)) {
-          const user = mockAccountToUser(identity);
-          syncSessionCookie(identity.id);
-          set({ account: identity, user });
-        } else {
-          const account = userToMockAccount(identity);
-          syncSessionCookie(identity.id);
-          set({ user: identity, account });
-        }
+      signIn: (user) => {
+        const account = userToAccount(user);
+        syncSessionCookie(user.id);
+        set({ user, account });
       },
       signOut: () => {
         syncSessionCookie(null);
@@ -118,7 +102,7 @@ export const useSessionStore = create<SessionState>()(
       },
       setUser: (user) => {
         if (user) {
-          const account = userToMockAccount(user);
+          const account = userToAccount(user);
           syncSessionCookie(user.id);
           set({ user, account });
         } else {
@@ -131,7 +115,6 @@ export const useSessionStore = create<SessionState>()(
       name: 'indexdesk-session',
       storage: createJSONStorage(() => safeStorage),
       skipHydration: true,
-      // Both user & account identities survive a reload; readiness is runtime-only.
       partialize: (state) => ({ user: state.user, account: state.account }),
     },
   ),

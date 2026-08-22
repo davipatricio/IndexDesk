@@ -95,8 +95,15 @@ public class AssetBackfillService : IAssetBackfillService
 
         try
         {
-            // 1. Ensure Asset exists in database
-            var asset = await EnsureAssetExistsAsync(ticker, cancellationToken);
+            // 1. Ensure known asset metadata exists in the database. Unknown tickers
+            // cannot be persisted with fabricated metadata; curate them first.
+            var assetResult = await EnsureAssetExistsAsync(ticker, cancellationToken);
+            if (assetResult.IsFailure)
+            {
+                return Result<BackfillExecutionSummary>.Failure(assetResult.Error);
+            }
+
+            var asset = assetResult.Value;
 
             // 2. Fetch Quotes with Multi-Provider Fallback
             var quotesResult = await _fallbackService.GetQuotesWithFallbackAsync(
@@ -206,7 +213,7 @@ public class AssetBackfillService : IAssetBackfillService
         }
     }
 
-    private async Task<AssetEntity> EnsureAssetExistsAsync(
+    private async Task<Result<AssetEntity>> EnsureAssetExistsAsync(
         string ticker,
         CancellationToken cancellationToken
     )
@@ -217,54 +224,19 @@ public class AssetBackfillService : IAssetBackfillService
             a => a.Ticker == ticker,
             cancellationToken
         );
-        if (existing != null)
+        if (existing is not null)
         {
-            return existing;
+            return Result<AssetEntity>.Success(existing);
         }
 
-        var assetType = ticker switch
-        {
-            "MXRF11" => "FII",
-            "VWRA11" => "BDR_ETF",
-            "GOLD11" => "ETF",
-            "WRLD11" => "ETF",
-            _ => "ETF",
-        };
-
-        var name = ticker switch
-        {
-            "MXRF11" => "Maxi Renda Fundo de Investimento Imobiliário",
-            "VWRA11" => "Vanguard FTSE All-World UCITS ETF BDR",
-            "GOLD11" => "Trend ETF LBMA Ouro Fundo de Índice",
-            "WRLD11" => "Investo MSCI World Fundo de Índice",
-            _ => $"{ticker} Ativo B3",
-        };
-
-        var cnpj = ticker switch
-        {
-            "MXRF11" => "97521225000125",
-            "GOLD11" => "35650318000165",
-            "WRLD11" => "39877018000130",
-            _ => null,
-        };
-
-        var tradingview = $"BMFBOVESPA:{ticker}";
-
-        var asset = new AssetEntity
-        {
-            Id = Guid.NewGuid(),
-            Ticker = ticker,
-            Name = name,
-            AssetType = assetType,
-            Cnpj = cnpj,
-            Currency = "BRL",
-            TradingViewSymbol = tradingview,
-            IsActive = true,
-        };
-
-        _dbContext.Assets.Add(asset);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-        return asset;
+        // Ingestion must never create an asset with guessed name, type, CNPJ, or
+        // other metadata. A curator/importer must create the catalog record first.
+        return Result<AssetEntity>.Failure(
+            Error.NotFound(
+                "Asset.Metadata",
+                ticker
+            )
+        );
     }
 
     private async Task<int> UpsertQuotesAsync(

@@ -1,9 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { useSessionStore } from '@/stores/session-store';
+import { useSessionStore, type UserAccount } from '@/stores/session-store';
 import { useMounted } from '@/hooks/use-mounted';
-import type { MockAccount } from '@/lib/mock-accounts';
 import type { User, SignInDto, SignUpDto } from '@/types/auth';
 import {
   signIn as apiSignIn,
@@ -13,19 +12,19 @@ import {
 
 export interface UseSessionResult {
   user: User | null;
-  account: MockAccount | null;
+  account: UserAccount | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
   isPro: boolean;
   /** `true` once mounted and persisted state is loaded. */
   isReady: boolean;
-  signIn: (identityOrDto: MockAccount | User | SignInDto) => Promise<void> | void;
+  signIn: (identityOrDto: User | SignInDto) => Promise<void> | void;
   signOut: () => Promise<void> | void;
   signUp: (dto: SignUpDto) => Promise<void>;
 }
 
 function isCredentialsDto(
-  val: MockAccount | User | SignInDto,
+  val: User | SignInDto,
 ): val is SignInDto {
   return 'password' in val && !('id' in val);
 }
@@ -71,7 +70,7 @@ export function useSession(): UseSessionResult {
   );
 
   const handleSignIn = React.useCallback(
-    async (identityOrDto: MockAccount | User | SignInDto) => {
+    async (identityOrDto: User | SignInDto) => {
       if (isCredentialsDto(identityOrDto)) {
         const res = await apiSignIn(identityOrDto);
         storeSignIn(res.user);

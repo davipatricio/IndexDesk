@@ -1,50 +1,33 @@
-import { DEFAULT_ASSETS, type AssetDto } from '@/lib/api-client';
+import type { AssetDto } from '@/lib/api-client';
 
-export interface CatalogStats {
+export interface CatalogStatsSummary {
   assetCount: number;
-  totalNetAssets: number;
-  lowestManagementFee: number;
-  lowestFeeTicker: string;
-  averageManagementFee: number;
-  managerCount: number;
-  totalShareholders: number;
+  totalNetAssets: number | null;
+  primaryMetric: { label: string; value: string };
+  secondaryMetric: { label: string; value: string };
+  totalShareholders: number | null;
 }
 
-const EMPTY_STATS: CatalogStats = {
-  assetCount: 0,
-  totalNetAssets: 0,
-  lowestManagementFee: 0,
-  lowestFeeTicker: '',
-  averageManagementFee: 0,
-  managerCount: 0,
-  totalShareholders: 0,
-};
+function numeric(asset: AssetDto, key: string): number | null {
+  const value = (asset as unknown as Record<string, unknown>)[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
 
-/**
- * Pure aggregates over the asset catalog.
- *
- * Derived from the same data the catalog table renders, so the home page
- * stat tiles never diverge from what the user sees in the list.
- */
-export function computeCatalogStats(assets: AssetDto[] = DEFAULT_ASSETS): CatalogStats {
-  if (assets.length === 0) return EMPTY_STATS;
-
-  const lowestFee = assets.reduce((min, asset) =>
-    asset.managementFee < min.managementFee ? asset : min,
-  );
-  const totalNetAssets = assets.reduce((sum, asset) => sum + asset.netAssets, 0);
-  const averageManagementFee =
-    assets.reduce((sum, asset) => sum + asset.managementFee, 0) / assets.length;
-  const managerCount = new Set(assets.map((asset) => asset.manager)).size;
-  const totalShareholders = assets.reduce((sum, asset) => sum + asset.shareholders, 0);
+export function computeCatalogStats(assets: AssetDto[] = []): CatalogStatsSummary {
+  const prices = assets.map((asset) => numeric(asset, 'lastPrice')).filter((value): value is number => value != null);
+  const returns = assets.map((asset) => numeric(asset, 'return12mPercent')).filter((value): value is number => value != null);
 
   return {
     assetCount: assets.length,
-    totalNetAssets,
-    lowestManagementFee: lowestFee.managementFee,
-    lowestFeeTicker: lowestFee.ticker,
-    averageManagementFee,
-    managerCount,
-    totalShareholders,
+    totalNetAssets: null,
+    primaryMetric: {
+      label: 'Retorno 12M médio',
+      value: returns.length ? `${(returns.reduce((sum, value) => sum + value, 0) / returns.length).toFixed(2)}%` : '—',
+    },
+    secondaryMetric: {
+      label: 'Cotação média',
+      value: prices.length ? `R$ ${(prices.reduce((sum, value) => sum + value, 0) / prices.length).toFixed(2)}` : '—',
+    },
+    totalShareholders: null,
   };
 }

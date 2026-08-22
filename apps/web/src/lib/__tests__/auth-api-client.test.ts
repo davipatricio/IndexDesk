@@ -8,9 +8,8 @@ import {
   setAccessToken,
   fetchWithAuth,
 } from '../api-client';
-import { userToMockAccount, mockAccountToUser } from '@/stores/session-store';
-import type { User } from '@/types/auth';
-import type { MockAccount } from '../mock-accounts';
+import { userToAccount } from '@/stores/session-store';
+import type { User, AuthResponse } from '@/types/auth';
 
 describe('Auth API Client & Mapping', () => {
   beforeEach(() => {
@@ -26,29 +25,76 @@ describe('Auth API Client & Mapping', () => {
     expect(getAccessToken()).toBeNull();
   });
 
-  it('signIn falls back gracefully when API is offline', async () => {
+  it('signIn successfully saves token and returns AuthResponse on 200', async () => {
+    const mockAuthResponse: AuthResponse = {
+      accessToken: 'access-jwt-abc',
+      expiresIn: 900,
+      user: {
+        id: 'usr-1',
+        email: 'investor@example.com',
+        fullName: 'Investidor Real',
+        roles: ['User'],
+        permissions: ['catalog:read'],
+      },
+    };
+
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(mockAuthResponse), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
     const res = await signIn({
       email: 'investor@example.com',
       password: 'password123',
     });
 
-    expect(res.accessToken).toBeDefined();
+    expect(res.accessToken).toBe('access-jwt-abc');
     expect(res.user.email).toBe('investor@example.com');
     expect(res.user.roles).toContain('User');
-    expect(getAccessToken()).toBe(res.accessToken);
+    expect(getAccessToken()).toBe('access-jwt-abc');
   });
 
-  it('signIn returns admin claims when admin email is used in fallback', async () => {
-    const res = await signIn({
-      email: 'admin@indexdesk.com',
-      password: 'password123',
-    });
+  it('signIn throws error on non-200 responses', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: 'Credenciais inválidas' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
 
-    expect(res.user.roles).toContain('Admin');
-    expect(res.user.permissions).toContain('assets:write');
+    await expect(
+      signIn({
+        email: 'wrong@example.com',
+        password: 'wrongpassword',
+      }),
+    ).rejects.toThrow('Credenciais inválidas');
   });
 
-  it('signUp falls back gracefully with user role', async () => {
+  it('signUp successfully saves token and returns AuthResponse on 200', async () => {
+    const mockAuthResponse: AuthResponse = {
+      accessToken: 'access-jwt-xyz',
+      expiresIn: 900,
+      user: {
+        id: 'usr-2',
+        email: 'newuser@example.com',
+        fullName: 'Novo Investidor',
+        roles: ['User'],
+        permissions: ['catalog:read'],
+      },
+    };
+
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(mockAuthResponse), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
     const res = await signUp({
       email: 'newuser@example.com',
       password: 'password123',
@@ -58,11 +104,14 @@ describe('Auth API Client & Mapping', () => {
     expect(res.user.email).toBe('newuser@example.com');
     expect(res.user.fullName).toBe('Novo Investidor');
     expect(res.user.roles).toContain('User');
-    expect(getAccessToken()).toBe(res.accessToken);
+    expect(getAccessToken()).toBe('access-jwt-xyz');
   });
 
-  it('signOut clears accessToken', async () => {
+  it('signOut clears accessToken and calls signout endpoint', async () => {
     setAccessToken('active-token');
+    const mockFetch = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal('fetch', mockFetch);
+
     await signOut();
     expect(getAccessToken()).toBeNull();
   });
@@ -77,7 +126,7 @@ describe('Auth API Client & Mapping', () => {
     const mockUser: User = {
       id: 'usr-1',
       email: 'investor@example.com',
-      fullName: 'Investidor Demo',
+      fullName: 'Investidor Real',
       roles: ['User'],
       permissions: ['assets:read'],
     };
@@ -107,7 +156,7 @@ describe('Auth API Client & Mapping', () => {
     expect(headers.get('Authorization')).toBe('Bearer jwt-token-xyz');
   });
 
-  it('userToMockAccount maps User with Admin role to admin MockAccount', () => {
+  it('userToAccount maps User with Admin role to admin UserAccount', () => {
     const user: User = {
       id: 'usr-1',
       email: 'gestor@indexdesk.com',
@@ -116,25 +165,10 @@ describe('Auth API Client & Mapping', () => {
       permissions: ['assets:write'],
     };
 
-    const account = userToMockAccount(user);
+    const account = userToAccount(user);
     expect(account.id).toBe('usr-1');
     expect(account.name).toBe('Carlos Drummond');
     expect(account.role).toBe('admin');
     expect(account.initials).toBe('CD');
-  });
-
-  it('mockAccountToUser maps MockAccount correctly to User', () => {
-    const account: MockAccount = {
-      id: 'persona-1',
-      name: 'Marina Alves',
-      email: 'marina@exemplo.com',
-      role: 'investor',
-      initials: 'MA',
-    };
-
-    const user = mockAccountToUser(account);
-    expect(user.id).toBe('persona-1');
-    expect(user.fullName).toBe('Marina Alves');
-    expect(user.roles).toEqual(['User']);
   });
 });

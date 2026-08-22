@@ -19,17 +19,25 @@ import {
 import { Layers, Plus, X } from 'lucide-react';
 
 export default function ComparadorPage() {
-  const [queryTicker] = useQueryState('ticker', parseAsString.withDefault('IVVB11'));
-  const [selectedTickers, setSelectedTickers] = React.useState<string[]>(() => {
-    const initial = queryTicker ? [queryTicker] : ['IVVB11'];
-    const defaults = ['BOVA11', 'B5P211'];
-    return Array.from(new Set([...initial, ...defaults]));
+  const [queryTicker] = useQueryState('ticker', parseAsString.withDefault(''));
+  const [userSelectedTickers, setUserSelectedTickers] = React.useState<string[] | null>(() => {
+    return queryTicker ? [queryTicker.toUpperCase()] : null;
   });
 
-  const { data: assets = [] } = useQuery({
+  const { data: assets = [], isLoading } = useQuery({
     queryKey: ['assets'],
     queryFn: () => fetchAssets(),
   });
+
+  const selectedTickers = React.useMemo(() => {
+    if (userSelectedTickers !== null) {
+      return userSelectedTickers;
+    }
+    if (assets.length > 0) {
+      return assets.slice(0, Math.min(2, assets.length)).map((a) => a.ticker);
+    }
+    return queryTicker ? [queryTicker.toUpperCase()] : [];
+  }, [userSelectedTickers, assets, queryTicker]);
 
   const selectedTickerSet = React.useMemo(() => new Set(selectedTickers), [selectedTickers]);
   const comparedAssets = React.useMemo(
@@ -40,11 +48,11 @@ export default function ComparadorPage() {
   const toggleTicker = (ticker: string) => {
     if (selectedTickerSet.has(ticker)) {
       if (selectedTickers.length > 1) {
-        setSelectedTickers((prev) => prev.filter((t) => t !== ticker));
+        setUserSelectedTickers(selectedTickers.filter((t) => t !== ticker));
       }
     } else {
       if (selectedTickers.length < 6) {
-        setSelectedTickers((prev) => [...prev, ticker]);
+        setUserSelectedTickers([...selectedTickers, ticker]);
       }
     }
   };
@@ -57,11 +65,11 @@ export default function ComparadorPage() {
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2.5 text-foreground">
           <Layers className="size-6 text-primary" />
-          Comparador de ETFs e BDRs
+          Comparador de Ativos B3
         </h1>
         <p className="text-muted-foreground text-sm max-w-2xl">
-          Compare lado a lado taxas de administração, patrimônio líquido, retorno acumulado no ano e
-          regras de tributação.
+          Compare lado a lado indicadores de retorno, volatilidade, índice Sharpe e cotação dos
+          ativos negociados na B3.
         </p>
       </div>
 
@@ -72,7 +80,9 @@ export default function ComparadorPage() {
             Ativos Selecionados para Comparação
           </CardTitle>
           <CardDescription className="text-xs">
-            Clique nos ativos abaixo para adicionar ou remover da grade de comparação:
+            {assets.length > 0
+              ? 'Clique nos ativos abaixo para adicionar ou remover da grade de comparação:'
+              : 'Nenhum ativo disponível no momento.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
@@ -95,111 +105,157 @@ export default function ComparadorPage() {
       </Card>
 
       {/* Comparison Grid */}
-      <div className="rounded-lg border bg-card shadow-sm overflow-x-auto">
-        <Table>
-          <TableHeader className="bg-muted/40">
-            <TableRow>
-              <TableHead className="w-48 text-xs font-semibold">Métrica / Atributo</TableHead>
-              {comparedAssets.map((asset) => (
-                <TableHead key={asset.ticker} className="text-xs font-bold text-center font-mono">
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-primary text-sm font-semibold">{asset.ticker}</span>
-                    <span className="text-xs text-muted-foreground font-sans font-normal truncate max-w-[120px]">
-                      {asset.manager}
-                    </span>
-                  </div>
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow>
-              <TableCell className="font-semibold text-xs text-muted-foreground">
-                Nome do Fundo
-              </TableCell>
-              {comparedAssets.map((asset) => (
-                <TableCell key={asset.ticker} className="text-xs text-center">
-                  {asset.name}
+      {comparedAssets.length > 0 ? (
+        <div className="rounded-lg border bg-card shadow-sm overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-muted/40">
+              <TableRow>
+                <TableHead className="w-48 text-xs font-semibold">Métrica / Atributo</TableHead>
+                {comparedAssets.map((asset) => (
+                  <TableHead
+                    key={asset.ticker}
+                    className="text-xs font-bold text-center font-mono"
+                  >
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-primary text-sm font-semibold">{asset.ticker}</span>
+                      <span className="text-xs text-muted-foreground font-sans font-normal truncate max-w-[140px]">
+                        {asset.name}
+                      </span>
+                    </div>
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell className="font-semibold text-xs text-muted-foreground">
+                  Tipo de Ativo
                 </TableCell>
-              ))}
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-semibold text-xs text-muted-foreground">
-                Índice Benchmark
-              </TableCell>
-              {comparedAssets.map((asset) => (
-                <TableCell
-                  key={asset.ticker}
-                  className="text-xs text-center font-mono font-semibold"
-                >
-                  <Badge variant="secondary">{asset.benchmark}</Badge>
+                {comparedAssets.map((asset) => (
+                  <TableCell key={asset.ticker} className="text-xs text-center font-mono">
+                    <Badge variant="secondary">{asset.assetType}</Badge>
+                  </TableCell>
+                ))}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-semibold text-xs text-muted-foreground">
+                  Benchmark
                 </TableCell>
-              ))}
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-semibold text-xs text-muted-foreground">
-                Taxa de Administração
-              </TableCell>
-              {comparedAssets.map((asset) => (
-                <TableCell
-                  key={asset.ticker}
-                  className="text-xs text-center font-mono font-medium text-foreground"
-                >
-                  {formatPercent(asset.managementFee)} a.a.
+                {comparedAssets.map((asset) => (
+                  <TableCell
+                    key={asset.ticker}
+                    className="text-xs text-center font-mono font-semibold"
+                  >
+                    {asset.benchmarkSymbol ? (
+                      <Badge variant="outline">{asset.benchmarkSymbol}</Badge>
+                    ) : (
+                      '—'
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-semibold text-xs text-muted-foreground">
+                  Cotação Atual
                 </TableCell>
-              ))}
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-semibold text-xs text-muted-foreground">
-                Patrimônio Líquido
-              </TableCell>
-              {comparedAssets.map((asset) => (
-                <TableCell key={asset.ticker} className="text-xs text-center font-mono">
-                  {formatCurrencyBRL(asset.netAssets)}
+                {comparedAssets.map((asset) => (
+                  <TableCell
+                    key={asset.ticker}
+                    className="text-xs text-center font-mono font-semibold text-foreground"
+                  >
+                    {asset.lastPrice != null ? formatCurrencyBRL(asset.lastPrice) : '—'}
+                  </TableCell>
+                ))}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-semibold text-xs text-muted-foreground">
+                  Variação no Dia
                 </TableCell>
-              ))}
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-semibold text-xs text-muted-foreground">
-                Cotação Atual
-              </TableCell>
-              {comparedAssets.map((asset) => (
-                <TableCell
-                  key={asset.ticker}
-                  className="text-xs text-center font-mono font-semibold text-foreground"
-                >
-                  {formatCurrencyBRL(asset.lastPrice)}
+                {comparedAssets.map((asset) => {
+                  const val = asset.changeDayPercent;
+                  const isPositive = (val ?? 0) >= 0;
+                  return (
+                    <TableCell
+                      key={asset.ticker}
+                      className={`text-xs text-center font-mono font-semibold ${
+                        val == null ? 'text-muted-foreground' : isPositive ? 'text-positive' : 'text-negative'
+                      }`}
+                    >
+                      {val != null ? formatPercent(val) : '—'}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-semibold text-xs text-muted-foreground">
+                  Retorno 12 Meses
                 </TableCell>
-              ))}
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-semibold text-xs text-muted-foreground">
-                Retorno YTD (%)
-              </TableCell>
-              {comparedAssets.map((asset) => (
-                <TableCell
-                  key={asset.ticker}
-                  className={`text-xs text-center font-mono font-semibold ${
-                    asset.changeYtdPercent >= 0 ? 'text-positive' : 'text-negative'
-                  }`}
-                >
-                  {formatPercent(asset.changeYtdPercent)}
+                {comparedAssets.map((asset) => {
+                  const val = asset.return12mPercent;
+                  const isPositive = (val ?? 0) >= 0;
+                  return (
+                    <TableCell
+                      key={asset.ticker}
+                      className={`text-xs text-center font-mono font-semibold ${
+                        val == null ? 'text-muted-foreground' : isPositive ? 'text-positive' : 'text-negative'
+                      }`}
+                    >
+                      {val != null ? formatPercent(val) : '—'}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-semibold text-xs text-muted-foreground">
+                  Volatilidade Anualizada
                 </TableCell>
-              ))}
-            </TableRow>
-            <TableRow>
-              <TableCell className="font-semibold text-xs text-muted-foreground">
-                Tributação (IR)
-              </TableCell>
-              {comparedAssets.map((asset) => (
-                <TableCell key={asset.ticker} className="text-xs text-center text-muted-foreground">
-                  15% Swing / 20% Day Trade (Sem isenção 20k)
+                {comparedAssets.map((asset) => (
+                  <TableCell
+                    key={asset.ticker}
+                    className="text-xs text-center font-mono text-foreground"
+                  >
+                    {asset.annualizedVolatilityPercent != null
+                      ? formatPercent(asset.annualizedVolatilityPercent)
+                      : '—'}
+                  </TableCell>
+                ))}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-semibold text-xs text-muted-foreground">
+                  Índice Sharpe
                 </TableCell>
-              ))}
-            </TableRow>
-          </TableBody>
-        </Table>
-      </div>
+                {comparedAssets.map((asset) => (
+                  <TableCell
+                    key={asset.ticker}
+                    className="text-xs text-center font-mono font-semibold"
+                  >
+                    {asset.sharpeRatio != null ? asset.sharpeRatio.toFixed(2) : '—'}
+                  </TableCell>
+                ))}
+              </TableRow>
+              <TableRow>
+                <TableCell className="font-semibold text-xs text-muted-foreground">
+                  Máximo Drawdown
+                </TableCell>
+                {comparedAssets.map((asset) => (
+                  <TableCell
+                    key={asset.ticker}
+                    className="text-xs text-center font-mono text-negative"
+                  >
+                    {asset.maxDrawdownPercent != null
+                      ? formatPercent(asset.maxDrawdownPercent)
+                      : '—'}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        <div className="flex h-48 items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+          {isLoading ? 'Carregando ativos...' : 'Nenhum ativo selecionado para comparação.'}
+        </div>
+      )}
     </div>
   );
 }

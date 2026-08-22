@@ -187,6 +187,7 @@ public class IndexDeskDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        // RBAC is static application configuration; market data is populated only by ingestion jobs.
         SeedRbac(modelBuilder);
     }
 
@@ -370,4 +371,5 @@ public class IndexDeskDbContext : DbContext
 
         modelBuilder.Entity<RolePermissionEntity>().HasData(rolePermissions);
     }
+
 }

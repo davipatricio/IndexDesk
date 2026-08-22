@@ -14,26 +14,12 @@ import {
   type ColumnDef,
   type SortingState,
 } from '@tanstack/react-table';
-import type { AssetCategory, CatalogAsset, EtfAsset, FiiAsset, BdrAsset } from '@/lib/mock-catalog';
+import type { AssetDto } from '@/lib/api-client';
 import { formatCurrencyBRL, formatPercent } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  TrendingUp,
-  TrendingDown,
-  ExternalLink,
-} from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, TrendingDown, TrendingUp } from 'lucide-react';
 
 const features = tableFeatures({
   columnFilteringFeature,
@@ -44,12 +30,38 @@ const features = tableFeatures({
   filterFns: { includesString: filterFn_includesString },
 });
 
-type CatalogColumnDef = ColumnDef<typeof features, CatalogAsset>;
+type CatalogColumnDef = ColumnDef<typeof features, AssetDto>;
+export type CatalogCategory = 'ETF' | 'FII' | 'BDR';
 
-interface CatalogTableProps {
-  category: AssetCategory;
-  data: CatalogAsset[];
-  isLoading?: boolean;
+function field(asset: AssetDto, key: string): unknown {
+  return (asset as unknown as Record<string, unknown>)[key];
+}
+
+function text(asset: AssetDto, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = field(asset, key);
+    if (typeof value === 'string' && value.trim()) return value;
+  }
+  return '';
+}
+
+function number(asset: AssetDto, ...keys: string[]): number | null {
+  for (const key of keys) {
+    const value = field(asset, key);
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+export function getAssetCategory(asset: AssetDto): CatalogCategory {
+  const type = text(asset, 'assetType', 'category').toUpperCase();
+  if (type.includes('FII') || type.includes('REAL_ESTATE')) return 'FII';
+  if (type.includes('BDR')) return 'BDR';
+  return 'ETF';
+}
+
+export function getAssetDetailHref(asset: AssetDto): string {
+  return `/${getAssetCategory(asset).toLowerCase()}/${encodeURIComponent(asset.ticker.toLowerCase())}`;
 }
 
 function getSortIcon(isSorted: false | 'asc' | 'desc') {
@@ -58,475 +70,102 @@ function getSortIcon(isSorted: false | 'asc' | 'desc') {
   return <ArrowUpDown className="ml-1 size-3 text-muted-foreground/60" />;
 }
 
-function getAssetDetailHref(asset: CatalogAsset): string {
-  const ticker = asset.ticker.toLowerCase();
-  switch (asset.category) {
-    case 'ETF':
-      return `/etf/${ticker}`;
-    case 'FII':
-      return `/fii/${ticker}`;
-    case 'BDR':
-      return `/bdr/${ticker}`;
-  }
+function SortHeader({ label, column }: { label: string; column: { getIsSorted: () => false | 'asc' | 'desc'; toggleSorting: (desc?: boolean) => void } }) {
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+      className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
+    >
+      {label}
+      {getSortIcon(column.getIsSorted())}
+    </Button>
+  );
+}
+
+interface CatalogTableProps {
+  category: CatalogCategory;
+  data: AssetDto[];
+  isLoading?: boolean;
 }
 
 export function CatalogTable({ category, data, isLoading = false }: CatalogTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-
-  // Columns definition dynamically tailored per AssetCategory
-  const columns = React.useMemo<CatalogColumnDef[]>(() => {
-    const baseColumns: CatalogColumnDef[] = [
-      {
-        accessorKey: 'ticker',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-          >
-            Ticker
-            {getSortIcon(column.getIsSorted())}
-          </Button>
-        ),
-        cell: ({ row }) => {
-          const asset = row.original;
-          const href = getAssetDetailHref(asset);
-          return (
-            <Link
-              href={href}
-              className="font-semibold text-primary hover:underline inline-flex items-center gap-1.5 font-mono"
-            >
-              {asset.ticker}
-              <Badge
-                variant="outline"
-                className="text-[10px] py-0 px-1 font-normal font-sans tracking-tight"
-              >
-                {asset.category}
-              </Badge>
-            </Link>
-          );
-        },
-      },
-      {
-        accessorKey: 'name',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-          >
-            Nome
-            {getSortIcon(column.getIsSorted())}
-          </Button>
-        ),
-        cell: ({ row }) => (
-          <div
-            className="max-w-[240px] truncate text-xs text-muted-foreground font-medium"
-            title={row.original.name}
-          >
-            {row.original.name}
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'manager',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-          >
-            {category === 'BDR' ? 'Emissor' : 'Gestora'}
-            {getSortIcon(column.getIsSorted())}
-          </Button>
-        ),
-        cell: ({ row }) => (
-          <span className="text-xs text-foreground font-medium">{row.original.manager}</span>
-        ),
-      },
-      {
-        accessorKey: 'subCategory',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-          >
-            {category === 'FII' ? 'Segmento' : 'Categoria'}
-            {getSortIcon(column.getIsSorted())}
-          </Button>
-        ),
-        cell: ({ row }) => (
-          <span className="text-xs text-muted-foreground">{row.original.subCategory}</span>
-        ),
-      },
-    ];
-
-    // Category specific metrics
-    if (category === 'ETF') {
-      baseColumns.push(
-        {
-          id: 'benchmark',
-          accessorFn: (row) => (row as EtfAsset).benchmark,
-          header: ({ column }) => (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-              className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-            >
-              Benchmark
-              {getSortIcon(column.getIsSorted())}
-            </Button>
-          ),
-          cell: ({ row }) => (
-            <Badge variant="secondary" className="text-[11px] font-mono">
-              {(row.original as EtfAsset).benchmark}
-            </Badge>
-          ),
-        },
-        {
-          id: 'managementFee',
-          accessorFn: (row) => (row as EtfAsset).managementFee,
-          header: ({ column }) => (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-              className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-            >
-              Taxa Adm.
-              {getSortIcon(column.getIsSorted())}
-            </Button>
-          ),
-          cell: ({ row }) => (
-            <span className="text-xs font-mono">
-              {formatPercent((row.original as EtfAsset).managementFee)} a.a.
-            </span>
-          ),
-        },
-      );
-    } else if (category === 'FII') {
-      baseColumns.push(
-        {
-          id: 'dividendYield12m',
-          accessorFn: (row) => (row as FiiAsset).dividendYield12m,
-          header: ({ column }) => (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-              className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-            >
-              DY (12M)
-              {getSortIcon(column.getIsSorted())}
-            </Button>
-          ),
-          cell: ({ row }) => (
-            <span className="text-xs font-mono font-semibold text-primary">
-              {formatPercent((row.original as FiiAsset).dividendYield12m)}
-            </span>
-          ),
-        },
-        {
-          id: 'pvp',
-          accessorFn: (row) => (row as FiiAsset).pvp,
-          header: ({ column }) => (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-              className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-            >
-              P/VP
-              {getSortIcon(column.getIsSorted())}
-            </Button>
-          ),
-          cell: ({ row }) => {
-            const pvp = (row.original as FiiAsset).pvp;
-            return (
-              <span
-                className={`text-xs font-mono font-semibold ${
-                  pvp < 1 ? 'text-positive' : pvp > 1.05 ? 'text-amber-500' : 'text-foreground'
-                }`}
-              >
-                {pvp.toFixed(2)}x
-              </span>
-            );
-          },
-        },
-        {
-          id: 'lastDividend',
-          accessorFn: (row) => (row as FiiAsset).lastDividend,
-          header: ({ column }) => (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-              className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-            >
-              Últ. Rend.
-              {getSortIcon(column.getIsSorted())}
-            </Button>
-          ),
-          cell: ({ row }) => (
-            <span className="text-xs font-mono">
-              {formatCurrencyBRL((row.original as FiiAsset).lastDividend)}
-            </span>
-          ),
-        },
-      );
-    } else if (category === 'BDR') {
-      baseColumns.push(
-        {
-          id: 'underlyingAsset',
-          accessorFn: (row) => (row as BdrAsset).underlyingAsset,
-          header: ({ column }) => (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-              className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-            >
-              Ativo Base
-              {getSortIcon(column.getIsSorted())}
-            </Button>
-          ),
-          cell: ({ row }) => (
-            <Badge variant="secondary" className="text-[11px] font-mono">
-              {(row.original as BdrAsset).underlyingAsset}
-            </Badge>
-          ),
-        },
-        {
-          id: 'country',
-          accessorFn: (row) => (row as BdrAsset).country,
-          header: ({ column }) => (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-              className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-            >
-              Origem
-              {getSortIcon(column.getIsSorted())}
-            </Button>
-          ),
-          cell: ({ row }) => (
-            <span className="text-xs text-muted-foreground">
-              {(row.original as BdrAsset).country}
-            </span>
-          ),
-        },
-        {
-          id: 'managementFee',
-          accessorFn: (row) => (row as BdrAsset).managementFee,
-          header: ({ column }) => (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-              className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-            >
-              Taxa Base
-              {getSortIcon(column.getIsSorted())}
-            </Button>
-          ),
-          cell: ({ row }) => {
-            const fee = (row.original as BdrAsset).managementFee;
-            return (
-              <span className="text-xs font-mono">
-                {fee > 0 ? `${formatPercent(fee)} a.a.` : '—'}
-              </span>
-            );
-          },
-        },
-      );
-    }
-
-    // Common Pricing & Return Columns
-    baseColumns.push(
-      {
-        accessorKey: 'lastPrice',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-          >
-            Cotação
-            {getSortIcon(column.getIsSorted())}
-          </Button>
-        ),
-        cell: ({ row }) => (
-          <span className="text-xs font-mono font-semibold text-foreground">
-            {formatCurrencyBRL(row.original.lastPrice)}
-          </span>
-        ),
-      },
-      {
-        accessorKey: 'changeDayPercent',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-          >
-            Dia (%)
-            {getSortIcon(column.getIsSorted())}
-          </Button>
-        ),
-        cell: ({ row }) => {
-          const val = row.original.changeDayPercent;
-          const isPos = val >= 0;
-          return (
-            <span
-              className={`inline-flex items-center text-xs font-mono font-semibold ${
-                isPos ? 'text-positive' : 'text-negative'
-              }`}
-            >
-              {isPos ? (
-                <TrendingUp className="size-3 mr-0.5" />
-              ) : (
-                <TrendingDown className="size-3 mr-0.5" />
-              )}
-              {formatPercent(val)}
-            </span>
-          );
-        },
-      },
-      {
-        accessorKey: 'changeYtdPercent',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-          >
-            YTD (%)
-            {getSortIcon(column.getIsSorted())}
-          </Button>
-        ),
-        cell: ({ row }) => {
-          const val = row.original.changeYtdPercent;
-          return (
-            <span
-              className={`text-xs font-mono font-semibold ${
-                val >= 0 ? 'text-positive' : 'text-negative'
-              }`}
-            >
-              {formatPercent(val)}
-            </span>
-          );
-        },
-      },
-      {
-        accessorKey: 'netAssets',
-        header: ({ column }) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
-          >
-            PL
-            {getSortIcon(column.getIsSorted())}
-          </Button>
-        ),
-        cell: ({ row }) => (
-          <span className="text-xs font-mono font-medium text-muted-foreground">
-            {formatCurrencyBRL(row.original.netAssets)}
-          </span>
-        ),
-      },
-      {
-        id: 'actions',
-        header: '',
-        cell: ({ row }) => {
-          const href = getAssetDetailHref(row.original);
-          return (
-            <Link
-              href={href}
-              className="text-muted-foreground hover:text-primary p-1 rounded-sm inline-flex items-center"
-              title={`Ver ficha completa de ${row.original.ticker}`}
-            >
-              <ExternalLink className="size-3.5" />
-            </Link>
-          );
-        },
-      },
-    );
-
-    return baseColumns;
-  }, [category]);
-
-  const table = useTable(
+  const columns = React.useMemo<CatalogColumnDef[]>(() => [
     {
-      key: `catalog-${category.toLowerCase()}`,
-      features,
-      data,
-      columns,
-      state: { sorting },
-      onSortingChange: setSorting,
+      id: 'ticker',
+      accessorFn: (asset) => asset.ticker,
+      header: ({ column }) => <SortHeader label="Ticker" column={column} />,
+      cell: ({ row }) => (
+        <Link href={getAssetDetailHref(row.original)} className="inline-flex items-center gap-1.5 font-mono font-semibold text-primary hover:underline">
+          {row.original.ticker}
+          <Badge variant="outline" className="px-1 py-0 text-[10px] font-normal font-sans">{getAssetCategory(row.original)}</Badge>
+        </Link>
+      ),
     },
-    (state) => ({ sorting: state.sorting }),
-  );
+    {
+      id: 'name',
+      accessorFn: (asset) => asset.name,
+      header: ({ column }) => <SortHeader label="Nome" column={column} />,
+      cell: ({ row }) => <div className="max-w-[260px] truncate text-xs font-medium text-muted-foreground" title={row.original.name}>{row.original.name}</div>,
+    },
+    {
+      id: 'benchmark',
+      accessorFn: (asset) => text(asset, 'benchmarkSymbol', 'benchmark'),
+      header: ({ column }) => <SortHeader label="Benchmark" column={column} />,
+      cell: ({ row }) => {
+        const value = text(row.original, 'benchmarkSymbol', 'benchmark');
+        return value ? <Badge variant="secondary" className="text-[11px] font-mono">{value}</Badge> : <span className="text-xs text-muted-foreground">—</span>;
+      },
+    },
+    {
+      id: 'lastPrice',
+      accessorFn: (asset) => number(asset, 'lastPrice'),
+      header: ({ column }) => <SortHeader label="Cotação" column={column} />,
+      cell: ({ row }) => {
+        const value = number(row.original, 'lastPrice');
+        return <span className="text-xs font-mono font-semibold">{value == null ? '—' : formatCurrencyBRL(value)}</span>;
+      },
+    },
+    {
+      id: 'changeDayPercent',
+      accessorFn: (asset) => number(asset, 'changeDayPercent'),
+      header: ({ column }) => <SortHeader label="Dia (%)" column={column} />,
+      cell: ({ row }) => {
+        const value = number(row.original, 'changeDayPercent');
+        if (value == null) return <span className="text-xs text-muted-foreground">—</span>;
+        const positive = value >= 0;
+        return <span className={`inline-flex items-center text-xs font-mono font-semibold ${positive ? 'text-positive' : 'text-negative'}`}>{positive ? <TrendingUp className="mr-0.5 size-3" /> : <TrendingDown className="mr-0.5 size-3" />}{formatPercent(value)}</span>;
+      },
+    },
+    {
+      id: 'return12mPercent',
+      accessorFn: (asset) => number(asset, 'return12mPercent', 'changeYtdPercent'),
+      header: ({ column }) => <SortHeader label="12 meses" column={column} />,
+      cell: ({ row }) => {
+        const value = number(row.original, 'return12mPercent', 'changeYtdPercent');
+        return <span className={`text-xs font-mono font-semibold ${value == null ? 'text-muted-foreground' : value >= 0 ? 'text-positive' : 'text-negative'}`}>{value == null ? '—' : formatPercent(value)}</span>;
+      },
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => <Link href={getAssetDetailHref(row.original)} className="inline-flex rounded-sm p-1 text-muted-foreground hover:text-primary" title={`Ver ficha completa de ${row.original.ticker}`}><ExternalLink className="size-3.5" /></Link>,
+    },
+  ], []);
+
+  const table = useTable({ key: `catalog-${category.toLowerCase()}`, features, data, columns, state: { sorting }, onSortingChange: setSorting }, (state) => ({ sorting: state.sorting }));
 
   return (
-    <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
+    <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className="bg-muted/40">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className="text-xs uppercase font-semibold whitespace-nowrap"
-                  >
-                    {header.isPlaceholder ? null : <table.FlexRender header={header} />}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
+            {table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => <TableHead key={header.id} className="whitespace-nowrap text-xs font-semibold uppercase">{header.isPlaceholder ? null : <table.FlexRender header={header} />}</TableHead>)}</TableRow>)}
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-32 text-center text-sm text-muted-foreground"
-                >
-                  Carregando ativos da B3...
-                </TableCell>
-              </TableRow>
-            ) : table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="hover:bg-muted/30 transition-colors">
-                  {row.getAllCells().map((cell) => (
-                    <TableCell key={cell.id} className="whitespace-nowrap py-2.5">
-                      <table.FlexRender cell={cell} />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-28 text-center text-sm text-muted-foreground"
-                >
-                  Nenhum ativo encontrado para os filtros selecionados.
-                </TableCell>
-              </TableRow>
-            )}
+            {isLoading ? <TableRow><TableCell colSpan={columns.length} className="h-32 text-center text-sm text-muted-foreground">Carregando ativos da API...</TableCell></TableRow> : table.getRowModel().rows.length ? table.getRowModel().rows.map((row) => <TableRow key={row.id} className="transition-colors hover:bg-muted/30">{row.getAllCells().map((cell) => <TableCell key={cell.id} className="whitespace-nowrap py-2.5"><table.FlexRender cell={cell} /></TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={columns.length} className="h-28 text-center text-sm text-muted-foreground">Nenhum ativo encontrado para os filtros selecionados.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>

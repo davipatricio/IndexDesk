@@ -123,8 +123,13 @@ public static class MarketDataModuleExtensions
                             end,
                             ct
                         );
-                        return singleResult.IsSuccess
-                            ? Results.Ok(singleResult.Value)
+                        if (singleResult.IsSuccess)
+                        {
+                            return Results.Ok(singleResult.Value);
+                        }
+
+                        return singleResult.Error.Code == "Asset.Metadata.NotFound"
+                            ? Results.NotFound(singleResult.Error)
                             : Results.BadRequest(singleResult.Error);
                     }
 
@@ -219,7 +224,13 @@ public static class MarketDataModuleExtensions
                             ct
                         );
                         return result is null
-                            ? Results.NotFound(new { message = $"Asset '{ticker}' not found." })
+                            ? Results.NotFound(
+                                new
+                                {
+                                    code = "MarketData.AssetNotFound",
+                                    message = $"Asset '{ticker}' not found.",
+                                }
+                            )
                             : Results.Ok(result);
                     }
                     catch (ArgumentException ex)
@@ -228,7 +239,13 @@ public static class MarketDataModuleExtensions
                     }
                     catch (InvalidOperationException ex)
                     {
-                        return Results.BadRequest(new { message = ex.Message });
+                        return Results.NotFound(
+                            new
+                            {
+                                code = "MarketData.PerformanceUnavailable",
+                                message = ex.Message,
+                            }
+                        );
                     }
                 }
             )
@@ -251,7 +268,13 @@ public static class MarketDataModuleExtensions
                 {
                     var quotes = await queryService.GetQuotesAsync(ticker, from, to, days, ct);
                     return quotes.Count == 0
-                        ? Results.NotFound(new { message = $"No quotes found for '{ticker}'." })
+                        ? Results.NotFound(
+                            new
+                            {
+                                code = "MarketData.QuotesUnavailable",
+                                message = $"No persisted quotes found for '{ticker}'.",
+                            }
+                        )
                         : Results.Ok(quotes);
                 }
             )
