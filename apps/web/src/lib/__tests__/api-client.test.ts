@@ -30,9 +30,11 @@ describe('API client market-data contract', () => {
   }
 
   it('parses the real-yield response returned by the API', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      jsonResponse({ nominalRate: 12, inflationRate: 4, realYieldPercent: 7.6923 }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse({ nominalRate: 12, inflationRate: 4, realYieldPercent: 7.6923 }),
+      );
     mockFetch(fetchMock);
 
     await expect(fetchRealYield(12, 4)).resolves.toEqual({

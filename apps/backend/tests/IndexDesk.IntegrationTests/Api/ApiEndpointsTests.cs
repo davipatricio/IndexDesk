@@ -111,7 +111,7 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
     }
 
     [Fact]
-    public async Task Backtest_WhenPersistedSeriesAreUnavailable_ReturnsServiceUnavailable()
+    public async Task Backtest_WhenAssetIsMissing_ReturnsNotFound()
     {
         var response = await _client.PostAsJsonAsync(
             "/api/v1/analytics/backtest",
@@ -120,12 +120,14 @@ public class ApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>>
                 initialAmount = 10_000,
                 monthlyContribution = 500,
                 allocations = new[] { new { ticker = "NO_SUCH_TICKER", weightPercent = 100 } },
+                from = "2020-01-01",
+                to = "2024-01-01",
             }
         );
 
-        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("Analytics.BacktestUnavailable");
+        content.Should().Contain("Analytics.AssetNotFound");
     }
 
     [Fact]

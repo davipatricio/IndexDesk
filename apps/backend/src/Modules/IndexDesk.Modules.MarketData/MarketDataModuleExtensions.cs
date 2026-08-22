@@ -240,11 +240,7 @@ public static class MarketDataModuleExtensions
                     catch (InvalidOperationException ex)
                     {
                         return Results.NotFound(
-                            new
-                            {
-                                code = "MarketData.PerformanceUnavailable",
-                                message = ex.Message,
-                            }
+                            new { code = "MarketData.PerformanceUnavailable", message = ex.Message }
                         );
                     }
                 }

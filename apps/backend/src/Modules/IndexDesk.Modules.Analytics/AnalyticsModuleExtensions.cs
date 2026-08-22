@@ -10,6 +10,7 @@ public static class AnalyticsModuleExtensions
 {
     public static IServiceCollection AddAnalyticsModule(this IServiceCollection services)
     {
+        services.AddScoped<IBacktestService, BacktestService>();
         return services;
     }
 
@@ -20,17 +21,41 @@ public static class AnalyticsModuleExtensions
         group
             .MapPost(
                 "/backtest",
-                () =>
-                    Results.Problem(
-                        statusCode: StatusCodes.Status422UnprocessableEntity,
-                        title: "Backtest unavailable",
-                        detail:
-                            "Backtests are unavailable until persisted quote and macroeconomic series are available for every requested asset and benchmark.",
-                        extensions: new Dictionary<string, object?>
+                async (BacktestRequest request, IBacktestService service, CancellationToken ct) =>
+                {
+                    try
+                    {
+                        var result = await service.RunAsync(request, ct);
+                        if (result.IsSuccess)
+                            return Results.Ok(result.Response);
+
+                        var failure = result.Failure!;
+                        return failure.Code switch
                         {
-                            ["code"] = "Analytics.BacktestUnavailable",
-                        }
-                    )
+                            "Analytics.AssetNotFound" => Results.NotFound(
+                                new { code = failure.Code, message = failure.Message }
+                            ),
+                            "Analytics.BacktestInvalid" => Results.BadRequest(
+                                new { code = failure.Code, message = failure.Message }
+                            ),
+                            _ => Results.UnprocessableEntity(
+                                new { code = failure.Code, message = failure.Message }
+                            ),
+                        };
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        return Results.UnprocessableEntity(
+                            new { code = "Analytics.BacktestInvalid", message = ex.Message }
+                        );
+                    }
+                    catch (InvalidOperationException ex)
+                    {
+                        return Results.UnprocessableEntity(
+                            new { code = "Analytics.BacktestUnavailable", message = ex.Message }
+                        );
+                    }
+                }
             )
             .WithName("RunBacktest")
             .WithSummary(
@@ -77,7 +102,9 @@ public sealed record BacktestRequest(
     decimal MonthlyContribution,
     IReadOnlyList<AllocationItem> Allocations,
     string? Benchmark = "CDI",
-    bool RebalanceAnnual = true
+    string? Rebalance = "annual",
+    DateOnly? From = null,
+    DateOnly? To = null
 );
 
 public sealed record EquityPoint(DateOnly Date, decimal Value);
@@ -91,5 +118,9 @@ public sealed record BacktestResponse(
     decimal AnnualizedVolatilityPercent,
     decimal SharpeRatio,
     decimal MaxDrawdownPercent,
-    IReadOnlyList<EquityPoint> EquityCurve
+    IReadOnlyList<EquityPoint> EquityCurve,
+    IReadOnlyList<EquityPoint>? BenchmarkCurve = null,
+    decimal? BenchmarkFinalCapital = null,
+    decimal? BenchmarkTotalReturnPercent = null,
+    decimal? BenchmarkAnnualizedReturnPercent = null
 );

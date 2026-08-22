@@ -12,21 +12,14 @@ public sealed class PermissionAuthorizationPolicyProvider : IAuthorizationPolicy
 {
     private readonly DefaultAuthorizationPolicyProvider _fallback;
 
-    public PermissionAuthorizationPolicyProvider(
-        IOptions<AuthorizationOptions> options
-    )
+    public PermissionAuthorizationPolicyProvider(IOptions<AuthorizationOptions> options)
     {
         _fallback = new DefaultAuthorizationPolicyProvider(options);
     }
 
     public Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
     {
-        if (
-            policyName.StartsWith(
-                HasPermissionAttribute.PolicyPrefix,
-                StringComparison.Ordinal
-            )
-        )
+        if (policyName.StartsWith(HasPermissionAttribute.PolicyPrefix, StringComparison.Ordinal))
         {
             var permission = policyName[HasPermissionAttribute.PolicyPrefix.Length..];
             var policy = new AuthorizationPolicyBuilder()
@@ -40,8 +33,7 @@ public sealed class PermissionAuthorizationPolicyProvider : IAuthorizationPolicy
         return _fallback.GetPolicyAsync(policyName);
     }
 
-    public Task<AuthorizationPolicy> GetDefaultPolicyAsync() =>
-        _fallback.GetDefaultPolicyAsync();
+    public Task<AuthorizationPolicy> GetDefaultPolicyAsync() => _fallback.GetDefaultPolicyAsync();
 
     public Task<AuthorizationPolicy?> GetFallbackPolicyAsync() =>
         _fallback.GetFallbackPolicyAsync();

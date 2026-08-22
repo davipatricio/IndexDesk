@@ -18,8 +18,22 @@ import type { AssetDto } from '@/lib/api-client';
 import { formatCurrencyBRL, formatPercent } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink, TrendingDown, TrendingUp } from 'lucide-react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ExternalLink,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react';
 
 const features = tableFeatures({
   columnFilteringFeature,
@@ -70,7 +84,13 @@ function getSortIcon(isSorted: false | 'asc' | 'desc') {
   return <ArrowUpDown className="ml-1 size-3 text-muted-foreground/60" />;
 }
 
-function SortHeader({ label, column }: { label: string; column: { getIsSorted: () => false | 'asc' | 'desc'; toggleSorting: (desc?: boolean) => void } }) {
+function SortHeader({
+  label,
+  column,
+}: {
+  label: string;
+  column: { getIsSorted: () => false | 'asc' | 'desc'; toggleSorting: (desc?: boolean) => void };
+}) {
   return (
     <Button
       variant="ghost"
@@ -92,80 +112,179 @@ interface CatalogTableProps {
 
 export function CatalogTable({ category, data, isLoading = false }: CatalogTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const columns = React.useMemo<CatalogColumnDef[]>(() => [
-    {
-      id: 'ticker',
-      accessorFn: (asset) => asset.ticker,
-      header: ({ column }) => <SortHeader label="Ticker" column={column} />,
-      cell: ({ row }) => (
-        <Link href={getAssetDetailHref(row.original)} className="inline-flex items-center gap-1.5 font-mono font-semibold text-primary hover:underline">
-          {row.original.ticker}
-          <Badge variant="outline" className="px-1 py-0 text-[10px] font-normal font-sans">{getAssetCategory(row.original)}</Badge>
-        </Link>
-      ),
-    },
-    {
-      id: 'name',
-      accessorFn: (asset) => asset.name,
-      header: ({ column }) => <SortHeader label="Nome" column={column} />,
-      cell: ({ row }) => <div className="max-w-[260px] truncate text-xs font-medium text-muted-foreground" title={row.original.name}>{row.original.name}</div>,
-    },
-    {
-      id: 'benchmark',
-      accessorFn: (asset) => text(asset, 'benchmarkSymbol', 'benchmark'),
-      header: ({ column }) => <SortHeader label="Benchmark" column={column} />,
-      cell: ({ row }) => {
-        const value = text(row.original, 'benchmarkSymbol', 'benchmark');
-        return value ? <Badge variant="secondary" className="text-[11px] font-mono">{value}</Badge> : <span className="text-xs text-muted-foreground">—</span>;
+  const columns = React.useMemo<CatalogColumnDef[]>(
+    () => [
+      {
+        id: 'ticker',
+        accessorFn: (asset) => asset.ticker,
+        header: ({ column }) => <SortHeader label="Ticker" column={column} />,
+        cell: ({ row }) => (
+          <Link
+            href={getAssetDetailHref(row.original)}
+            className="inline-flex items-center gap-1.5 font-mono font-semibold text-primary hover:underline"
+          >
+            {row.original.ticker}
+            <Badge variant="outline" className="px-1 py-0 text-[10px] font-normal font-sans">
+              {getAssetCategory(row.original)}
+            </Badge>
+          </Link>
+        ),
       },
-    },
-    {
-      id: 'lastPrice',
-      accessorFn: (asset) => number(asset, 'lastPrice'),
-      header: ({ column }) => <SortHeader label="Cotação" column={column} />,
-      cell: ({ row }) => {
-        const value = number(row.original, 'lastPrice');
-        return <span className="text-xs font-mono font-semibold">{value == null ? '—' : formatCurrencyBRL(value)}</span>;
+      {
+        id: 'name',
+        accessorFn: (asset) => asset.name,
+        header: ({ column }) => <SortHeader label="Nome" column={column} />,
+        cell: ({ row }) => (
+          <div
+            className="max-w-[260px] truncate text-xs font-medium text-muted-foreground"
+            title={row.original.name}
+          >
+            {row.original.name}
+          </div>
+        ),
       },
-    },
-    {
-      id: 'changeDayPercent',
-      accessorFn: (asset) => number(asset, 'changeDayPercent'),
-      header: ({ column }) => <SortHeader label="Dia (%)" column={column} />,
-      cell: ({ row }) => {
-        const value = number(row.original, 'changeDayPercent');
-        if (value == null) return <span className="text-xs text-muted-foreground">—</span>;
-        const positive = value >= 0;
-        return <span className={`inline-flex items-center text-xs font-mono font-semibold ${positive ? 'text-positive' : 'text-negative'}`}>{positive ? <TrendingUp className="mr-0.5 size-3" /> : <TrendingDown className="mr-0.5 size-3" />}{formatPercent(value)}</span>;
+      {
+        id: 'benchmark',
+        accessorFn: (asset) => text(asset, 'benchmarkSymbol', 'benchmark'),
+        header: ({ column }) => <SortHeader label="Benchmark" column={column} />,
+        cell: ({ row }) => {
+          const value = text(row.original, 'benchmarkSymbol', 'benchmark');
+          return value ? (
+            <Badge variant="secondary" className="text-[11px] font-mono">
+              {value}
+            </Badge>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
+          );
+        },
       },
-    },
-    {
-      id: 'return12mPercent',
-      accessorFn: (asset) => number(asset, 'return12mPercent', 'changeYtdPercent'),
-      header: ({ column }) => <SortHeader label="12 meses" column={column} />,
-      cell: ({ row }) => {
-        const value = number(row.original, 'return12mPercent', 'changeYtdPercent');
-        return <span className={`text-xs font-mono font-semibold ${value == null ? 'text-muted-foreground' : value >= 0 ? 'text-positive' : 'text-negative'}`}>{value == null ? '—' : formatPercent(value)}</span>;
+      {
+        id: 'lastPrice',
+        accessorFn: (asset) => number(asset, 'lastPrice'),
+        header: ({ column }) => <SortHeader label="Cotação" column={column} />,
+        cell: ({ row }) => {
+          const value = number(row.original, 'lastPrice');
+          return (
+            <span className="text-xs font-mono font-semibold">
+              {value == null ? '—' : formatCurrencyBRL(value)}
+            </span>
+          );
+        },
       },
-    },
-    {
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => <Link href={getAssetDetailHref(row.original)} className="inline-flex rounded-sm p-1 text-muted-foreground hover:text-primary" title={`Ver ficha completa de ${row.original.ticker}`}><ExternalLink className="size-3.5" /></Link>,
-    },
-  ], []);
+      {
+        id: 'changeDayPercent',
+        accessorFn: (asset) => number(asset, 'changeDayPercent'),
+        header: ({ column }) => <SortHeader label="Dia (%)" column={column} />,
+        cell: ({ row }) => {
+          const value = number(row.original, 'changeDayPercent');
+          if (value == null) return <span className="text-xs text-muted-foreground">—</span>;
+          const positive = value >= 0;
+          return (
+            <span
+              className={`inline-flex items-center text-xs font-mono font-semibold ${positive ? 'text-positive' : 'text-negative'}`}
+            >
+              {positive ? (
+                <TrendingUp className="mr-0.5 size-3" />
+              ) : (
+                <TrendingDown className="mr-0.5 size-3" />
+              )}
+              {formatPercent(value)}
+            </span>
+          );
+        },
+      },
+      {
+        id: 'return12mPercent',
+        accessorFn: (asset) => number(asset, 'return12mPercent', 'changeYtdPercent'),
+        header: ({ column }) => <SortHeader label="12 meses" column={column} />,
+        cell: ({ row }) => {
+          const value = number(row.original, 'return12mPercent', 'changeYtdPercent');
+          return (
+            <span
+              className={`text-xs font-mono font-semibold ${value == null ? 'text-muted-foreground' : value >= 0 ? 'text-positive' : 'text-negative'}`}
+            >
+              {value == null ? '—' : formatPercent(value)}
+            </span>
+          );
+        },
+      },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => (
+          <Link
+            href={getAssetDetailHref(row.original)}
+            className="inline-flex rounded-sm p-1 text-muted-foreground hover:text-primary"
+            title={`Ver ficha completa de ${row.original.ticker}`}
+          >
+            <ExternalLink className="size-3.5" />
+          </Link>
+        ),
+      },
+    ],
+    [],
+  );
 
-  const table = useTable({ key: `catalog-${category.toLowerCase()}`, features, data, columns, state: { sorting }, onSortingChange: setSorting }, (state) => ({ sorting: state.sorting }));
+  const table = useTable(
+    {
+      key: `catalog-${category.toLowerCase()}`,
+      features,
+      data,
+      columns,
+      state: { sorting },
+      onSortingChange: setSorting,
+    },
+    (state) => ({ sorting: state.sorting }),
+  );
 
   return (
     <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader className="bg-muted/40">
-            {table.getHeaderGroups().map((group) => <TableRow key={group.id}>{group.headers.map((header) => <TableHead key={header.id} className="whitespace-nowrap text-xs font-semibold uppercase">{header.isPlaceholder ? null : <table.FlexRender header={header} />}</TableHead>)}</TableRow>)}
+            {table.getHeaderGroups().map((group) => (
+              <TableRow key={group.id}>
+                {group.headers.map((header) => (
+                  <TableHead
+                    key={header.id}
+                    className="whitespace-nowrap text-xs font-semibold uppercase"
+                  >
+                    {header.isPlaceholder ? null : <table.FlexRender header={header} />}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
           </TableHeader>
           <TableBody>
-            {isLoading ? <TableRow><TableCell colSpan={columns.length} className="h-32 text-center text-sm text-muted-foreground">Carregando ativos da API...</TableCell></TableRow> : table.getRowModel().rows.length ? table.getRowModel().rows.map((row) => <TableRow key={row.id} className="transition-colors hover:bg-muted/30">{row.getAllCells().map((cell) => <TableCell key={cell.id} className="whitespace-nowrap py-2.5"><table.FlexRender cell={cell} /></TableCell>)}</TableRow>) : <TableRow><TableCell colSpan={columns.length} className="h-28 text-center text-sm text-muted-foreground">Nenhum ativo encontrado para os filtros selecionados.</TableCell></TableRow>}
+            {isLoading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-32 text-center text-sm text-muted-foreground"
+                >
+                  Carregando ativos...
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows.length ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id} className="transition-colors hover:bg-muted/30">
+                  {row.getAllCells().map((cell) => (
+                    <TableCell key={cell.id} className="whitespace-nowrap py-2.5">
+                      <table.FlexRender cell={cell} />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-28 text-center text-sm text-muted-foreground"
+                >
+                  Nenhum ativo encontrado para os filtros selecionados.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>

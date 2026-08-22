@@ -61,7 +61,7 @@ export default function ComparadorPage() {
     <div className="container mx-auto px-4 py-8 flex flex-col gap-6">
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Até 6 ativos simultâneos</span>
+          <span className="text-xs text-muted-foreground">Compare até 6 ativos</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2.5 text-foreground">
           <Layers className="size-6 text-primary" />
@@ -77,11 +77,11 @@ export default function ComparadorPage() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-xs uppercase text-muted-foreground font-semibold">
-            Ativos Selecionados para Comparação
+            Ativos para comparar
           </CardTitle>
           <CardDescription className="text-xs">
             {assets.length > 0
-              ? 'Clique nos ativos abaixo para adicionar ou remover da grade de comparação:'
+              ? 'Selecione os ativos que deseja adicionar ou remover da comparação:'
               : 'Nenhum ativo disponível no momento.'}
           </CardDescription>
         </CardHeader>
@@ -112,10 +112,7 @@ export default function ComparadorPage() {
               <TableRow>
                 <TableHead className="w-48 text-xs font-semibold">Métrica / Atributo</TableHead>
                 {comparedAssets.map((asset) => (
-                  <TableHead
-                    key={asset.ticker}
-                    className="text-xs font-bold text-center font-mono"
-                  >
+                  <TableHead key={asset.ticker} className="text-xs font-bold text-center font-mono">
                     <div className="flex flex-col items-center gap-0.5">
                       <span className="text-primary text-sm font-semibold">{asset.ticker}</span>
                       <span className="text-xs text-muted-foreground font-sans font-normal truncate max-w-[140px]">
@@ -178,7 +175,11 @@ export default function ComparadorPage() {
                     <TableCell
                       key={asset.ticker}
                       className={`text-xs text-center font-mono font-semibold ${
-                        val == null ? 'text-muted-foreground' : isPositive ? 'text-positive' : 'text-negative'
+                        val == null
+                          ? 'text-muted-foreground'
+                          : isPositive
+                            ? 'text-positive'
+                            : 'text-negative'
                       }`}
                     >
                       {val != null ? formatPercent(val) : '—'}
@@ -197,7 +198,11 @@ export default function ComparadorPage() {
                     <TableCell
                       key={asset.ticker}
                       className={`text-xs text-center font-mono font-semibold ${
-                        val == null ? 'text-muted-foreground' : isPositive ? 'text-positive' : 'text-negative'
+                        val == null
+                          ? 'text-muted-foreground'
+                          : isPositive
+                            ? 'text-positive'
+                            : 'text-negative'
                       }`}
                     >
                       {val != null ? formatPercent(val) : '—'}

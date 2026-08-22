@@ -74,7 +74,9 @@ function StatCard({ label, value, hint }: { label: string; value: string; hint?:
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">{label}</CardTitle>
+        <CardTitle className="text-xs font-semibold uppercase text-muted-foreground">
+          {label}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="font-mono text-2xl font-bold text-foreground">{value}</p>
@@ -168,7 +170,10 @@ export default async function AssetDetailPage({ params }: PageProps) {
         />
       ) : null}
 
-      <section aria-label="Indicadores do ativo" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section
+        aria-label="Indicadores do ativo"
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      >
         <StatCard
           label="Retorno 12 meses"
           value={
@@ -197,9 +202,7 @@ export default async function AssetDetailPage({ params }: PageProps) {
         />
         <StatCard
           label="Máximo drawdown"
-          value={
-            stats.maxDrawdownPercent == null ? '—' : formatPercent(stats.maxDrawdownPercent)
-          }
+          value={stats.maxDrawdownPercent == null ? '—' : formatPercent(stats.maxDrawdownPercent)}
           hint="Maior queda no histórico"
         />
         <StatCard
@@ -211,27 +214,23 @@ export default async function AssetDetailPage({ params }: PageProps) {
 
       <PriceHistoryChart quotes={quotes} ticker={detail.ticker} />
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Dados cadastrais">
+      <section
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        aria-label="Dados cadastrais"
+      >
         <StatCard
           label="Primeira cotação"
           value={
-            stats.firstQuoteDate
-              ? new Date(stats.firstQuoteDate).toLocaleDateString('pt-BR')
-              : '—'
+            stats.firstQuoteDate ? new Date(stats.firstQuoteDate).toLocaleDateString('pt-BR') : '—'
           }
         />
         <StatCard
           label="Última cotação"
           value={
-            stats.lastQuoteDate
-              ? new Date(stats.lastQuoteDate).toLocaleDateString('pt-BR')
-              : '—'
+            stats.lastQuoteDate ? new Date(stats.lastQuoteDate).toLocaleDateString('pt-BR') : '—'
           }
         />
-        <StatCard
-          label="Código ISIN"
-          value={detail.isin || '—'}
-        />
+        <StatCard label="Código ISIN" value={detail.isin || '—'} />
       </section>
 
       <div className="flex flex-wrap gap-3">
@@ -250,7 +249,8 @@ export default async function AssetDetailPage({ params }: PageProps) {
         {detail.fiscal && detail.fiscal.foreignDividendWithholdingPercent > 0 ? (
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <ReceiptText className="size-3.5" />
-            Retenção estrangeira estimada: {formatPercent(detail.fiscal.foreignDividendWithholdingPercent)}
+            Retenção estrangeira estimada:{' '}
+            {formatPercent(detail.fiscal.foreignDividendWithholdingPercent)}
           </p>
         ) : null}
       </div>

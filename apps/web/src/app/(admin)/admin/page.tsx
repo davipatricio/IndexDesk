@@ -14,17 +14,17 @@ export default function AdminDashboardPage() {
               Backoffice & Curadoria
             </h1>
             <Badge variant="secondary" className="text-xs">
-              Acesso Administrativo
+              Área de gestão
             </Badge>
           </div>
           <p className="text-muted-foreground text-sm">
-            Gestão do catálogo de ativos, upload de carteiras teóricas e monitoramento de ingestão.
+            Gestão do catálogo de ativos, composição de carteiras e acompanhamento das atualizações.
           </p>
         </div>
 
         <Button size="sm" className="gap-1.5">
           <RefreshCw className="size-3.5" />
-          Disparar Sincronização
+          Atualizar catálogo
         </Button>
       </div>
 
@@ -33,19 +33,19 @@ export default function AdminDashboardPage() {
           <CardHeader>
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
               <Upload className="size-4 text-primary" />
-              Upload Manual de Holdings (CSV)
+              Importar composição de carteira
             </CardTitle>
             <CardDescription className="text-xs">
-              Ingestão de composição de carteira (CDA CVM ou Gestoras)
+              Atualize os ativos e suas principais posições
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             <p className="text-xs text-muted-foreground">
-              Envie arquivos CSV diários das gestoras (BlackRock, Vanguard, Investo) com trava de
-              sobreposição manual.
+              Envie a composição da carteira para revisar posições e manter as informações
+              organizadas.
             </p>
             <Button variant="outline" size="sm" className="w-full">
-              Selecionar Arquivo CSV
+              Selecionar arquivo
             </Button>
           </CardContent>
         </Card>
@@ -54,10 +54,10 @@ export default function AdminDashboardPage() {
           <CardHeader>
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
               <FileText className="size-4 text-primary" />
-              Publicação de Notícias & Relatórios
+              Publicar notícias e relatórios
             </CardTitle>
             <CardDescription className="text-xs">
-              Research letters de gestoras e comunicados CVM
+              Análises e comunicados para investidores
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
@@ -74,18 +74,16 @@ export default function AdminDashboardPage() {
           <CardHeader>
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
               <Activity className="size-4 text-primary" />
-              Rotinas de Sincronização
+              Atualizações do catálogo
             </CardTitle>
             <CardDescription className="text-xs">
-              Monitoramento de ingestão em background
+              Acompanhe quando as informações foram atualizadas
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 text-xs text-muted-foreground">
-            <p>
-              As tarefas agendadas são executadas pelo worker de dados (BCB, CVM e cotações B3).
-            </p>
+            <p>Consulte o andamento das atualizações de mercado e dos materiais publicados.</p>
             <div className="rounded-lg border border-dashed p-3 text-center text-xs text-muted-foreground bg-muted/20">
-              Status das rotinas em tempo real disponível quando conectado à API.
+              O status das atualizações aparecerá aqui quando houver novidades.
             </div>
           </CardContent>
         </Card>

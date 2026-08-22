@@ -4,11 +4,7 @@ import * as React from 'react';
 import { useSessionStore, type UserAccount } from '@/stores/session-store';
 import { useMounted } from '@/hooks/use-mounted';
 import type { User, SignInDto, SignUpDto } from '@/types/auth';
-import {
-  signIn as apiSignIn,
-  signOut as apiSignOut,
-  signUp as apiSignUp,
-} from '@/lib/api-client';
+import { signIn as apiSignIn, signOut as apiSignOut, signUp as apiSignUp } from '@/lib/api-client';
 
 export interface UseSessionResult {
   user: User | null;
@@ -23,9 +19,7 @@ export interface UseSessionResult {
   signUp: (dto: SignUpDto) => Promise<void>;
 }
 
-function isCredentialsDto(
-  val: User | SignInDto,
-): val is SignInDto {
+function isCredentialsDto(val: User | SignInDto): val is SignInDto {
   return 'password' in val && !('id' in val);
 }
 
@@ -56,17 +50,15 @@ export function useSession(): UseSessionResult {
 
   const isAdmin = Boolean(
     isReady &&
-      (account?.role === 'admin' ||
-        user?.roles.some(
-          (r) => r.toLowerCase() === 'admin' || r.toLowerCase() === 'superadmin',
-        )),
+    (account?.role === 'admin' ||
+      user?.roles.some((r) => r.toLowerCase() === 'admin' || r.toLowerCase() === 'superadmin')),
   );
 
   const isPro = Boolean(
     isReady &&
-      (isAdmin ||
-        user?.roles.some((r) => r.toLowerCase() === 'pro') ||
-        user?.permissions.includes('pro:access')),
+    (isAdmin ||
+      user?.roles.some((r) => r.toLowerCase() === 'pro') ||
+      user?.permissions.includes('pro:access')),
   );
 
   const handleSignIn = React.useCallback(

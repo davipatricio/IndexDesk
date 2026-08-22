@@ -29,8 +29,8 @@ export default function EntrarPage() {
     try {
       await signIn({ email, password });
       router.push('/');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Falha na autenticação';
+    } catch {
+      const message = 'Não foi possível entrar. Verifique seus dados e tente novamente.';
       setError(message);
     } finally {
       setIsLoading(false);
@@ -45,8 +45,8 @@ export default function EntrarPage() {
     try {
       await signUp({ fullName, email, password });
       router.push('/');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Falha no cadastro';
+    } catch {
+      const message = 'Não foi possível criar sua conta. Verifique seus dados e tente novamente.';
       setError(message);
     } finally {
       setIsLoading(false);
@@ -67,7 +67,8 @@ export default function EntrarPage() {
           <CardHeader>
             <CardTitle className="text-xl">Acesso ao IndexDesk</CardTitle>
             <CardDescription>
-              Acesse sua conta ou cadastre-se para sincronizar carteiras e gerenciar ativos.
+              Acesse sua conta ou cadastre-se para sincronizar carteiras e gerenciar ativos. O
+              simulador de backtest e as demais ferramentas públicas não exigem login.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">

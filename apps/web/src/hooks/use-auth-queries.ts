@@ -36,9 +36,7 @@ export function useCurrentUserQuery(
   });
 }
 
-export function useSignInMutation(
-  options?: UseMutationOptions<AuthResponse, Error, SignInDto>,
-) {
+export function useSignInMutation(options?: UseMutationOptions<AuthResponse, Error, SignInDto>) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -52,9 +50,7 @@ export function useSignInMutation(
   });
 }
 
-export function useSignUpMutation(
-  options?: UseMutationOptions<AuthResponse, Error, SignUpDto>,
-) {
+export function useSignUpMutation(options?: UseMutationOptions<AuthResponse, Error, SignUpDto>) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -68,9 +64,7 @@ export function useSignUpMutation(
   });
 }
 
-export function useSignOutMutation(
-  options?: UseMutationOptions<void, Error, void>,
-) {
+export function useSignOutMutation(options?: UseMutationOptions<void, Error, void>) {
   const queryClient = useQueryClient();
 
   return useMutation({

@@ -71,7 +71,6 @@ export interface AssetQuoteStatsDto {
   lastQuoteDate: string | null;
 }
 
-
 export interface PerformanceResponse {
   ticker: string;
   from: string;
@@ -115,6 +114,9 @@ export interface BacktestRequest {
   monthlyContribution: number;
   allocations: Array<{ ticker: string; weightPercent: number }>;
   benchmark?: string;
+  rebalance?: 'none' | 'monthly' | 'quarterly' | 'semiannual' | 'annual';
+  from?: string;
+  to?: string;
 }
 
 export interface BacktestResponse {
@@ -127,9 +129,14 @@ export interface BacktestResponse {
   sharpeRatio: number;
   maxDrawdownPercent: number;
   equityCurve: Array<{ date: string; value: number }>;
+  benchmarkCurve?: Array<{ date: string; value: number }>;
+  benchmarkFinalCapital?: number;
+  benchmarkTotalReturnPercent?: number;
+  benchmarkAnnualizedReturnPercent?: number;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? '' : 'http://127.0.0.1:5000');
 
 let inMemoryAccessToken: string | null = null;
 
@@ -214,9 +221,10 @@ export async function fetchWithAuth(
 // ---------------------------------------------------------------------------
 
 async function readApiError(response: Response, fallback: string): Promise<Error> {
-  const payload = (await response.json().catch(() => null)) as
-    | { message?: unknown; title?: unknown }
-    | null;
+  const payload = (await response.json().catch(() => null)) as {
+    message?: unknown;
+    title?: unknown;
+  } | null;
   const message =
     typeof payload?.message === 'string'
       ? payload.message
@@ -390,6 +398,21 @@ export async function fetchAssetPerformance(
   const res = await fetch(url, { credentials: 'include', next: { revalidate: 900 } });
   if (!res.ok) throw await readApiError(res, `Desempenho não encontrado: ${upperTicker}`);
   return (await res.json()) as PerformanceResponse;
+}
+
+export async function fetchBacktest(request: BacktestRequest): Promise<BacktestResponse> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/analytics/backtest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    throw await readApiError(res, `Falha ao executar backtest: ${res.statusText}`);
+  }
+
+  return (await res.json()) as BacktestResponse;
 }
 
 export async function fetchRealYield(

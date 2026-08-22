@@ -139,6 +139,14 @@ No user-facing request may call an external provider (BCB, CVM, Brapi, Yahoo, �
 - Keep the offline-fallback paths covered — they are the offline-first safety net.
 - `bun test:coverage` for coverage (`coverage/**`, cached by Turbo).
 
+## 8. User-facing language and route visibility
+
+- Rendered copy, SEO metadata, accessible labels, loading states, and error messages use clear, natural pt-BR aimed at investors. Do not expose implementation terms such as API, backend, endpoint, worker, local-first, persisted data, ingestion, transport status, or roadmap IDs (for example, `MVP-011`). These terms may remain in source comments, DTOs, query keys, API-client code, and architecture documentation.
+- Never render raw exception or API error messages. Map failures to stable, helpful messages such as “Não foi possível carregar os ativos agora. Tente novamente em instantes.” Keep technical details available only to internal diagnostics.
+- Every Next.js page is public by default, including `/admin` and `/ferramentas/backtest`. The `(public)` and `(admin)` folders are organizational route groups and do not provide access control. Do not add middleware or page-level authentication gates. Authentication remains optional for account actions and must not prevent public pages, catalogues, comparisons, calculators, or tools from rendering.
+- `src/middleware.ts` is an explicit pass-through. Middleware tests must keep anonymous access coverage for `/admin`, nested admin routes, and public tools, with no authentication redirect or `Location` header.
+- Public market-data pages still use only the local application data layer and must preserve honest loading, empty, unavailable, and retry states. Public visibility does not permit fixture data, synthetic values, or direct provider calls.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

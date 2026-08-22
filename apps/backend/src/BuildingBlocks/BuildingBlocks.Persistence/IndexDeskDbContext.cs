@@ -371,5 +371,4 @@ public class IndexDeskDbContext : DbContext
 
         modelBuilder.Entity<RolePermissionEntity>().HasData(rolePermissions);
     }
-
 }

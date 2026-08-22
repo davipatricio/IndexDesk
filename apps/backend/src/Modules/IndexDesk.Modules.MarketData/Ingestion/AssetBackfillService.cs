@@ -231,12 +231,7 @@ public class AssetBackfillService : IAssetBackfillService
 
         // Ingestion must never create an asset with guessed name, type, CNPJ, or
         // other metadata. A curator/importer must create the catalog record first.
-        return Result<AssetEntity>.Failure(
-            Error.NotFound(
-                "Asset.Metadata",
-                ticker
-            )
-        );
+        return Result<AssetEntity>.Failure(Error.NotFound("Asset.Metadata", ticker));
     }
 
     private async Task<int> UpsertQuotesAsync(

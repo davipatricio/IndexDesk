@@ -57,10 +57,7 @@ builder.Services.AddCors(options =>
         policy =>
         {
             policy
-                .WithOrigins(
-                    builder.Configuration["Web:AppUrl"] ?? "http://localhost:3000",
-                    "http://127.0.0.1:3000"
-                )
+                .SetIsOriginAllowed(_ => true)
                 .AllowAnyHeader()
                 .AllowAnyMethod()
                 .AllowCredentials();
@@ -117,15 +114,12 @@ if (app.Environment.IsDevelopment())
 }
 
 // Configure Middleware Pipeline
-if (app.Environment.IsDevelopment())
+app.MapOpenApi();
+app.MapScalarApiReference(options =>
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference(options =>
-    {
-        options.WithTitle("IndexDesk API v1");
-        options.WithDarkModeToggle(true);
-    });
-}
+    options.WithTitle("IndexDesk API v1");
+    options.WithDarkModeToggle(true);
+});
 
 app.UseCors("AllowWeb");
 app.UseAuthentication();

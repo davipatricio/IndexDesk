@@ -3,8 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace IndexDesk.Modules.Auth.Authorization;
 
-public sealed class PermissionAuthorizationHandler
-    : AuthorizationHandler<PermissionRequirement>
+public sealed class PermissionAuthorizationHandler : AuthorizationHandler<PermissionRequirement>
 {
     protected override Task HandleRequirementAsync(
         AuthorizationHandlerContext context,

@@ -33,9 +33,7 @@ public sealed class JwtTokenService : ITokenService
         ArgumentNullException.ThrowIfNull(user);
 
         var secret =
-            _configuration["Jwt:SecretKey"]
-            ?? _configuration["Jwt:Secret"]
-            ?? DefaultSecretKey;
+            _configuration["Jwt:SecretKey"] ?? _configuration["Jwt:Secret"] ?? DefaultSecretKey;
         var issuer = _configuration["Jwt:Issuer"] ?? DefaultIssuer;
         var audience = _configuration["Jwt:Audience"] ?? DefaultAudience;
 

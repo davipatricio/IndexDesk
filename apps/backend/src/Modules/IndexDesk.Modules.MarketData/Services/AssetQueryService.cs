@@ -278,9 +278,7 @@ public class AssetQueryService : IAssetQueryService
         );
     }
 
-    private async Task<decimal> GetRiskFreeAnnualPercentAsync(
-        CancellationToken cancellationToken
-    )
+    private async Task<decimal> GetRiskFreeAnnualPercentAsync(CancellationToken cancellationToken)
     {
         // Risk-free proxy = CDI (BCB series 12) accumulated over the trailing 252 business
         // days (~1y). Values are daily percent rates; AccumulateRateSeries compounds them.

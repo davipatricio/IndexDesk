@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Protótipo de interfaces do simulador público de backtest IndexDesk." />
+    <title>IndexDesk · Laboratório de Backtest</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="IndexDesk início">
+          <span class="brand-mark">I</span>
+          <span>index<span class="brand-accent">desk</span></span>
+        </a>
+        <div class="topbar-context">
+          <span class="eyebrow">MVP-011</span>
+          <span class="context-title">Laboratório de interfaces</span>
+          <span class="preview-pill"><span class="status-dot"></span> prévia visual</span>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-button" id="theme-toggle" type="button" aria-label="Alternar tema" title="Alternar tema">☼</button>
+          <a class="text-button" href="#notes">Notas do protótipo</a>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div>
+            <p class="eyebrow">Escolha a experiência</p>
+            <h1>Simulador de backtest</h1>
+            <p class="hero-copy">Teste cinco arquiteturas de interface antes de transformar a experiência em um fluxo conectado à API local.</p>
+          </div>
+          <div class="hero-note">
+            <span class="note-icon">◎</span>
+            <div>
+              <strong>Dados ilustrativos</strong>
+              <span>Valores abaixo servem apenas para avaliar hierarquia, densidade e interação.</span>
+            </div>
+          </div>
+        </section>
+
+        <nav class="design-switcher" aria-label="Variações de interface" id="design-switcher">
+          <button class="design-tab active" data-design="terminal" type="button"><span class="tab-number">01</span><span><strong>Terminal</strong><small>Split-pane analítico</small></span></button>
+          <button class="design-tab" data-design="wizard" type="button"><span class="tab-number">02</span><span><strong>Wizard</strong><small>Fluxo guiado</small></span></button>
+          <button class="design-tab" data-design="tabs" type="button"><span class="tab-number">03</span><span><strong>Abas</strong><small>Dashboard modular</small></span></button>
+          <button class="design-tab" data-design="compare" type="button"><span class="tab-number">04</span><span><strong>Canvas A/B</strong><small>Estratégias lado a lado</small></span></button>
+          <button class="design-tab" data-design="studio" type="button"><span class="tab-number">05</span><span><strong>Studio</strong><small>One-page pro explorer</small></span></button>
+        </nav>
+
+        <section class="workspace-wrap">
+          <div id="workspace" aria-live="polite"></div>
+        </section>
+      </main>
+
+      <footer id="notes" class="footer-note">
+        <div><span class="status-dot"></span><strong>Protótipo navegável</strong><span>·</span><span>Sem chamadas de rede. Nenhum valor representa histórico real.</span></div>
+        <span>IndexDesk / Fase 01 / MVP-011</span>
+      </footer>
+    </div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
