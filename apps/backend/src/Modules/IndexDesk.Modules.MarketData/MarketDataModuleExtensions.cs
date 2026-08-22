@@ -332,6 +332,29 @@ public static class MarketDataModuleExtensions
 
         group
             .MapGet(
+                "/quotes/batch",
+                async (
+                    string? tickers,
+                    int? days,
+                    IAssetQueryService queryService,
+                    CancellationToken ct
+                ) =>
+                {
+                    var requested = (tickers ?? string.Empty).Split(
+                        ',',
+                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+                    );
+                    var items = await queryService.GetQuotesBatchAsync(requested, days, ct);
+                    return Results.Ok(items);
+                }
+            )
+            .WithName("GetAssetQuotesBatch")
+            .WithSummary(
+                "Closing-price windows for several tickers at once, for inline sparklines"
+            );
+
+        group
+            .MapGet(
                 "/{ticker}/quotes",
                 async (
                     string ticker,

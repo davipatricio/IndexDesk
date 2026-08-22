@@ -180,6 +180,18 @@ export interface MarketIndicatorDto {
   accum12mPercent: number | null;
 }
 
+/** Single closing point inside a batch sparkline window. */
+export interface QuoteSparkPointDto {
+  date: string;
+  close: number;
+}
+
+/** Closing-price window for one ticker (GET /api/v1/assets/quotes/batch). */
+export interface AssetQuotesBatchItemDto {
+  ticker: string;
+  quotes: QuoteSparkPointDto[];
+}
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? '' : 'http://127.0.0.1:5000');
 
@@ -500,4 +512,21 @@ export async function fetchMarketIndicators(): Promise<MarketIndicatorDto[]> {
   const res = await fetch(url, { credentials: 'include', next: { revalidate: 3600 } });
   if (!res.ok) throw await readApiError(res, `Falha ao obter indicadores: ${res.statusText}`);
   return (await res.json()) as MarketIndicatorDto[];
+}
+
+/**
+ * Fetch closing-price windows for several tickers at once
+ * (GET /api/v1/assets/quotes/batch), returned as a ticker-keyed map.
+ */
+export async function fetchQuoteSparks(
+  tickers: string[],
+  days = 90,
+): Promise<Record<string, QuoteSparkPointDto[]>> {
+  const cleaned = tickers.map((ticker) => ticker.trim().toUpperCase()).filter(Boolean);
+  if (cleaned.length === 0) return {};
+  const url = `${API_BASE_URL}/api/v1/assets/quotes/batch?tickers=${encodeURIComponent(cleaned.join(','))}&days=${days}`;
+  const res = await fetch(url, { credentials: 'include', next: { revalidate: 900 } });
+  if (!res.ok) throw await readApiError(res, `Falha ao obter cotações: ${res.statusText}`);
+  const items = (await res.json()) as AssetQuotesBatchItemDto[];
+  return Object.fromEntries(items.map((item) => [item.ticker, item.quotes]));
 }

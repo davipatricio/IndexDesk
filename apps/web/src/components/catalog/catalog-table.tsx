@@ -15,7 +15,9 @@ import {
   type SortingState,
 } from '@tanstack/react-table';
 import type { AssetDto } from '@/lib/api-client';
-import { formatCurrencyBRL, formatPercent } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { fetchQuoteSparks } from '@/lib/api-client';
+import { formatCurrencyBRL, formatPercent, cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -26,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Sparkline } from '@/components/charts/sparkline';
 import {
   ArrowDown,
   ArrowUp,
@@ -87,16 +90,21 @@ function getSortIcon(isSorted: false | 'asc' | 'desc') {
 function SortHeader({
   label,
   column,
+  align = 'left',
 }: {
   label: string;
   column: { getIsSorted: () => false | 'asc' | 'desc'; toggleSorting: (desc?: boolean) => void };
+  align?: 'left' | 'right';
 }) {
   return (
     <Button
       variant="ghost"
       size="sm"
       onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-      className="-ml-3 h-8 text-xs font-semibold hover:bg-muted/50"
+      className={cn(
+        '-ml-3 h-8 text-xs font-semibold hover:bg-muted/50',
+        align === 'right' && 'w-full flex-row-reverse -mr-3 ml-0',
+      )}
     >
       {label}
       {getSortIcon(column.getIsSorted())}
@@ -112,6 +120,16 @@ interface CatalogTableProps {
 
 export function CatalogTable({ category, data, isLoading = false }: CatalogTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
+  const tickers = React.useMemo(() => data.map((asset) => asset.ticker), [data]);
+
+  const { data: sparks } = useQuery({
+    queryKey: ['quotes-batch', 'catalog', category, tickers.join(',')],
+    queryFn: () => fetchQuoteSparks(tickers),
+    enabled: tickers.length > 0,
+    staleTime: 300_000,
+  });
+
+  const sortedColumnId = sorting[0]?.id;
   const columns = React.useMemo<CatalogColumnDef[]>(
     () => [
       {
@@ -159,13 +177,27 @@ export function CatalogTable({ category, data, isLoading = false }: CatalogTable
         },
       },
       {
+        id: 'spark',
+        header: () => (
+          <span className="text-[11px] tracking-wide text-muted-foreground uppercase">
+            Tendência (90d)
+          </span>
+        ),
+        cell: ({ row }) => {
+          const series = sparks?.[row.original.ticker.toUpperCase()];
+          return series && series.length >= 2 ? (
+            <Sparkline values={series.map((point) => point.close)} className="h-7 w-20" />
+          ) : null;
+        },
+      },
+      {
         id: 'lastPrice',
         accessorFn: (asset) => number(asset, 'lastPrice'),
-        header: ({ column }) => <SortHeader label="Cotação" column={column} />,
+        header: ({ column }) => <SortHeader label="Cotação" column={column} align="right" />,
         cell: ({ row }) => {
           const value = number(row.original, 'lastPrice');
           return (
-            <span className="text-xs font-mono font-semibold">
+            <span className="block text-right text-xs font-mono font-semibold tabular-nums">
               {value == null ? '—' : formatCurrencyBRL(value)}
             </span>
           );
@@ -174,14 +206,15 @@ export function CatalogTable({ category, data, isLoading = false }: CatalogTable
       {
         id: 'changeDayPercent',
         accessorFn: (asset) => number(asset, 'changeDayPercent'),
-        header: ({ column }) => <SortHeader label="Dia (%)" column={column} />,
+        header: ({ column }) => <SortHeader label="Dia (%)" column={column} align="right" />,
         cell: ({ row }) => {
           const value = number(row.original, 'changeDayPercent');
-          if (value == null) return <span className="text-xs text-muted-foreground">—</span>;
+          if (value == null)
+            return <span className="block text-right text-xs text-muted-foreground">—</span>;
           const positive = value >= 0;
           return (
             <span
-              className={`inline-flex items-center text-xs font-mono font-semibold ${positive ? 'text-positive' : 'text-negative'}`}
+              className={`inline-flex items-center justify-end text-xs font-mono font-semibold tabular-nums ${positive ? 'text-positive' : 'text-negative'}`}
             >
               {positive ? (
                 <TrendingUp className="mr-0.5 size-3" />
@@ -196,12 +229,12 @@ export function CatalogTable({ category, data, isLoading = false }: CatalogTable
       {
         id: 'return12mPercent',
         accessorFn: (asset) => number(asset, 'return12mPercent', 'changeYtdPercent'),
-        header: ({ column }) => <SortHeader label="12 meses" column={column} />,
+        header: ({ column }) => <SortHeader label="12 meses" column={column} align="right" />,
         cell: ({ row }) => {
           const value = number(row.original, 'return12mPercent', 'changeYtdPercent');
           return (
             <span
-              className={`text-xs font-mono font-semibold ${value == null ? 'text-muted-foreground' : value >= 0 ? 'text-positive' : 'text-negative'}`}
+              className={`block text-right text-xs font-mono font-semibold tabular-nums ${value == null ? 'text-muted-foreground' : value >= 0 ? 'text-positive' : 'text-negative'}`}
             >
               {value == null ? '—' : formatPercent(value)}
             </span>
@@ -222,7 +255,7 @@ export function CatalogTable({ category, data, isLoading = false }: CatalogTable
         ),
       },
     ],
-    [],
+    [sparks],
   );
 
   const table = useTable(
@@ -241,13 +274,16 @@ export function CatalogTable({ category, data, isLoading = false }: CatalogTable
     <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
       <div className="overflow-x-auto">
         <Table>
-          <TableHeader className="bg-muted/40">
+          <TableHeader className="sticky top-14 z-10 bg-background shadow-[0_1px_0_0_var(--border)]">
             {table.getHeaderGroups().map((group) => (
-              <TableRow key={group.id}>
+              <TableRow key={group.id} className="hover:bg-transparent">
                 {group.headers.map((header) => (
                   <TableHead
                     key={header.id}
-                    className="whitespace-nowrap text-xs font-semibold uppercase"
+                    className={cn(
+                      'whitespace-nowrap text-xs font-semibold uppercase',
+                      header.id === sortedColumnId && 'bg-primary/5',
+                    )}
                   >
                     {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                   </TableHead>
@@ -269,7 +305,13 @@ export function CatalogTable({ category, data, isLoading = false }: CatalogTable
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} className="transition-colors hover:bg-muted/30">
                   {row.getAllCells().map((cell) => (
-                    <TableCell key={cell.id} className="whitespace-nowrap py-2.5">
+                    <TableCell
+                      key={cell.id}
+                      className={cn(
+                        'whitespace-nowrap py-2',
+                        cell.column.id === sortedColumnId && 'bg-primary/5',
+                      )}
+                    >
                       <table.FlexRender cell={cell} />
                     </TableCell>
                   ))}

@@ -5,10 +5,13 @@ import { getQueryClient } from '@/lib/query-client';
 import {
   fetchAssetRankings,
   fetchMarketIndicators,
+  fetchQuoteSparks,
   type AssetRankingDto,
   type MarketIndicatorDto,
+  type QuoteSparkPointDto,
 } from '@/lib/api-client';
 import { formatCurrencyBRL, formatPercent, cn } from '@/lib/utils';
+import { Sparkline } from '@/components/charts/sparkline';
 
 const MOVERS_COUNT = 5;
 
@@ -93,6 +96,18 @@ export default async function HomePage() {
   const topLosers = (losers ?? []).filter((row) => row.metricValue !== null).slice(0, MOVERS_COUNT);
   const hasMovers = topGainers.length > 0 && topLosers.length > 0;
 
+  const moverTickers = [...topGainers, ...topLosers].map((row) => row.ticker.toUpperCase());
+  const sparks =
+    moverTickers.length > 0
+      ? await safeFetch(() =>
+          queryClient.fetchQuery({
+            queryKey: ['quotes-batch', 'home-movers', moverTickers.join(',')],
+            queryFn: () => fetchQuoteSparks(moverTickers),
+            staleTime: 300_000,
+          }),
+        )
+      : undefined;
+
   return (
     <HydrationBoundary state={dehydrate(queryClient)}>
       <div className="container mx-auto flex flex-col gap-10 px-4 py-8">
@@ -125,8 +140,8 @@ export default async function HomePage() {
             aria-label="Destaques de 12 meses"
             className="grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-2"
           >
-            <MoverColumn title="Maiores altas em 12 meses" rows={topGainers} />
-            <MoverColumn title="Maiores quedas em 12 meses" rows={topLosers} />
+            <MoverColumn title="Maiores altas em 12 meses" rows={topGainers} sparks={sparks} />
+            <MoverColumn title="Maiores quedas em 12 meses" rows={topLosers} sparks={sparks} />
             <p className="text-xs leading-relaxed text-muted-foreground lg:col-span-2">
               Retornos calculados sobre o histórico local de cotações; ativos sem série suficiente
               ficam fora da lista. Conteúdo educacional — não é recomendação de investimento.
@@ -195,7 +210,29 @@ function moverHref(row: Pick<AssetRankingDto, 'ticker' | 'assetType'>): string {
   return `/${segment}/${encodeURIComponent(row.ticker.toLowerCase())}`;
 }
 
-function MoverColumn({ title, rows }: { title: string; rows: AssetRankingDto[] }) {
+function MoverSparkline({
+  sparks,
+  ticker,
+}: {
+  sparks?: Record<string, QuoteSparkPointDto[]> | null;
+  ticker: string;
+}) {
+  const series = sparks?.[ticker.toUpperCase()];
+  if (!series || series.length < 2) return null;
+  return (
+    <Sparkline values={series.map((point) => point.close)} className="hidden h-7 w-16 md:block" />
+  );
+}
+
+function MoverColumn({
+  title,
+  rows,
+  sparks,
+}: {
+  title: string;
+  rows: AssetRankingDto[];
+  sparks?: Record<string, QuoteSparkPointDto[]> | null;
+}) {
   return (
     <div className="flex flex-col gap-2">
       <h2 className="text-sm font-semibold text-foreground">{title}</h2>
@@ -213,6 +250,7 @@ function MoverColumn({ title, rows }: { title: string; rows: AssetRankingDto[] }
                 <span className="truncate text-xs text-muted-foreground">{row.name}</span>
               </span>
               <span className="flex shrink-0 items-baseline gap-3">
+                <MoverSparkline sparks={sparks} ticker={row.ticker} />
                 <span className="hidden font-mono text-xs tabular-nums text-muted-foreground sm:inline">
                   {row.lastPrice === null ? '—' : formatCurrencyBRL(row.lastPrice)}
                 </span>

@@ -127,3 +127,12 @@ public sealed record MarketIndicatorDto(
     DateOnly LatestDate,
     decimal? Accum12mPercent
 );
+
+/// <summary>Single closing point used to render inline sparklines.</summary>
+public sealed record QuoteSparkPointDto(DateOnly Date, decimal Close);
+
+/// <summary>Closing-price window for one ticker in a batch sparkline request.</summary>
+public sealed record AssetQuotesBatchItemDto(
+    string Ticker,
+    IReadOnlyList<QuoteSparkPointDto> Quotes
+);

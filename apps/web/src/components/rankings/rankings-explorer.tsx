@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useQueryState, parseAsStringLiteral } from 'nuqs';
 import {
   fetchAssetRankings,
+  fetchQuoteSparks,
   RANKING_METRICS,
   type AssetRankingDto,
   type RankingsMetric,
@@ -23,7 +24,8 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, Trophy } from 'lucide-react';
+import { Sparkline } from '@/components/charts/sparkline';
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Trophy, X } from 'lucide-react';
 
 const TIPOS = ['TODOS', 'ETF', 'BDR', 'FII'] as const;
 const DIRECOES = ['desc', 'asc'] as const;
@@ -38,6 +40,19 @@ const METRIC_LABELS: Record<RankingsMetric, string> = {
   sharpe: 'Sharpe',
   drawdown: 'Drawdown máximo',
   volume: 'Volume médio diário',
+};
+
+/** Maps the sorted metric to its table column so it can be highlighted. */
+const METRIC_COLUMN: Record<RankingsMetric, string> = {
+  variacaodia: 'dia',
+  retorno30d: 'r30d',
+  retorno6m: 'r6m',
+  retornoano: 'ytd',
+  retorno12m: 'r12m',
+  volatilidade: 'vol',
+  sharpe: 'sharpe',
+  drawdown: 'dd',
+  volume: 'volume',
 };
 
 const EMPTY_ROWS: AssetRankingDto[] = [];
@@ -67,6 +82,13 @@ function optionalCurrency(value: number | null | undefined): string {
   return formatCurrencyBRL(value);
 }
 
+function pctClass(value: number | null | undefined): string | undefined {
+  if (value === null || value === undefined || !Number.isFinite(value)) return undefined;
+  if (value > 0) return 'text-positive';
+  if (value < 0) return 'text-negative';
+  return undefined;
+}
+
 export function RankingsExplorer() {
   const [tipo, setTipo] = useQueryState('tipo', parseAsStringLiteral(TIPOS).withDefault('TODOS'));
   const [metrica, setMetrica] = useQueryState(
@@ -90,6 +112,27 @@ export function RankingsExplorer() {
   });
 
   const rows = data ?? EMPTY_ROWS;
+  const rowTickers = React.useMemo(() => rows.map((row) => row.ticker), [rows]);
+
+  const { data: sparks } = useQuery({
+    queryKey: ['quotes-batch', 'rankings', rowTickers.join(',')],
+    queryFn: () => fetchQuoteSparks(rowTickers),
+    enabled: rowTickers.length > 0,
+    staleTime: 300_000,
+  });
+
+  const activeColumn = METRIC_COLUMN[metrica];
+  const headClass = (column?: string) =>
+    cn(
+      'text-right font-mono text-[11px] font-medium tracking-wide text-muted-foreground uppercase',
+      column === activeColumn && 'bg-primary/5 text-foreground',
+    );
+  const cellClass = (column: string, extra?: string) =>
+    cn(
+      'text-right font-mono text-sm tabular-nums',
+      column === activeColumn && 'bg-primary/5 font-semibold',
+      extra,
+    );
 
   return (
     <div className="flex flex-col gap-6">
@@ -139,6 +182,48 @@ export function RankingsExplorer() {
         </div>
       </div>
 
+      {tipo !== 'TODOS' || metrica !== 'retorno12m' || direcao !== 'desc' ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[11px] font-medium text-muted-foreground">Filtros ativos:</span>
+          {tipo !== 'TODOS' ? (
+            <Badge variant="secondary" className="gap-1 px-2 py-0 text-[11px] font-normal">
+              Tipo: {tipo === 'BDR' ? 'BDRs' : tipo === 'FII' ? 'FIIs' : 'ETFs'}
+              <button
+                type="button"
+                onClick={() => void setTipo('TODOS')}
+                aria-label="Remover filtro de tipo"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ) : null}
+          {metrica !== 'retorno12m' ? (
+            <Badge variant="secondary" className="gap-1 px-2 py-0 text-[11px] font-normal">
+              Métrica: {METRIC_LABELS[metrica]}
+              <button
+                type="button"
+                onClick={() => void setMetrica('retorno12m')}
+                aria-label="Remover filtro de métrica"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ) : null}
+          {direcao !== 'desc' ? (
+            <Badge variant="secondary" className="gap-1 px-2 py-0 text-[11px] font-normal">
+              Menor primeiro
+              <button
+                type="button"
+                onClick={() => void setDirecao('desc')}
+                aria-label="Voltar para ordenação decrescente"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ) : null}
+        </div>
+      ) : null}
+
       {isError ? (
         <div
           role="alert"
@@ -168,86 +253,116 @@ export function RankingsExplorer() {
       {!isError && rows.length > 0 ? (
         <div className="overflow-x-auto rounded-lg border">
           <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-14 text-center">#</TableHead>
-                <TableHead>Ticker</TableHead>
+            <TableHeader className="sticky top-14 z-10 bg-background shadow-[0_1px_0_0_var(--border)]">
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="w-14 text-center font-mono text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                  #
+                </TableHead>
+                <TableHead className="font-mono text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                  Ticker
+                </TableHead>
                 <TableHead className="hidden min-w-56 md:table-cell">Nome</TableHead>
-                <TableHead className="text-right">Cotação</TableHead>
-                <TableHead className="text-right">Dia</TableHead>
-                <TableHead className="text-right">30 dias</TableHead>
-                <TableHead className="text-right">No ano</TableHead>
-                <TableHead className="text-right">12 meses</TableHead>
-                <TableHead className="hidden text-right lg:table-cell">Vol. anual</TableHead>
-                <TableHead className="hidden text-right lg:table-cell">Sharpe</TableHead>
-                <TableHead className="hidden text-right xl:table-cell">Vol. médio (R$)</TableHead>
+                <TableHead className="hidden md:table-cell">Tendência (90d)</TableHead>
+                <TableHead className="text-right font-mono text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                  Cotação
+                </TableHead>
+                <TableHead className={headClass('dia')}>Dia</TableHead>
+                <TableHead className={headClass('r30d')}>30 dias</TableHead>
+                <TableHead className={cn(headClass('r6m'), 'hidden lg:table-cell')}>
+                  6 meses
+                </TableHead>
+                <TableHead className={headClass('ytd')}>No ano</TableHead>
+                <TableHead className={headClass('r12m')}>12 meses</TableHead>
+                <TableHead className={cn(headClass('vol'), 'hidden lg:table-cell')}>
+                  Vol. anual
+                </TableHead>
+                <TableHead className={cn(headClass('sharpe'), 'hidden lg:table-cell')}>
+                  Sharpe
+                </TableHead>
+                <TableHead className={cn(headClass('dd'), 'hidden xl:table-cell')}>
+                  Drawdown
+                </TableHead>
+                <TableHead className={cn(headClass('volume'), 'hidden xl:table-cell')}>
+                  Vol. médio (R$)
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.ticker}>
-                  <TableCell className="text-center">
-                    <Badge
-                      variant={row.rank <= 3 ? 'default' : 'secondary'}
-                      className={cn('justify-center px-1.5 py-0 font-mono text-[11px]')}
+              {rows.map((row) => {
+                const series = sparks?.[row.ticker.toUpperCase()];
+                return (
+                  <TableRow key={row.ticker}>
+                    <TableCell className="text-center">
+                      <Badge
+                        variant={row.rank <= 3 ? 'default' : 'secondary'}
+                        className={cn('justify-center px-1.5 py-0 font-mono text-[11px]')}
+                      >
+                        {row.rank <= 3 ? <Trophy className="mr-0.5 size-3" /> : null}
+                        {row.rank}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={detailHref(row)}
+                        className="font-mono text-sm font-semibold text-primary hover:underline"
+                      >
+                        {row.ticker}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="hidden max-w-72 truncate text-sm text-muted-foreground md:table-cell">
+                      {row.name}
+                    </TableCell>
+                    <TableCell className="hidden py-1 md:table-cell">
+                      {series && series.length >= 2 ? (
+                        <Sparkline
+                          values={series.map((point) => point.close)}
+                          className="h-7 w-20"
+                        />
+                      ) : null}
+                    </TableCell>
+                    <TableCell className={cellClass('cotacao')}>
+                      {optionalCurrency(row.lastPrice)}
+                    </TableCell>
+                    <TableCell className={cellClass('dia', pctClass(row.changeDayPercent))}>
+                      {signed(row.changeDayPercent)}
+                    </TableCell>
+                    <TableCell className={cellClass('r30d', pctClass(row.return30dPercent))}>
+                      {signed(row.return30dPercent)}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        cellClass('r6m', pctClass(row.return6mPercent)),
+                        'hidden lg:table-cell',
+                      )}
                     >
-                      {row.rank <= 3 ? <Trophy className="mr-0.5 size-3" /> : null}
-                      {row.rank}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Link
-                      href={detailHref(row)}
-                      className="font-mono text-sm font-semibold text-primary hover:underline"
+                      {signed(row.return6mPercent)}
+                    </TableCell>
+                    <TableCell className={cellClass('ytd', pctClass(row.returnYtdPercent))}>
+                      {signed(row.returnYtdPercent)}
+                    </TableCell>
+                    <TableCell className={cellClass('r12m', pctClass(row.return12mPercent))}>
+                      {signed(row.return12mPercent)}
+                    </TableCell>
+                    <TableCell className={cn(cellClass('vol'), 'hidden lg:table-cell')}>
+                      {signed(row.annualizedVolatilityPercent)}
+                    </TableCell>
+                    <TableCell className={cn(cellClass('sharpe'), 'hidden lg:table-cell')}>
+                      {row.sharpeRatio ?? '—'}
+                    </TableCell>
+                    <TableCell
+                      className={cn(
+                        cellClass('dd', pctClass(row.maxDrawdownPercent)),
+                        'hidden xl:table-cell',
+                      )}
                     >
-                      {row.ticker}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="hidden max-w-72 truncate text-sm text-muted-foreground md:table-cell">
-                    {row.name}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {optionalCurrency(row.lastPrice)}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      'text-right font-mono text-sm',
-                      (row.changeDayPercent ?? 0) > 0 && 'text-emerald-600 dark:text-emerald-400',
-                      (row.changeDayPercent ?? 0) < 0 && 'text-red-600 dark:text-red-400',
-                    )}
-                  >
-                    {signed(row.changeDayPercent)}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      'text-right font-mono text-sm',
-                      row.return30dPercent !== null &&
-                        (row.return30dPercent > 0
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : row.return30dPercent < 0
-                            ? 'text-red-600 dark:text-red-400'
-                            : undefined),
-                    )}
-                  >
-                    {signed(row.return30dPercent)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {signed(row.returnYtdPercent)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm font-semibold">
-                    {signed(row.return12mPercent)}
-                  </TableCell>
-                  <TableCell className="hidden text-right font-mono text-sm lg:table-cell">
-                    {signed(row.annualizedVolatilityPercent)}
-                  </TableCell>
-                  <TableCell className="hidden text-right font-mono text-sm lg:table-cell">
-                    {row.sharpeRatio ?? '—'}
-                  </TableCell>
-                  <TableCell className="hidden text-right font-mono text-sm xl:table-cell">
-                    {optionalCurrency(row.avgVolume30D)}
-                  </TableCell>
-                </TableRow>
-              ))}
+                      {signed(row.maxDrawdownPercent)}
+                    </TableCell>
+                    <TableCell className={cn(cellClass('volume'), 'hidden xl:table-cell')}>
+                      {optionalCurrency(row.avgVolume30D)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

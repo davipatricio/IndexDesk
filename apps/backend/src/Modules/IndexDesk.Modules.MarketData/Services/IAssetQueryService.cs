@@ -34,6 +34,17 @@ public interface IAssetQueryService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Closing-price windows for several tickers at once, used to render inline
+    /// sparklines. Tickers are upper-cased and de-duplicated; unknown tickers are
+    /// simply absent from the result.
+    /// </summary>
+    Task<IReadOnlyList<AssetQuotesBatchItemDto>> GetQuotesBatchAsync(
+        IReadOnlyCollection<string> tickers,
+        int? days,
+        CancellationToken cancellationToken = default
+    );
+
     Task<AssetDetailDto?> GetDetailAsync(
         string ticker,
         CancellationToken cancellationToken = default

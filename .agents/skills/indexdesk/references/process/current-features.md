@@ -20,6 +20,7 @@ Detalhes/contratos: [`../../../../apps/backend/src/Modules/IndexDesk.Modules.Aut
 | `GET /` | GetAssets | catálogo paginado |
 | `GET /rankings` | GetAssetRankings | ranking por métrica (`retorno12m/30d/6m/ano`, `variacaodia`, `volatilidade`, `sharpe`, `drawdown`, `volume`); sem dados na métrica → última posição |
 | `GET /market-indicators` | GetMarketIndicators | snapshot CDI/Selic/IPCA (séries 12/11/433) com acumulado 12m; cache Redis 24h; 404 se séries vazias |
+| `GET /quotes/batch` | GetAssetQuotesBatch | janelas de fechamento (`tickers=A,B&days=90`, máx 50 tickers, 7–3650 dias) p/ sparklines; cache 15 min; tickers desconhecidos omitidos |
 | `GET /{ticker}` | GetAssetByTicker | detalhe do ativo (metadados + fiscal) |
 | `GET /{ticker}/quotes` | GetAssetQuotes | série histórica |
 | `GET /{ticker}/performance` | GetAssetPerformance | métricas de performance |
@@ -68,11 +69,13 @@ Serviços de ingestão persistem auditoria em `sync_job_logs`. Polly: apenas pip
 `sonner`, `scroll-area`, `alert-dialog` (base-nova/base-ui, escritos à mão onde o CLI conflitou).
 
 **Redesign em andamento:** plano de fases A/B/C em
-`~/.opencode/plan/frontend-redesign.md` (A concluída: home dashboard + nav agrupada + palette;
-B: densidade de tabelas + sparklines batch; C: página de ativo). Registries aprovados na mesma
-política (`apps/web/CLAUDE.md` §4.1): `@kinetic/scrub-number-field` já integrado aos inputs
-numéricos do backtest; `@evilcharts`, `@kibo-ui/file-upload`, `@ogimagecn` e editor rich text
-(MVP-017) entram junto das respectivas fases.
+`~/.opencode/plan/frontend-redesign.md`. **A concluída** (home dashboard + nav agrupada + palette);
+**B concluída**: `GET /quotes/batch` (sparklines SVG server-rendered em movers/rankings/catálogo),
+tabelas densas (header sticky, coluna ordenada destacada, colunas 6m/drawdown no rankings,
+alinhamento tabular), chips de filtro ativo no rankings; **C** (página de ativo) pendente.
+Registries aprovados na política (`apps/web/CLAUDE.md` §4.1): `@kinetic/scrub-number-field` já
+integrado aos inputs numéricos do backtest; `@evilcharts`, `@kibo-ui/file-upload`, `@ogimagecn`
+e editor rich text (MVP-017) entram junto das respectivas fases.
 
 **Ainda não existem:** `/noticias`, `/relatorios`, screener avançado, premium/desconto vs PL, captação
 líquida/CVM informe diário, overlap/tax drag/DARF/aposentadoria/fluxo-CVM, sitemaps/OG dinâmicos

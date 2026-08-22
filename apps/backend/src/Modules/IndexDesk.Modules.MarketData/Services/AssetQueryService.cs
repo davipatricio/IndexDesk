@@ -329,7 +329,76 @@ public class AssetQueryService : IAssetQueryService
         return result;
     }
 
+    public async Task<IReadOnlyList<AssetQuotesBatchItemDto>> GetQuotesBatchAsync(
+        IReadOnlyCollection<string> tickers,
+        int? days,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var normalized = tickers
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t.Trim().ToUpperInvariant())
+            .Distinct()
+            .Take(MaxBatchTickers)
+            .ToArray();
+
+        if (normalized.Length == 0)
+            return Array.Empty<AssetQuotesBatchItemDto>();
+
+        var windowDays = Math.Clamp(days ?? DefaultSparklineWindowDays, 7, 3650);
+        var cacheKey = $"marketdata:quotesbatch:{string.Join(",", normalized)}:{windowDays}";
+
+        return await _cache.GetOrCreateAsync(
+            cacheKey,
+            async ct =>
+            {
+                var start = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-windowDays);
+
+                var rows = await _dbContext
+                    .Assets.Where(a => normalized.Contains(a.Ticker))
+                    .Join(
+                        _dbContext.AssetQuotes.Where(q => q.Date >= start),
+                        asset => asset.Id,
+                        quote => quote.AssetId,
+                        (asset, quote) =>
+                            new
+                            {
+                                asset.Ticker,
+                                quote.Date,
+                                quote.Close,
+                            }
+                    )
+                    .OrderBy(row => row.Ticker)
+                    .ThenBy(row => row.Date)
+                    .Select(row => new
+                    {
+                        row.Ticker,
+                        row.Date,
+                        row.Close,
+                    })
+                    .ToListAsync(ct);
+
+                return rows.GroupBy(row => row.Ticker, StringComparer.OrdinalIgnoreCase)
+                    .Select(group =>
+                        (AssetQuotesBatchItemDto)
+                            new AssetQuotesBatchItemDto(
+                                group.Key,
+                                group
+                                    .Select(row => new QuoteSparkPointDto(row.Date, row.Close))
+                                    .ToList()
+                            )
+                    )
+                    .ToList();
+            },
+            TimeSpan.FromMinutes(15),
+            cancellationToken
+        );
+    }
+
     // ---- internals ------------------------------------------------------
+
+    private const int MaxBatchTickers = 50;
+    private const int DefaultSparklineWindowDays = 90;
 
     private async Task<AssetEntity?> FindAssetAsync(
         string ticker,
