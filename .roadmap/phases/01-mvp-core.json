@@ -293,7 +293,7 @@
         "id": "PUBLICWEB",
         "name": "Public Catalog, Comparison & Backtest",
         "description": "Entregar as principais experiências públicas para descoberta e análise de ETFs/BDRs.",
-        "status": "in_progress",
+        "status": "complete",
         "priority": "P0",
         "depends_on": ["FND-007", "MVP-007", "MVP-008"],
         "source_refs": [
@@ -368,7 +368,7 @@
             "id": "MVP-011",
             "title": "Construir simulador público de backtest",
             "description": "Criar formulário de carteira, aportes, período e rebalanceamento com resultados de patrimônio/drawdown.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "complex",
             "kind": "analytics",
@@ -388,7 +388,7 @@
             "notes": "Adicionar limites e cache por input normalizado.",
             "estimated_hours": 36,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-22"
           }
         ]
       },

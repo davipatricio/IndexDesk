@@ -3,8 +3,8 @@
 > **Arquivo gerado:** não edite `ROADMAP.md` diretamente. Atualize `.roadmap/**/*.json` e execute `bun run roadmap:generate`.
 > **Estado atual:** requisitos documentados, implementação ainda não scaffoldada.
 
-**Atualizado em:** 2026-08-22 · **Estado:** `scaffolded` · **Progresso:** [██████████░░░░░░░░░░] 51% (27/53)
-**Tarefas:** 53 total · 27 concluídas · 0 em andamento · 0 bloqueadas · 26 não iniciadas/deferidas
+**Atualizado em:** 2026-08-22 · **Estado:** `scaffolded` · **Progresso:** [███████████░░░░░░░░░] 53% (28/53)
+**Tarefas:** 53 total · 28 concluídas · 0 em andamento · 0 bloqueadas · 25 não iniciadas/deferidas
 
 ## Estado do projeto
 
@@ -20,7 +20,7 @@
 | Fase | Status | Prioridade | Progresso | Dependências |
 | :--- | :--- | :---: | :---: | :--- |
 | **00 — Foundation & Platform Scaffold** | 🔵 `in_progress` | `P0` | 94% (15/16) | — |
-| **01 — MVP & Core Market Intelligence** | 🔵 `in_progress` | `P0` | 55% (12/22) | `PHASE-00` |
+| **01 — MVP & Core Market Intelligence** | 🔵 `in_progress` | `P0` | 59% (13/22) | `PHASE-00` |
 | **02 — Growth, Programmatic SEO & Retention** | ⬜ `not_started` | `P2` | 0% (0/6) | `PHASE-01` |
 | **03 — Portfolio, Fixed Income & Tax Automation** | ⬜ `not_started` | `P2` | 0% (0/9) | `PHASE-01`, `PHASE-02` |
 
@@ -204,7 +204,7 @@ _Estabelecer autenticação, RBAC, tracing, health checks e qualidade mínima an
 
 ## Fase 01 — MVP & Core Market Intelligence
 
-**Status:** 🔵 `in_progress` · **Prioridade:** `P0` · **Progresso:** [███████████░░░░░░░░░] 55% (12/22)
+**Status:** 🔵 `in_progress` · **Prioridade:** `P0` · **Progresso:** [████████████░░░░░░░░] 59% (13/22)
 **Objetivo:** Entregar dados locais confiáveis, catálogo público, comparação, backtest, calculadoras, admin, conteúdo e SEO/PWA básicos.
 **Depende de:** `PHASE-00`
 
@@ -282,13 +282,13 @@ _Expor dados locais normalizados para web, analytics e admin via API única._
 
 _Entregar as principais experiências públicas para descoberta e análise de ETFs/BDRs._
 
-**Status:** 🔵 `in_progress` · **Prioridade:** `P0` · **Progresso:** [████████░░░░] 67% (2/3)
+**Status:** ✅ `complete` · **Prioridade:** `P0` · **Progresso:** [████████████] 100% (3/3)
 
 | ID | Tarefa | Prioridade | Dificuldade | Status | Dependências |
 | :--- | :--- | :---: | :---: | :--- | :--- | 
 | `MVP-009` | Construir catálogo e páginas de ativo | `P0` | `hard` | ✅ `complete` | `MVP-007`, `FND-007` |
 | `MVP-010` | Construir comparador de até seis ativos | `P0` | `hard` | ✅ `complete` | `MVP-008`, `FND-007` |
-| `MVP-011` | Construir simulador público de backtest | `P0` | `complex` | ⬜ `not_started` | `MVP-008`, `FND-005`, `FND-006` |
+| `MVP-011` | Construir simulador público de backtest | `P0` | `complex` | ✅ `complete` | `MVP-008`, `FND-005`, `FND-006` |
 
 <details>
 <summary>Critérios e entregáveis</summary>
