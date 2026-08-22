@@ -7,7 +7,7 @@
     "order": 1,
     "name": "MVP & Core Market Intelligence",
     "objective": "Entregar dados locais confiáveis, catálogo público, comparação, backtest, calculadoras, admin, conteúdo e SEO/PWA básicos.",
-    "status": "not_started",
+    "status": "in_progress",
     "priority": "P0",
     "depends_on": ["PHASE-00"],
     "source_refs": [
@@ -20,7 +20,7 @@
         "id": "INGEST",
         "name": "Local-First Data Ingestion",
         "description": "Ingerir dados de providers em background, validar, persistir de forma idempotente e invalidar cache.",
-        "status": "not_started",
+        "status": "complete",
         "priority": "P0",
         "depends_on": ["FND-013", "FND-015"],
         "source_refs": [
@@ -36,7 +36,7 @@
             "id": "MVP-001",
             "title": "Implementar scheduler Quartz do Worker",
             "description": "Criar jobs com janelas e políticas de execução para BCB, CVM, Brapi, Yahoo, B3/ANBIMA e feeds de gestoras.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "backend",
@@ -55,13 +55,13 @@
             "notes": "Começar com execução manual habilitada para testes.",
             "estimated_hours": 16,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-19"
           },
           {
             "id": "MVP-002",
             "title": "Ingerir BCB SGS e calendário macro",
             "description": "Sincronizar CDI, Selic, IPCA, IGP-M e feriados/indicadores necessários para cálculos locais.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "medium",
             "kind": "data",
@@ -80,13 +80,13 @@
             "notes": "Registrar data de coleta e origem no modelo quando necessário.",
             "estimated_hours": 10,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-19"
           },
           {
             "id": "MVP-003",
             "title": "Implementar ingestão CVM streaming",
             "description": "Baixar inf_diario_fi e cda_fi, filtrar CNPJs mapeados e gravar via CsvHelper em stream e NpgsqlBinaryImporter/COPY.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "complex",
             "kind": "data",
@@ -118,13 +118,13 @@
             "notes": "Usar staging quando constraints impedirem COPY direto em hypertable.",
             "estimated_hours": 32,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-19"
           },
           {
             "id": "MVP-004",
             "title": "Ingerir Brapi, Yahoo e feeds de preços",
             "description": "Criar adapters para cotações B3/BDRs, benchmarks globais, câmbio e proventos com rate limiting.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "data",
@@ -149,13 +149,13 @@
             "notes": "Persistir snapshot local antes de expor ao frontend.",
             "estimated_hours": 24,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-19"
           },
           {
             "id": "MVP-005",
             "title": "Ingerir B3, ANBIMA e composição de gestoras",
             "description": "Sincronizar feriados, índices teóricos e holdings de iShares/Vanguard/Investo ou relatórios disponíveis.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P1",
             "difficulty": "hard",
             "kind": "data",
@@ -177,13 +177,13 @@
             "notes": "Upload manual do admin é fallback obrigatório quando não houver provider.",
             "estimated_hours": 24,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-19"
           },
           {
             "id": "MVP-006",
             "title": "Aplicar resiliência, idempotência e cache",
             "description": "Finalizar pipelines Polly, chaves idempotentes, TTLs Redis e eventos de invalidação via MassTransit.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "backend",
@@ -210,7 +210,7 @@
             "notes": "Histórico fechado: 30 dias; intraday: 15 min; macro: 24h; holdings: 7 dias, pendente de DEC-002.",
             "estimated_hours": 20,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-19"
           }
         ]
       },
@@ -218,7 +218,7 @@
         "id": "COREAPI",
         "name": "Core Data Model & APIs",
         "description": "Expor dados locais normalizados para web, analytics e admin via API única.",
-        "status": "not_started",
+        "status": "complete",
         "priority": "P0",
         "depends_on": ["FND-009", "FND-013", "MVP-006"],
         "source_refs": [{ "file": "MODELS.md", "section": "Esquemas e Tabelas Detalhadas" }],
@@ -232,7 +232,7 @@
             "id": "MVP-007",
             "title": "Implementar MarketData APIs",
             "description": "Criar endpoints para ativos, metadata fiscal, holdings, quotes, fundos, macro, dividendos e corporate actions.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "backend",
@@ -253,13 +253,13 @@
             "notes": "Separar resumo de ativo de séries detalhadas.",
             "estimated_hours": 24,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-19"
           },
           {
             "id": "MVP-008",
             "title": "Implementar Analytics APIs",
             "description": "Expor comparação, backtest e métricas pré-calculadas usando somente Postgres/Redis.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "complex",
             "kind": "analytics",
@@ -285,7 +285,7 @@
             "notes": "Motor de cálculo pode usar Span/Memory após profiling, não por premissa.",
             "estimated_hours": 32,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-19"
           }
         ]
       },
@@ -293,7 +293,7 @@
         "id": "PUBLICWEB",
         "name": "Public Catalog, Comparison & Backtest",
         "description": "Entregar as principais experiências públicas para descoberta e análise de ETFs/BDRs.",
-        "status": "not_started",
+        "status": "in_progress",
         "priority": "P0",
         "depends_on": ["FND-007", "MVP-007", "MVP-008"],
         "source_refs": [
@@ -309,7 +309,7 @@
             "id": "MVP-009",
             "title": "Construir catálogo e páginas de ativo",
             "description": "Implementar catálogo e rotas /etf/[ticker] e /bdr/[ticker] com metadados, holdings, métricas, tributos e link TradingView.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "frontend",
@@ -336,13 +336,13 @@
             "notes": "Exibir disclaimer e data de atualização.",
             "estimated_hours": 28,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-22"
           },
           {
             "id": "MVP-010",
             "title": "Construir comparador de até seis ativos",
             "description": "Criar UI com nuqs, TanStack Table e gráficos normalizados para ativos e benchmarks.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "frontend",
@@ -362,7 +362,7 @@
             "notes": "Usar agregação server-side para séries longas.",
             "estimated_hours": 24,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-22"
           },
           {
             "id": "MVP-011",
@@ -653,7 +653,7 @@
         "id": "SEO_PWA",
         "name": "SSR, PWA, Charts & SEO MVP",
         "description": "Entregar a fundação de aquisição orgânica, offline-first e visualização financeira.",
-        "status": "not_started",
+        "status": "in_progress",
         "priority": "P0",
         "depends_on": ["MVP-009", "MVP-010", "MVP-011", "MVP-018"],
         "source_refs": [
@@ -671,7 +671,7 @@
             "id": "MVP-019",
             "title": "Integrar TanStack suite e cache hydration",
             "description": "Configurar React Query, Table, Form, Virtual, Hotkeys, DB/Store, Zustand e nuqs nos fluxos públicos.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "frontend",
@@ -693,13 +693,13 @@
             "notes": "Não persistir dados privados em cache público.",
             "estimated_hours": 24,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-22"
           },
           {
             "id": "MVP-020",
             "title": "Integrar gráficos financeiros híbridos",
             "description": "Adicionar Lightweight Charts para séries longas e Recharts/Visx ou TanStack React Charts para agregados após spike.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P1",
             "difficulty": "hard",
             "kind": "frontend",
@@ -724,7 +724,7 @@
             "notes": "Sempre oferecer tabela ou dados alternativos acessíveis.",
             "estimated_hours": 24,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-22"
           },
           {
             "id": "MVP-021",

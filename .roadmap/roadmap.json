@@ -51,16 +51,20 @@
       "MVP-005",
       "MVP-006",
       "MVP-007",
-      "MVP-008"
+      "MVP-008",
+      "MVP-009",
+      "MVP-010",
+      "MVP-019",
+      "MVP-020"
     ],
     "blockers": [
       "FND-013 permanece pendente: migrations não foram aplicadas porque containers Docker não foram iniciados, conforme solicitado.",
       "O SDK .NET local usa DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 porque libicu não está instalado no Debian sem sudo.",
       "OpenTelemetry.Exporter.OpenTelemetryProtocol 1.11.1 registra o advisory NU1902 e deve ser atualizado antes de produção."
     ],
-    "notes": "Setup inicial do monorepo IndexDesk concluído sem commit: Bun + Turborepo, Next.js 16.3.1 SSR/PWA, shadcn Base UI Nova, Vitest, solução modular .NET 9, Docker Compose, CI e instruções escopadas. Páginas atuais são scaffold demonstrativo; o desenvolvimento de produto permanece nas fases seguintes. Commit 5f4ba25 adicionou sync multi-provider de mercado, fallback & APIs de query no backend .NET.",
-    "latest_commit": "5f4ba25 feat(backend): multi-provider market data ingest, fallback & query APIs"
+    "notes": "Setup inicial e fundamentação concluídos. Phase 01: Ingestion, Core APIs, Catálogo Rico e Páginas de Ativo (/etf/[ticker], /bdr/[ticker], /fii/[ticker]), Comparador de até 6 ativos, suite TanStack com SSR/Hydration e Gráficos Financeiros com TradingView Lightweight Charts implementados seguindo strict local-first architecture.",
+    "latest_commit": "532fde5 feat: enforce strict local-first architecture and purge mock data"
   },
   "phase_order": ["PHASE-00", "PHASE-01", "PHASE-02", "PHASE-03"],
-  "updated_at": "2026-08-19"
+  "updated_at": "2026-08-22"
 }
