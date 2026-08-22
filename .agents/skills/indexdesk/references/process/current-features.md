@@ -18,9 +18,13 @@ Detalhes/contratos: [`../../../../apps/backend/src/Modules/IndexDesk.Modules.Aut
 | `POST /sync/backfill` | TriggerPilotBackfill | backfill dos pilotos (MXRF11, VWRA11, GOLD11…) |
 | `POST /sync/macro` | TriggerMacroSync | dispara sync BCB (CDI/Selic/IPCA/IGP-M) |
 | `GET /` | GetAssets | catálogo paginado |
+| `GET /rankings` | GetAssetRankings | ranking por métrica (`retorno12m/30d/6m/ano`, `variacaodia`, `volatilidade`, `sharpe`, `drawdown`, `volume`); sem dados na métrica → última posição |
 | `GET /{ticker}` | GetAssetByTicker | detalhe do ativo (metadados + fiscal) |
 | `GET /{ticker}/quotes` | GetAssetQuotes | série histórica |
 | `GET /{ticker}/performance` | GetAssetPerformance | métricas de performance |
+
+`GET /{ticker}` e rankings expõem também `avgVolume30D` (preço médio × volume das ~30 sessões recentes,
+proxy de "negociação diária média"). Cache Redis de leitura: 10 min (lista e rankings).
 
 ### `/api/v1/analytics` (módulo Analytics)
 - `POST /backtest` — simulação com pesos/aportes.
@@ -49,14 +53,16 @@ Serviços de ingestão persistem auditoria em `sync_job_logs`. Polly: apenas pip
 | :--- | :--- |
 | `(public)/ativos` + `/ativos/[ticker]` | catálogo e página de ativo genérica |
 | `(public)/etf/[ticker]`, `(public)/bdr/[ticker]` | páginas por classe (painel fiscal, TradingView link) |
+| `(public)/rankings` | ranking público por métrica/tipo com estado nuqs (`tipo`, `metrica`, `direcao`) |
 | `(public)/comparador` | comparador multi-ativos |
 | `(public)/ferramentas/backtest` | simulador de backtest público |
 | `(public)/ferramentas/rendimento-real` | calculadora de rendimento real (Fisher) |
 | `(admin)/admin` | painel admin (uma página; subrotinas de curadoria/uploads pendentes) |
 | `~offline`, `serwist/[path]` | fallback offline PWA |
 
-**Ainda não existem:** `/noticias`, `/relatorios`, `/entrar` (sem page.tsx), overlap/tax drag/DARF/
-aposentadoria/fluxo-CVM, sitemaps/OG dinâmicos, hubs editoriais (MVP-012..018, MVP-021/022 ⬜).
+**Ainda não existem:** `/noticias`, `/relatorios`, screener avançado, premium/desconto vs PL, captação
+líquida/CVM informe diário, overlap/tax drag/DARF/aposentadoria/fluxo-CVM, sitemaps/OG dinâmicos
+(MVP-003 ⬜ reaberto, MVP-012..018, MVP-021/022, MVP-024/025 ⬜).
 
 ## Pendências conhecidas de ambiente
 

@@ -17,6 +17,7 @@ import { Menu } from 'lucide-react';
 
 const NAV_ITEMS = [
   { href: '/ativos', label: 'Explorar Ativos' },
+  { href: '/rankings', label: 'Rankings' },
   { href: '/comparador', label: 'Comparador' },
   { href: '/ferramentas/backtest', label: 'Simulador Backtest' },
   { href: '/ferramentas/rendimento-real', label: 'Rendimento Real' },

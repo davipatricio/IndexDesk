@@ -90,6 +90,74 @@ public class AssetQueryService : IAssetQueryService
         return result;
     }
 
+    public async Task<PagedResult<AssetRankingDto>> GetRankingsAsync(
+        string? assetType,
+        string metric,
+        string? orderDirection,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var normalizedMetric = metric.Trim().ToLowerInvariant();
+        var cacheKey =
+            $"marketdata:rankings:{assetType ?? "*"}:{normalizedMetric}:{orderDirection ?? "desc"}:{page}:{pageSize}";
+
+        var result = await _cache.GetOrCreateAsync(
+            cacheKey,
+            async ct =>
+            {
+                var query = _dbContext.Assets.Where(a => a.IsActive);
+
+                if (!string.IsNullOrWhiteSpace(assetType))
+                {
+                    var type = assetType.Trim();
+                    query = query.Where(a => a.AssetType.ToUpper() == type.ToUpper());
+                }
+
+                var assets = await query.OrderBy(a => a.Ticker).ToListAsync(ct);
+                var riskFreeAnnual = await GetRiskFreeAnnualPercentAsync(ct);
+
+                var rows = new List<AssetRankingDto>(assets.Count);
+                foreach (var asset in assets)
+                {
+                    var stats = await LoadStatsAsync(asset.Id, riskFreeAnnual, ct);
+                    rows.Add(
+                        ToRankingRow(asset, stats, SelectRankingMetric(normalizedMetric, stats))
+                    );
+                }
+
+                // Assets without data for the metric always sink to the bottom, whichever direction.
+                var desc = !string.Equals(
+                    orderDirection,
+                    "asc",
+                    StringComparison.OrdinalIgnoreCase
+                );
+                IEnumerable<AssetRankingDto> sorted = desc
+                    ? rows.OrderByDescending(r => r.MetricValue.HasValue)
+                        .ThenByDescending(r => r.MetricValue)
+                        .ThenBy(r => r.Ticker)
+                    : rows.OrderByDescending(r => r.MetricValue.HasValue)
+                        .ThenBy(r => r.MetricValue)
+                        .ThenBy(r => r.Ticker);
+
+                var materialized = sorted.ToList();
+                var totalCount = materialized.Count;
+                var items = materialized
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select((row, index) => row with { Rank = (page - 1) * pageSize + index + 1 })
+                    .ToList();
+
+                return new PagedResult<AssetRankingDto>(items, page, pageSize, totalCount);
+            },
+            TimeSpan.FromMinutes(10),
+            cancellationToken
+        );
+
+        return result;
+    }
+
     public async Task<AssetDetailDto?> GetDetailAsync(
         string ticker,
         CancellationToken cancellationToken = default
@@ -255,6 +323,13 @@ public class AssetQueryService : IAssetQueryService
         var dailyReturns = PerformanceCalculators.DailyReturns(closes);
         var volatility = PerformanceCalculators.AnnualizedVolatility(dailyReturns);
 
+        // Average traded value (close × volume) across the ~30 most recent sessions —
+        // proxy for "negociação diária média" (BRL).
+        var recentWindow = quotes.TakeLast(30);
+        decimal? avgVolume30d = recentWindow.Any()
+            ? Math.Round(recentWindow.Average(q => q.Close * q.Volume), 2)
+            : null;
+
         decimal? sharpe = null;
         if (volatility > 0 && dailyReturns.Count > 0)
         {
@@ -273,6 +348,7 @@ public class AssetQueryService : IAssetQueryService
             AnnualizedVolatilityPercent: volatility,
             SharpeRatio: sharpe,
             MaxDrawdownPercent: PerformanceCalculators.MaxDrawdown(closes),
+            AvgVolume30D: avgVolume30d,
             FirstQuoteDate: first.Date,
             LastQuoteDate: last.Date
         );
@@ -408,6 +484,47 @@ public class AssetQueryService : IAssetQueryService
         };
     }
 
+    private static AssetRankingDto ToRankingRow(
+        AssetEntity asset,
+        AssetQuoteStatsDto stats,
+        decimal? metricValue
+    ) =>
+        new(
+            Rank: 0, // assigned after sorting/pagination
+            Ticker: asset.Ticker,
+            Name: asset.Name,
+            AssetType: asset.AssetType,
+            Currency: asset.Currency,
+            MetricValue: metricValue,
+            LastPrice: stats.LastPrice,
+            ChangeDayPercent: stats.ChangeDayPercent,
+            Return30dPercent: stats.Return1mPercent,
+            Return6mPercent: stats.Return6mPercent,
+            Return12mPercent: stats.Return12mPercent,
+            ReturnYtdPercent: stats.ReturnYtdPercent,
+            AnnualizedVolatilityPercent: stats.AnnualizedVolatilityPercent,
+            SharpeRatio: stats.SharpeRatio,
+            MaxDrawdownPercent: stats.MaxDrawdownPercent,
+            AvgVolume30D: stats.AvgVolume30D,
+            FirstQuoteDate: stats.FirstQuoteDate,
+            LastQuoteDate: stats.LastQuoteDate
+        );
+
+    private static decimal? SelectRankingMetric(string metric, AssetQuoteStatsDto s) =>
+        metric switch
+        {
+            "variacaodia" => s.ChangeDayPercent,
+            "retorno30d" => s.Return1mPercent,
+            "retorno6m" => s.Return6mPercent,
+            "retorno12m" => s.Return12mPercent,
+            "retornoano" => s.ReturnYtdPercent,
+            "volatilidade" => s.AnnualizedVolatilityPercent,
+            "sharpe" => s.SharpeRatio,
+            "drawdown" => s.MaxDrawdownPercent,
+            "volume" => s.AvgVolume30D,
+            _ => null,
+        };
+
     private static AssetSummaryDto ToSummary(AssetEntity asset, AssetQuoteStatsDto stats) =>
         new(
             Ticker: asset.Ticker,
@@ -427,7 +544,7 @@ public class AssetQueryService : IAssetQueryService
         );
 
     private static AssetQuoteStatsDto EmptyStats() =>
-        new(null, null, null, null, null, null, null, null, null, null, null);
+        new(null, null, null, null, null, null, null, null, null, null, null, null);
 
     private static decimal? RoundNullable(decimal? value) =>
         value is null ? null : Math.Round(value.Value, 2);

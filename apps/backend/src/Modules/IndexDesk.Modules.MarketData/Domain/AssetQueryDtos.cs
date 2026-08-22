@@ -41,6 +41,32 @@ public sealed record AssetQuoteStatsDto(
     decimal? AnnualizedVolatilityPercent,
     decimal? SharpeRatio,
     decimal? MaxDrawdownPercent,
+    decimal? AvgVolume30D,
+    DateOnly? FirstQuoteDate,
+    DateOnly? LastQuoteDate
+);
+
+/// <summary>
+/// Ranked asset row returned by GET /api/v1/assets/rankings. Rows arrive pre-sorted by the
+/// requested metric; <see cref="MetricValue"/> mirrors the column used for the ordering.
+/// </summary>
+public sealed record AssetRankingDto(
+    int Rank,
+    string Ticker,
+    string Name,
+    string AssetType,
+    string Currency,
+    decimal? MetricValue,
+    decimal? LastPrice,
+    decimal? ChangeDayPercent,
+    decimal? Return30dPercent,
+    decimal? Return6mPercent,
+    decimal? Return12mPercent,
+    decimal? ReturnYtdPercent,
+    decimal? AnnualizedVolatilityPercent,
+    decimal? SharpeRatio,
+    decimal? MaxDrawdownPercent,
+    decimal? AvgVolume30D,
     DateOnly? FirstQuoteDate,
     DateOnly? LastQuoteDate
 );

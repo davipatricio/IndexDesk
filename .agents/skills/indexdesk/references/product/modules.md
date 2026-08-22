@@ -57,6 +57,17 @@ DARF ETF, regra dos 4%, termômetro de fluxo CVM. URLs/palavras-chave:
 - Slug único sanitizado; conteúdo sanitizado antes de renderizar; origem e data sempre visíveis.
 - Status: MVP-017/018 **não iniciados**.
 
+## 7. Rankings públicos (`/rankings`) — implementado
+
+- Ranking por métrica × tipo de ativo (ETF/BDR/FII/todos), direção alternável, estado na URL (nuqs:
+  `tipo`, `metrica`, `direcao`).
+- Métricas: retorno 30d/6m/12m/no ano, variação do dia, volatilidade anualizada, Sharpe, drawdown
+  máximo, volume médio diário (R$).
+- Backend: `GET /api/v1/assets/rankings` (cache Redis 10 min); ativos sem dado suficiente na métrica
+  ficam sempre ao final.
+- **Screener avançado** (filtros combináveis + export) permanece planejado (MVP-024); captação líquida
+  e premium/desconto vs PL dependem do informe diário CVM (MVP-003/025).
+
 ## Fase 02/03 (futuro, não scaffoldar ainda)
 
 Carteiras estilo Yahoo/Gorila (transações BUY/SELL/TRANSFER, preço médio Receita, TWR/MWR-TIR),

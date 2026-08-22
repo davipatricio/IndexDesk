@@ -12,6 +12,20 @@ namespace IndexDesk.Modules.MarketData;
 
 public static class MarketDataModuleExtensions
 {
+    /// <summary>Metrics accepted by GET /api/v1/assets/rankings.</summary>
+    private static readonly HashSet<string> RankingMetrics = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "variacaodia",
+        "retorno30d",
+        "retorno6m",
+        "retorno12m",
+        "retornoano",
+        "volatilidade",
+        "sharpe",
+        "drawdown",
+        "volume",
+    };
+
     public static IServiceCollection AddMarketDataModule(
         this IServiceCollection services,
         IConfiguration? configuration = null
@@ -195,6 +209,50 @@ public static class MarketDataModuleExtensions
             .WithName("GetAssets")
             .WithSummary(
                 "Search, filter, sort and paginate the asset catalog with on-the-fly performance metrics"
+            );
+
+        group
+            .MapGet(
+                "/rankings",
+                async (
+                    string? assetType,
+                    string? metric,
+                    string? orderDirection,
+                    int? page,
+                    int? pageSize,
+                    IAssetQueryService queryService,
+                    CancellationToken ct
+                ) =>
+                {
+                    var normalizedMetric = (metric ?? "retorno12m").Trim().ToLowerInvariant();
+                    if (!RankingMetrics.Contains(normalizedMetric))
+                    {
+                        return Results.BadRequest(
+                            new
+                            {
+                                code = "MarketData.InvalidRankingMetric",
+                                message = $"Métrica '{metric}' inválida. Use uma de: {string.Join(", ", RankingMetrics.OrderBy(m => m))}.",
+                            }
+                        );
+                    }
+
+                    var p = Math.Max(1, page ?? 1);
+                    var ps = Math.Clamp(pageSize ?? 20, 1, 100);
+
+                    var result = await queryService.GetRankingsAsync(
+                        assetType,
+                        normalizedMetric,
+                        orderDirection ?? "desc",
+                        p,
+                        ps,
+                        ct
+                    );
+                    return Results.Ok(result);
+                }
+            )
+            .WithName("GetAssetRankings")
+            .WithSummary(
+                "Rank active assets by a performance metric (sharpe, returns, volatility, drawdown, volume) with pagination"
             );
 
         group

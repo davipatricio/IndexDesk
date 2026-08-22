@@ -3,8 +3,8 @@
 > **Arquivo gerado:** não edite `ROADMAP.md` diretamente. Atualize `.roadmap/**/*.json` e execute `bun run roadmap:generate`.
 > **Estado atual:** requisitos documentados, implementação ainda não scaffoldada.
 
-**Atualizado em:** 2026-08-22 · **Estado:** `scaffolded` · **Progresso:** [███████████░░░░░░░░░] 53% (28/53)
-**Tarefas:** 53 total · 28 concluídas · 0 em andamento · 0 bloqueadas · 25 não iniciadas/deferidas
+**Atualizado em:** 2026-08-22 · **Estado:** `scaffolded` · **Progresso:** [██████████░░░░░░░░░░] 50% (28/56)
+**Tarefas:** 56 total · 28 concluídas · 0 em andamento · 0 bloqueadas · 28 não iniciadas/deferidas
 
 ## Estado do projeto
 
@@ -12,15 +12,15 @@
 - **Tracking do roadmap scaffoldado:** `true`
 - **Código do produto scaffoldado:** `true`
 - **Commits registrados no snapshot:** `1`
-- **Bloqueadores:** FND-013 permanece pendente: migrations não foram aplicadas porque containers Docker não foram iniciados, conforme solicitado. O SDK .NET local usa DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 porque libicu não está instalado no Debian sem sudo. OpenTelemetry.Exporter.OpenTelemetryProtocol 1.11.1 registra o advisory NU1902 e deve ser atualizado antes de produção.
-- **Nota:** Setup inicial e fundamentação concluídos. Phase 01: Ingestion, Core APIs, Catálogo Rico e Páginas de Ativo (/etf/[ticker], /bdr/[ticker], /fii/[ticker]), Comparador de até 6 ativos, suite TanStack com SSR/Hydration e Gráficos Financeiros com TradingView Lightweight Charts implementados seguindo strict local-first architecture.
+- **Bloqueadores:** FND-013 permanece pendente: migrations não foram aplicadas porque containers Docker não foram iniciados, conforme solicitado. MVP-003 (ingestão CVM) reaberto: a implementação anterior foi removida no purge de dados sintéticos e nenhum job CVM existe no Worker. O SDK .NET local usa DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 porque libicu não está instalado no Debian sem sudo. OpenTelemetry.Exporter.OpenTelemetryProtocol 1.11.1 registra o advisory NU1902 e deve ser atualizado antes de produção.
+- **Nota:** Setup inicial e fundamentação concluídos. Phase 01: ingestão Brapi/Yahoo/BCB, APIs MarketData/Analytics, catálogo com painel fiscal, páginas de ativo, comparador (≤6 ativos), backtest público, suite TanStack + gráficos e hub de rankings (/rankings + GET /api/v1/assets/rankings, MVP-023). MVP-003 reaberto após purge; screener avançado (MVP-024) e premium/desconto vs PL via CVM (MVP-025) planejados.
 
 ## Visão por fase
 
 | Fase | Status | Prioridade | Progresso | Dependências |
 | :--- | :--- | :---: | :---: | :--- |
 | **00 — Foundation & Platform Scaffold** | 🔵 `in_progress` | `P0` | 94% (15/16) | — |
-| **01 — MVP & Core Market Intelligence** | 🔵 `in_progress` | `P0` | 59% (13/22) | `PHASE-00` |
+| **01 — MVP & Core Market Intelligence** | 🔵 `in_progress` | `P0` | 52% (13/25) | `PHASE-00` |
 | **02 — Growth, Programmatic SEO & Retention** | ⬜ `not_started` | `P2` | 0% (0/6) | `PHASE-01` |
 | **03 — Portfolio, Fixed Income & Tax Automation** | ⬜ `not_started` | `P2` | 0% (0/9) | `PHASE-01`, `PHASE-02` |
 
@@ -204,7 +204,7 @@ _Estabelecer autenticação, RBAC, tracing, health checks e qualidade mínima an
 
 ## Fase 01 — MVP & Core Market Intelligence
 
-**Status:** 🔵 `in_progress` · **Prioridade:** `P0` · **Progresso:** [████████████░░░░░░░░] 59% (13/22)
+**Status:** 🔵 `in_progress` · **Prioridade:** `P0` · **Progresso:** [██████████░░░░░░░░░░] 52% (13/25)
 **Objetivo:** Entregar dados locais confiáveis, catálogo público, comparação, backtest, calculadoras, admin, conteúdo e SEO/PWA básicos.
 **Depende de:** `PHASE-00`
 
@@ -212,16 +212,17 @@ _Estabelecer autenticação, RBAC, tracing, health checks e qualidade mínima an
 
 _Ingerir dados de providers em background, validar, persistir de forma idempotente e invalidar cache._
 
-**Status:** ✅ `complete` · **Prioridade:** `P0` · **Progresso:** [████████████] 100% (6/6)
+**Status:** ✅ `complete` · **Prioridade:** `P0` · **Progresso:** [█████████░░░] 71% (5/7)
 
 | ID | Tarefa | Prioridade | Dificuldade | Status | Dependências |
 | :--- | :--- | :---: | :---: | :--- | :--- | 
 | `MVP-001` | Implementar scheduler Quartz do Worker | `P0` | `hard` | ✅ `complete` | `FND-008`, `FND-010`, `FND-012`, `FND-015` |
 | `MVP-002` | Ingerir BCB SGS e calendário macro | `P0` | `medium` | ✅ `complete` | `MVP-001`, `FND-013` |
-| `MVP-003` | Implementar ingestão CVM streaming | `P0` | `complex` | ✅ `complete` | `MVP-001`, `FND-013` |
+| `MVP-003` | Implementar ingestão CVM streaming | `P0` | `complex` | ⬜ `not_started` | `MVP-001`, `FND-013` |
 | `MVP-004` | Ingerir Brapi, Yahoo e feeds de preços | `P0` | `hard` | ✅ `complete` | `MVP-001`, `FND-013` |
 | `MVP-005` | Ingerir B3, ANBIMA e composição de gestoras | `P1` | `hard` | ✅ `complete` | `MVP-001`, `MVP-003` |
 | `MVP-006` | Aplicar resiliência, idempotência e cache | `P0` | `hard` | ✅ `complete` | `MVP-002`, `MVP-003`, `MVP-004`, `MVP-005` |
+| `MVP-025` | Derivar premium/desconto vs PL e captação líquida do informe CVM | `P1` | `medium` | ⬜ `not_started` | `MVP-003`, `MVP-004` |
 
 <details>
 <summary>Critérios e entregáveis</summary>
@@ -237,7 +238,7 @@ _Ingerir dados de providers em background, validar, persistir de forma idempoten
 - **MVP-003 — Implementar ingestão CVM streaming**
   - Critérios: Processa arquivo grande sem carregar todo ZIP em RAM; Filtra CNPJs antes do COPY; Reexecução é idempotente; Métricas registram linhas processadas/inseridas/ignoradas
   - Entregáveis: CVM informe adapter; CDA holdings adapter; streaming COPY pipeline; performance test
-  - Notas: Usar staging quando constraints impedirem COPY direto em hypertable.
+  - Notas: REABERTO 2026-08-22: implementação anterior foi removida no purge de dados sintéticos (commit 532fde5) — nenhum job CVM existe hoje no Worker; colunas alvo incluem VL_QUOTA, CAPTC_DIA, RESG_DIA.
 - **MVP-004 — Ingerir Brapi, Yahoo e feeds de preços**
   - Critérios: Batch quotes são usados quando provider suporta; Rate limits são aplicados por provider; Benchmarks e FX são identificados como séries distintas; Proventos entram no modelo correto
   - Entregáveis: Brapi adapter; Yahoo adapter; quote normalization; dividend sync
@@ -250,6 +251,10 @@ _Ingerir dados de providers em background, validar, persistir de forma idempoten
   - Critérios: Retry usa backoff e respeita rate limit; Circuit breaker abre e recupera; Eventos invalidam somente chaves afetadas; TTL por classe é testado
   - Entregáveis: Polly policies; cache key strategy; MassTransit events; failure tests
   - Notas: Histórico fechado: 30 dias; intraday: 15 min; macro: 24h; holdings: 7 dias, pendente de DEC-002.
+- **MVP-025 — Derivar premium/desconto vs PL e captação líquida do informe CVM**
+  - Critérios: Premium/discount = cotação fechamento ÷ VL_QUOTA − 1, com data-fonte visível; Captação líquida diária = CAPTC_DIA − RESG_DIA, idempotente; Métricas entram em etf_analytics_summary (premium_discount_pct, flow_30d); Alerta de prêmio/desconto extremo é disparado pós-ingest
+  - Entregáveis: premium discount calculator; flow aggregation; analytics columns
+  - Notas: Diferencial competitivo identado na análise etfsbrasil/B3/investidor10 (2026-08).
 
 </details>
 
@@ -282,13 +287,15 @@ _Expor dados locais normalizados para web, analytics e admin via API única._
 
 _Entregar as principais experiências públicas para descoberta e análise de ETFs/BDRs._
 
-**Status:** ✅ `complete` · **Prioridade:** `P0` · **Progresso:** [████████████] 100% (3/3)
+**Status:** ✅ `complete` · **Prioridade:** `P0` · **Progresso:** [██████████░░] 80% (4/5)
 
 | ID | Tarefa | Prioridade | Dificuldade | Status | Dependências |
 | :--- | :--- | :---: | :---: | :--- | :--- | 
 | `MVP-009` | Construir catálogo e páginas de ativo | `P0` | `hard` | ✅ `complete` | `MVP-007`, `FND-007` |
 | `MVP-010` | Construir comparador de até seis ativos | `P0` | `hard` | ✅ `complete` | `MVP-008`, `FND-007` |
 | `MVP-011` | Construir simulador público de backtest | `P0` | `complex` | ✅ `complete` | `MVP-008`, `FND-005`, `FND-006` |
+| `MVP-023` | Construir hub público de rankings por métrica | `P1` | `medium` | ✅ `complete` | `MVP-007`, `MVP-009` |
+| `MVP-024` | Evoluir catálogo em screener avançado | `P2` | `hard` | ⬜ `not_started` | `MVP-023` |
 
 <details>
 <summary>Critérios e entregáveis</summary>
@@ -305,6 +312,14 @@ _Entregar as principais experiências públicas para descoberta e análise de ET
   - Critérios: Pesos somam 100%; Períodos inválidos são rejeitados; Resultados incluem CAGR/volatilidade/Sharpe/drawdown e retorno real; Não exige login
   - Entregáveis: backtest form; result charts; metrics table
   - Notas: Adicionar limites e cache por input normalizado.
+- **MVP-023 — Construir hub público de rankings por métrica**
+  - Critérios: Métricas: retorno 30d/6m/12m/no ano, variação do dia, volatilidade, Sharpe, drawdown, volume médio; Ativos sem dado suficiente na métrica ficam ao final em qualquer direção; Estado tipo/métrica/direção representado na URL (nuqs); Cache Redis de leitura (~10 min); nenhuma chamada externa em runtime
+  - Entregáveis: rankings endpoint + DTOs; /rankings page + tabela; avgVolume30D nas estatísticas
+  - Notas: Implementado sobre cotações locais; captação líquida entra com MVP-003/025.
+- **MVP-024 — Evoluir catálogo em screener avançado**
+  - Critérios: Filtros combináveis validados server-side com paginação; URL reflete todos os filtros (nuqs); Export CSV respeita filtros ativos; Campos taxa/PL/provedor aparecem quando disponíveis localmente
+  - Entregáveis: screener filters; CSV export; shared filter state
+  - Notas: Benchmark de referência: screener do etfsbrasil (filtros por gestora/região/provedor).
 
 </details>
 

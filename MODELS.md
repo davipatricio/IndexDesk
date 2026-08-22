@@ -109,9 +109,21 @@ CREATE TABLE etf_metadata (
     inception_date DATE NULL,
     description TEXT NULL,
     website_url VARCHAR(500) NULL,
+
+    -- Taxonomia de índice (hubs programáticos /indices/[indice]; filtro "provedor do índice")
+    index_provider VARCHAR(120) NULL,             -- Ex: 'B3', 'Teva Indices', 'Morningstar', 'Bloomberg', 'MSCI'
+    index_family VARCHAR(150) NULL,               -- Ex: 'Ibovespa', 'S&P 500', 'IMA-B 5+', 'NASDAQ-100'
+    benchmark_ticker VARCHAR(20) NULL,            -- Ticker do índice de referência declarado no regulamento
+
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
+
+> **Nota (2026-08, análise competitiva etfsbrasil/B3/investidor10):** `index_provider`/`index_family`
+> sustentam os hubs `/indices/[indice]` e o filtro por provedor (Phase 02). Métricas planejadas em
+> `etf_analytics_summary`: `premium_discount_pct` (cotação fechamento ÷ `fund_daily_reports.quota_value`)
+> e `flow_30d` (`net_issuance_redemption` acumulado) — ambas dependem da ingestão do informe diário CVM
+> (MVP-003/025).
 
 #### `etf_holdings` (Composição e Sobreposição / Overlap)
 

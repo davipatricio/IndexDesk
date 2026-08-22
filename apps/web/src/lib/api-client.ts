@@ -135,6 +135,42 @@ export interface BacktestResponse {
   benchmarkAnnualizedReturnPercent?: number;
 }
 
+/** Ranked asset row returned by GET /api/v1/assets/rankings. */
+export interface AssetRankingDto {
+  rank: number;
+  ticker: string;
+  name: string;
+  assetType: string;
+  currency: string;
+  metricValue: number | null;
+  lastPrice: number | null;
+  changeDayPercent: number | null;
+  return30dPercent: number | null;
+  return6mPercent: number | null;
+  return12mPercent: number | null;
+  returnYtdPercent: number | null;
+  annualizedVolatilityPercent: number | null;
+  sharpeRatio: number | null;
+  maxDrawdownPercent: number | null;
+  avgVolume30D: number | null;
+  firstQuoteDate: string | null;
+  lastQuoteDate: string | null;
+}
+
+export const RANKING_METRICS = [
+  'retorno12m',
+  'retorno30d',
+  'retorno6m',
+  'retornoano',
+  'variacaodia',
+  'volatilidade',
+  'sharpe',
+  'drawdown',
+  'volume',
+] as const;
+
+export type RankingsMetric = (typeof RANKING_METRICS)[number];
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? '' : 'http://127.0.0.1:5000');
 
@@ -423,4 +459,29 @@ export async function fetchRealYield(
   const res = await fetch(url, { credentials: 'include' });
   if (!res.ok) throw await readApiError(res, `Falha ao calcular juro real: ${res.statusText}`);
   return (await res.json()) as RealYieldResponse;
+}
+
+/** Fetch the metric ranking from GET /api/v1/assets/rankings. */
+export async function fetchAssetRankings(options?: {
+  assetType?: string;
+  metric?: string;
+  orderDirection?: 'asc' | 'desc';
+}): Promise<AssetRankingDto[]> {
+  const params = new URLSearchParams();
+  if (options?.assetType) params.set('assetType', options.assetType);
+  if (options?.metric) params.set('metric', options.metric);
+  if (options?.orderDirection) params.set('orderDirection', options.orderDirection);
+  const query = params.toString();
+  const url = `${API_BASE_URL}/api/v1/assets/rankings${query ? `?${query}` : ''}`;
+
+  const res = await fetch(url, { credentials: 'include', next: { revalidate: 300 } });
+  if (!res.ok) throw await readApiError(res, `Falha ao obter rankings: ${res.statusText}`);
+
+  const payload: unknown = await res.json();
+  if (Array.isArray(payload)) return payload as AssetRankingDto[];
+  if (payload && typeof payload === 'object') {
+    const items = (payload as { items?: unknown }).items;
+    if (Array.isArray(items)) return items as AssetRankingDto[];
+  }
+  throw new Error('Resposta inválida do ranking de ativos.');
 }

@@ -24,6 +24,7 @@ não-intrusivo → cadastro opcional (retenção/LTV). Nada fica atrás de login
 | `/bdrs/etfs-internacionais` | Guia de BDRs de ETFs globais |
 | `/gestoras/[gestora]` | ETFs por gestora (BlackRock, Investo, Itaú…) |
 | `/relatorios`, `/noticias` | Cartas mensais / fatos relevantes |
+| `/rankings` | Hub de rankings (retorno/risco/liquidez × classe) — **implementado**; expansão programática `/rankings/[metrica]` e hubs por índice (`/indices/[indice]`, requer `index_provider`/`index_family` em `etf_metadata`) ficam na Phase 02 |
 
 ## Ferramentas públicas (URL · resolve · gatilho de conversão)
 

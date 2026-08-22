@@ -86,14 +86,14 @@
             "id": "MVP-003",
             "title": "Implementar ingestão CVM streaming",
             "description": "Baixar inf_diario_fi e cda_fi, filtrar CNPJs mapeados e gravar via CsvHelper em stream e NpgsqlBinaryImporter/COPY.",
-            "status": "complete",
+            "status": "not_started",
             "priority": "P0",
             "difficulty": "complex",
             "kind": "data",
             "phase_id": "PHASE-01",
             "epic_id": "INGEST",
             "depends_on": ["MVP-001", "FND-013"],
-            "blocks": ["MVP-006", "MVP-009", "MVP-010"],
+            "blocks": ["MVP-006", "MVP-009", "MVP-010", "MVP-025"],
             "source_refs": [
               { "file": "PROVIDERS.md", "section": "CVM — Portal de Dados Abertos" },
               { "file": "PROVIDERS_SYNC.md", "section": "Ingestão e Validação em Streaming" },
@@ -115,10 +115,10 @@
               "Formato/encoding CSV da CVM pode variar",
               "Upsert após COPY pode exigir staging table"
             ],
-            "notes": "Usar staging quando constraints impedirem COPY direto em hypertable.",
+            "notes": "REABERTO 2026-08-22: implementação anterior foi removida no purge de dados sintéticos (commit 532fde5) — nenhum job CVM existe hoje no Worker; colunas alvo incluem VL_QUOTA, CAPTC_DIA, RESG_DIA.",
             "estimated_hours": 32,
             "assignee": null,
-            "completed_at": "2026-08-19"
+            "completed_at": null
           },
           {
             "id": "MVP-004",
@@ -211,6 +211,35 @@
             "estimated_hours": 20,
             "assignee": null,
             "completed_at": "2026-08-19"
+          },
+          {
+            "id": "MVP-025",
+            "title": "Derivar premium/desconto vs PL e captação líquida do informe CVM",
+            "description": "Sobre o informe diário ingerido (VL_QUOTA, CAPTC_DIA/RESG_DIA), calcular série diária de premium/discount (fechamento ÷ quota_value) e fluxo acumulado por fundo; expor em rankings e alertas.",
+            "status": "not_started",
+            "priority": "P1",
+            "difficulty": "medium",
+            "kind": "analytics",
+            "phase_id": "PHASE-01",
+            "epic_id": "INGEST",
+            "depends_on": ["MVP-003", "MVP-004"],
+            "blocks": [],
+            "source_refs": [
+              { "file": "MODELS.md", "section": "fund_daily_reports e etf_analytics_summary" },
+              { "file": "PROVIDERS_SYNC.md", "section": "O Ciclo de Vida da Sincronização" }
+            ],
+            "acceptance_criteria": [
+              "Premium/discount = cotação fechamento ÷ VL_QUOTA − 1, com data-fonte visível",
+              "Captação líquida diária = CAPTC_DIA − RESG_DIA, idempotente",
+              "Métricas entram em etf_analytics_summary (premium_discount_pct, flow_30d)",
+              "Alerta de prêmio/desconto extremo é disparado pós-ingest"
+            ],
+            "deliverables": ["premium discount calculator", "flow aggregation", "analytics columns"],
+            "risks": ["Cotas sem cotação no mesmo dia geram lacunas — tratar com janela de tolerância"],
+            "notes": "Diferencial competitivo identado na análise etfsbrasil/B3/investidor10 (2026-08).",
+            "estimated_hours": 16,
+            "assignee": null,
+            "completed_at": null
           }
         ]
       },
@@ -389,6 +418,68 @@
             "estimated_hours": 36,
             "assignee": null,
             "completed_at": "2026-08-22"
+          },
+          {
+            "id": "MVP-023",
+            "title": "Construir hub público de rankings por métrica",
+            "description": "Endpoint GET /api/v1/assets/rankings (ordenado por retorno/risco/liquidez) e página /rankings SSR-first com estado nuqs (tipo, métrica, direção).",
+            "status": "complete",
+            "priority": "P1",
+            "difficulty": "medium",
+            "kind": "feature",
+            "phase_id": "PHASE-01",
+            "epic_id": "PUBLICWEB",
+            "depends_on": ["MVP-007", "MVP-009"],
+            "blocks": ["MVP-024"],
+            "source_refs": [
+              { "file": "PRODUCT.md", "section": "Catálogo Rico de ETFs & BDRs" },
+              { "file": "SEO_TOOLS.md", "section": "Rotas programáticas e hubs" }
+            ],
+            "acceptance_criteria": [
+              "Métricas: retorno 30d/6m/12m/no ano, variação do dia, volatilidade, Sharpe, drawdown, volume médio",
+              "Ativos sem dado suficiente na métrica ficam ao final em qualquer direção",
+              "Estado tipo/métrica/direção representado na URL (nuqs)",
+              "Cache Redis de leitura (~10 min); nenhuma chamada externa em runtime"
+            ],
+            "deliverables": [
+              "rankings endpoint + DTOs",
+              "/rankings page + tabela",
+              "avgVolume30D nas estatísticas"
+            ],
+            "risks": ["Cálculo por ativo cresce linearmente — manter paginação e cache"],
+            "notes": "Implementado sobre cotações locais; captação líquida entra com MVP-003/025.",
+            "estimated_hours": 14,
+            "assignee": null,
+            "completed_at": "2026-08-22"
+          },
+          {
+            "id": "MVP-024",
+            "title": "Evoluir catálogo em screener avançado",
+            "description": "Filtros combináveis no catálogo (taxa, PL, gestora, provedor do índice, categoria, janelas de retorno) com export CSV e URLs compartilháveis.",
+            "status": "not_started",
+            "priority": "P2",
+            "difficulty": "hard",
+            "kind": "frontend",
+            "phase_id": "PHASE-01",
+            "epic_id": "PUBLICWEB",
+            "depends_on": ["MVP-023"],
+            "blocks": [],
+            "source_refs": [
+              { "file": "PRODUCT.md", "section": "Catálogo Rico de ETFs & BDRs" },
+              { "file": "SEO_TOOLS.md", "section": "Catálogo de Ferramentas Públicas" }
+            ],
+            "acceptance_criteria": [
+              "Filtros combináveis validados server-side com paginação",
+              "URL reflete todos os filtros (nuqs)",
+              "Export CSV respeita filtros ativos",
+              "Campos taxa/PL/provedor aparecem quando disponíveis localmente"
+            ],
+            "deliverables": ["screener filters", "CSV export", "shared filter state"],
+            "risks": ["Taxa/PL dependem de etf_metadata povoada e informe CVM (MVP-003)"],
+            "notes": "Benchmark de referência: screener do etfsbrasil (filtros por gestora/região/provedor).",
+            "estimated_hours": 24,
+            "assignee": null,
+            "completed_at": null
           }
         ]
       },

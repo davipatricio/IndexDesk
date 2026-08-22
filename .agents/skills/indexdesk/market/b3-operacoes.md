@@ -60,3 +60,27 @@ Sempre versionar composição ingerida com data de referência.
 - Nunca inferir classe por sufixo de ticker — usar `assets.asset_type`.
 - Feriados: sempre consultar `market_holidays` (não calcular Carnaval etc. na mão).
 - Volume médio diário em R$ (não nº de negócios) nas métricas (`etf_analytics_summary.avg_daily_volume_30d`).
+
+## Ficha técnica B3 do ETF (fonte: páginas oficiais de produto, 2026-08)
+
+| Característica | Valor |
+| :--- | :--- |
+| Código de negociação | `XXXX11` (4 letras + sufixo de cota de fundo) |
+| Cotação | Reais por cota, 2 casas decimais |
+| Liquidação | Física e financeira, **D+2** |
+| Mercado | À vista |
+| Lote padrão | Secundário: **1 cota**; primário: definido pelo emissor |
+| Emissão/resgate | **In-kind** (cesta de ativos ↔ lote mínimo de cotas) via agentes autorizados, ao PL/cota apurado no fechamento do dia da solicitação |
+
+- Índice de referência deve ser reconhecido pela CVM (não precisa ser índice B3 — ex.: Teva, Morningstar).
+- Famílias derivadas listadas pela B3 (conteúdo educacional/SEO futuro): opções semanais e flexíveis
+  sobre ETFs, termo de ETF, BDR de ETF, ETF CONNECT.
+- O portal B3 é JS-rendered (Lumis): **nunca raspar HTML** das páginas "ETFs Listados"; usar arquivos
+  open-data (`dados.b3.com.br`) ou CVM.
+
+## Regras de implementação (adendo rankings)
+
+- Ranking por métrica ordena **em memória** após cálculo por ativo; ativos sem dado suficiente na
+  métrica ficam sempre no fim (qualquer direção). Cache Redis 10 min.
+- Volume médio = média de `close × volume` das ~30 sessões recentes (`avgVolume30D` nos DTOs),
+  coerente com `etf_analytics_summary.avg_daily_volume_30d` quando a tabela for materializada.

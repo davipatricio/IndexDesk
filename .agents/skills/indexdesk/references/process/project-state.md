@@ -1,17 +1,17 @@
 # Estado Atual do Projeto & Roadmap
 
-> Snapshot do `ROADMAP.md` gerado em **2026-08-22**. Para o estado exato, rode `bun run roadmap:check`
-> ou leia `ROADMAP.md`. Este resumo pode estar defasado.
+> Snapshot do `ROADMAP.md` gerado em **2026-08-22** (pós-MVP-023). Para o estado exato, rode
+> `bun run roadmap:check` ou leia `ROADMAP.md`. Este resumo pode estar defasado.
 
 ## Visão geral
 
 - **Ciclo:** `active_development` · scaffold concluído, produto em construção.
-- **Progresso:** 53% (28/53 tarefas). 0 em andamento · 25 não iniciadas.
+- **Progresso:** 50% (28/56 tarefas). 0 em andamento · 28 não iniciadas.
 
 | Fase | Escopo | Status | Progresso |
 | :--- | :--- | :--- | :---: |
 | **00 Foundation** | Monorepo Bun+Turbo, Next.js SSR-first, monólito .NET, Docker/env, auth/RBAC, OTel, CI | 🔵 in_progress (P0) | 94% (15/16) |
-| **01 MVP & Core Intelligence** | Ingestão local-first, APIs MarketData/Analytics, catálogo, comparador, backtest, calculadoras, admin, notícias, PWA/SEO | 🔵 in_progress (P0) | 59% (13/22) |
+| **01 MVP & Core Intelligence** | Ingestão local-first, APIs MarketData/Analytics, catálogo, comparador, backtest, rankings, calculadoras, admin, notícias, PWA/SEO | 🔵 in_progress (P0) | 52% (13/25) |
 | **02 Growth & Programmatic SEO** | Saved backtests, expansão SEO, PDF export, newsletter/alertas | ⬜ not_started (P2) | 0% (0/6) |
 | **03 Portfolio & Tax Automation** | Carteiras/transações, PM, TWR/MWR, accrual RF, eventos, DARF automation | ⬜ not_started (P2) | 0% (0/9) |
 
@@ -25,15 +25,20 @@ Dependências: PHASE-00 → 01 → 02 → 03. Auth→admin→saved backtests→p
   REST/OpenAPI Scalar, cliente tipado.
 - Docker compose local + `.env.example`.
 - Auth/RBAC (Argon2id/BCrypt, refresh HttpOnly), OpenTelemetry→Jaeger, health checks, testes integração + CI.
-- **Ingestão completa (MVP-001..006):** Quartz scheduler, BCB SGS, CVM streaming (COPY), Brapi/Yahoo,
-  B3/ANBIMA/gestoras, Polly/idempotência/cache.
+- **Ingestão (MVP-001/002/004..006):** Quartz scheduler, BCB SGS, Brapi/Yahoo, B3/ANBIMA/gestoras,
+  Polly/idempotência/cache. **CVM streaming reaberto (MVP-003)** — ver bloqueadores.
 - **APIs (MVP-007/008):** MarketData + Analytics (comparação ≤6 ativos, backtest validado).
 - **Público (MVP-009..011):** catálogo/páginas de ativo com painel fiscal, comparador, simulador de backtest.
+- **Rankings (MVP-023):** `GET /api/v1/assets/rankings` + página `/rankings` (métrica × tipo × direção
+  na URL via nuqs; `avgVolume30D` nas estatísticas; cache Redis 10 min).
 - TanStack suite + hydration (MVP-019), gráficos híbridos Lightweight Charts/Recharts/Visx (MVP-020).
 
 ## ⬜ Pendente na fase atual (próximo trabalho provável)
 
 - **FND-013** migrations/banco (bloqueador — ver abaixo).
+- **MVP-003 reaberto:** ingestão CVM streaming (`inf_diario_fi`, CNPJ filter, COPY) — pré-requisito de
+  MVP-025 (premium/desconto vs PL + captação líquida) e de parte do MVP-024.
+- Screener avançado no catálogo (MVP-024).
 - Calculadoras públicas: overlap/tax drag (MVP-012), macro/RF/fluxo CVM (MVP-013), DARF/aposentadoria (MVP-014).
 - Admin: curadoria + locks por campo (MVP-015), uploads + monitor de sync (MVP-016).
 - Notícias/relatórios: modelo+APIs (MVP-017), hubs públicos (MVP-018).
@@ -42,8 +47,9 @@ Dependências: PHASE-00 → 01 → 02 → 03. Auth→admin→saved backtests→p
 ## 🚧 Bloqueadores e notas de ambiente
 
 1. **FND-013 pendente:** migrations não aplicadas porque os containers Docker não foram iniciados (por solicitação do dono do repo).
-2. SDK .NET local usa `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` (libicu ausente no Debian sem sudo).
-3. `OpenTelemetry.Exporter.OpenTelemetryProtocol 1.11.1` registra advisory NU1902 — atualizar antes de produção.
+2. **MVP-003 reaberto:** implementação CVM anterior foi removida no purge de dados sintéticos (commit `532fde5`); nenhum job CVM existe hoje.
+3. SDK .NET local usa `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` (libicu ausente no Debian sem sudo).
+4. `OpenTelemetry.Exporter.OpenTelemetryProtocol 1.11.1` registra advisory NU1902 — atualizar antes de produção.
 
 ## Como atualizar o roadmap
 

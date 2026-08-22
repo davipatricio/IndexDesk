@@ -16,6 +16,19 @@ public interface IAssetQueryService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Ranks active assets by a performance metric (e.g. sharpe, retorno12m, volume).
+    /// Assets without data for the metric are placed last regardless of direction.
+    /// </summary>
+    Task<PagedResult<AssetRankingDto>> GetRankingsAsync(
+        string? assetType,
+        string metric,
+        string? orderDirection,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default
+    );
+
     Task<AssetDetailDto?> GetDetailAsync(
         string ticker,
         CancellationToken cancellationToken = default
