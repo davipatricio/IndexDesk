@@ -2,6 +2,23 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Communication Style — Caveman Ultra (always)
+
+**Always respond using the `caveman` skill at `ultra` intensity**, from the first response of every session. No trigger keyword needed — this file is the standing trigger. Load and follow `.agents/skills/caveman/SKILL.md`.
+
+- Default intensity: **ultra** (`/caveman ultra`). Only explicit "stop caveman" / "normal mode" turns it off.
+- Compress style, never substance: keep all technical content, code blocks, exact error strings, numbers/units, and negations verbatim.
+- Never invent abbreviations; if caveman phrasing is not shorter than plain phrasing, use plain.
+- Preserve the user's language (typically pt-BR in this repo) — compress the style, not the language.
+- Auto-suspend only for security warnings, irreversible-action confirmations, or multi-step sequences where compression risks ambiguity; resume right after.
+
+## Agent Skills
+
+Managed by `npx skills add` (tracked in `skills-lock.json`; canonical copies in `.agents/skills/`, mirrored into `.claude/skills/`):
+
+- `caveman` — communication mode defined above.
+- **UI work (`apps/web`):** use `design-taste-frontend` when building or redesigning pages/components; run `ui-slop-score` / `anti-ui-slop` as a pre-ship audit against generic AI-looking UI; use `ui-radar` / `ui-design` for real-screen references when a concrete design question needs evidence.
+
 ## Project State
 
 **Greenfield.** The repository currently contains design documents (no code, no commits yet):
@@ -99,3 +116,22 @@ Shared infra via `docker-compose.yml`: **PostgreSQL 18 + TimescaleDB (self-hoste
 - `IndexDesk.Worker` emits events to **RabbitMQ**; `Modules.Analytics` consumes them to invalidate stale Redis entries, which then re-warm from Postgres.
 - OpenTelemetry traces track the full flow: `Next.js -> IndexDesk.Api -> C# Module -> Redis/Postgres`.
 - Provider API keys/latency concerns live in `.env` (`Providers__*`, `ConnectionStrings__*`), never in code or commits.
+
+## Repo Skill: `.agents/skills/indexdesk` (keep it in sync)
+
+This repository has an internal agent skill at `.agents/skills/indexdesk/` that mirrors project knowledge
+(product, architecture, current state, market/tax rules, financial formulas). **Keeping it updated is part
+of the definition of done**, alongside roadmap regeneration and this file. When finishing any work that changes
+project state, update the matching skill file before wrapping up:
+
+| Change | Update |
+| :--- | :--- |
+| Feature implemented/removed, new endpoint, route or Worker job | `references/process/current-features.md` |
+| Decision (DEC-\*) accepted/closed, new risk (RISK-\*) | `references/process/decisions-risks.md` |
+| New convention or recurring pitfall discovered | `references/process/common-mistakes.md` (or the domain file) |
+| Phase/task progress | regenerate roadmap (`roadmap:validate` + `roadmap:generate`) and refresh `references/process/project-state.md` snapshot |
+| Stack/version/tooling change | the matching `references/architecture/*.md` file |
+
+Rules of thumb: domain rules (market/tax/formulas) live in `market/*`; code-local conventions live in the
+scoped nested `CLAUDE.md`s (`apps/*/CLAUDE.md`, `IndexDesk.Worker/`, `Modules.Auth/`) — never duplicate one
+inside the other. New scoped docs follow the `CLAUDE.md` + `AGENTS.md` symlink pair pattern.

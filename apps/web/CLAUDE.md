@@ -4,6 +4,9 @@
 > This file covers the Next.js 16.3 app (`@indexdesk/web`). For product/SEO/data-provider
 > context, defer to the root docs. **Do not modify code** when only instruction updates are requested —
 > edits here are markdown only.
+>
+> When your work changes implemented features/routes/conventions here, also update the repo skill
+> `.agents/skills/indexdesk/references/process/current-features.md` (see "Repo Skill" section in root `CLAUDE.md`).
 
 ## 1. What this workspace is
 

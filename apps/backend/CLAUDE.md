@@ -4,6 +4,9 @@
 > Covers the **.NET 9 Modular Monolith** (`IndexDesk.sln`). Product docs call the platform _ETFHub B3_;
 > code/branding uses **IndexDesk**. **Do not modify code** when only instruction updates are requested —
 > edits here are markdown only.
+>
+> When your work changes implemented endpoints/jobs/conventions here, also update the repo skill
+> `.agents/skills/indexdesk/references/process/current-features.md` (see "Repo Skill" section in root `CLAUDE.md`).
 
 ## 1. What this workspace is
 
