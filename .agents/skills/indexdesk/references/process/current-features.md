@@ -19,6 +19,7 @@ Detalhes/contratos: [`../../../../apps/backend/src/Modules/IndexDesk.Modules.Aut
 | `POST /sync/macro` | TriggerMacroSync | dispara sync BCB (CDI/Selic/IPCA/IGP-M) |
 | `GET /` | GetAssets | catálogo paginado |
 | `GET /rankings` | GetAssetRankings | ranking por métrica (`retorno12m/30d/6m/ano`, `variacaodia`, `volatilidade`, `sharpe`, `drawdown`, `volume`); sem dados na métrica → última posição |
+| `GET /market-indicators` | GetMarketIndicators | snapshot CDI/Selic/IPCA (séries 12/11/433) com acumulado 12m; cache Redis 24h; 404 se séries vazias |
 | `GET /{ticker}` | GetAssetByTicker | detalhe do ativo (metadados + fiscal) |
 | `GET /{ticker}/quotes` | GetAssetQuotes | série histórica |
 | `GET /{ticker}/performance` | GetAssetPerformance | métricas de performance |
@@ -51,6 +52,7 @@ Serviços de ingestão persistem auditoria em `sync_job_logs`. Polly: apenas pip
 
 | Rota | Descrição |
 | :--- | :--- |
+| `/` (home) | mini-dashboard de mercado: strip CDI/Selic/IPCA, movers 12m (altas/quedas via rankings), lista compacta de ferramentas — sem cards/KPI vazios |
 | `(public)/ativos` + `/ativos/[ticker]` | catálogo e página de ativo genérica |
 | `(public)/etf/[ticker]`, `(public)/bdr/[ticker]` | páginas por classe (painel fiscal, TradingView link) |
 | `(public)/rankings` | ranking público por métrica/tipo com estado nuqs (`tipo`, `metrica`, `direcao`) |
@@ -59,6 +61,15 @@ Serviços de ingestão persistem auditoria em `sync_job_logs`. Polly: apenas pip
 | `(public)/ferramentas/rendimento-real` | calculadora de rendimento real (Fisher) |
 | `(admin)/admin` | painel admin (uma página; subrotinas de curadoria/uploads pendentes) |
 | `~offline`, `serwist/[path]` | fallback offline PWA |
+
+**Layout/nav:** navbar agrupada em dropdowns (Mercado/Ferramentas); command palette `Ctrl+K`
+(`cmdk` via `components/ui/command.tsx`) busca páginas + ativos e substitui o popover antigo;
+`<Toaster />` (sonner) montado em `providers.tsx`. Componentes UI novos: `command`, `tooltip`,
+`sonner`, `scroll-area`, `alert-dialog` (base-nova/base-ui, escritos à mão onde o CLI conflitou).
+
+**Redesign em andamento:** plano de fases A/B/C em
+`~/.opencode/plan/frontend-redesign.md` (A concluída: home dashboard + nav agrupada + palette;
+B: densidade de tabelas + sparklines batch; C: página de ativo).
 
 **Ainda não existem:** `/noticias`, `/relatorios`, screener avançado, premium/desconto vs PL, captação
 líquida/CVM informe diário, overlap/tax drag/DARF/aposentadoria/fluxo-CVM, sitemaps/OG dinâmicos

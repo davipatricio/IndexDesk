@@ -118,3 +118,12 @@ public sealed record BenchmarkReturnDto(
     decimal ReturnPercent,
     bool Available
 );
+
+/// <summary>Macro indicator snapshot for the market strip (CDI/Selic/IPCA).</summary>
+public sealed record MarketIndicatorDto(
+    string Code,
+    string Name,
+    decimal LatestValue,
+    DateOnly LatestDate,
+    decimal? Accum12mPercent
+);

@@ -310,6 +310,28 @@ public static class MarketDataModuleExtensions
 
         group
             .MapGet(
+                "/market-indicators",
+                async (IAssetQueryService queryService, CancellationToken ct) =>
+                {
+                    var indicators = await queryService.GetMarketIndicatorsAsync(ct);
+                    return indicators.Count == 0
+                        ? Results.NotFound(
+                            new
+                            {
+                                code = "MarketData.IndicatorsUnavailable",
+                                message = "Nenhum indicador macro disponível ainda. Execute a sincronização de séries do BCB.",
+                            }
+                        )
+                        : Results.Ok(indicators);
+                }
+            )
+            .WithName("GetMarketIndicators")
+            .WithSummary(
+                "Latest CDI, Selic and IPCA values with trailing 12-month accumulation from local BCB series"
+            );
+
+        group
+            .MapGet(
                 "/{ticker}/quotes",
                 async (
                     string ticker,

@@ -271,6 +271,64 @@ public class AssetQueryService : IAssetQueryService
         );
     }
 
+    public async Task<IReadOnlyList<MarketIndicatorDto>> GetMarketIndicatorsAsync(
+        CancellationToken cancellationToken = default
+    )
+    {
+        var result = await _cache.GetOrCreateAsync(
+            "marketdata:indicators:v1",
+            async ct =>
+            {
+                var today = DateOnly.FromDateTime(DateTime.UtcNow);
+                var windowStart = today.AddYears(-1);
+
+                var definitions = new (string Code, string Name, int SeriesCode, bool Daily)[]
+                {
+                    ("CDI", "CDI", 12, true),
+                    ("Selic", "Selic", 11, true),
+                    ("IPCA", "IPCA", 433, false),
+                };
+
+                var indicators = new List<MarketIndicatorDto>(definitions.Length);
+                foreach (var definition in definitions)
+                {
+                    var points = await _dbContext
+                        .MacroEconomicSeries.Where(s =>
+                            s.SeriesCode == definition.SeriesCode && s.Date >= windowStart
+                        )
+                        .OrderBy(s => s.Date)
+                        .Select(s => new { s.Date, s.Value })
+                        .ToListAsync(ct);
+
+                    if (points.Count == 0)
+                        continue;
+
+                    // Trailing 12m accumulation: daily rates compound over the business-year
+                    // window; monthly IPCA compounds over the calendar months present.
+                    var accumulation = PerformanceCalculators.AccumulateRateSeries(
+                        points.Select(p => p.Value).ToList()
+                    );
+
+                    indicators.Add(
+                        new MarketIndicatorDto(
+                            Code: definition.Code,
+                            Name: definition.Name,
+                            LatestValue: points[^1].Value,
+                            LatestDate: points[^1].Date,
+                            Accum12mPercent: Math.Round(accumulation, 2)
+                        )
+                    );
+                }
+
+                return indicators;
+            },
+            TimeSpan.FromHours(24),
+            cancellationToken
+        );
+
+        return result;
+    }
+
     // ---- internals ------------------------------------------------------
 
     private async Task<AssetEntity?> FindAssetAsync(

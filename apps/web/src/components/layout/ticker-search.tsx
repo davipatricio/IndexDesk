@@ -4,81 +4,81 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { useHotkey } from '@tanstack/react-hotkeys';
-import { fetchAssets, type AssetDto } from '@/lib/api-client';
+import { fetchAssets } from '@/lib/api-client';
 import { getAssetCategory, getAssetDetailHref } from '@/components/catalog/catalog-table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  CommandShortcut,
+} from '@/components/ui/command';
+import {
+  BarChart3,
+  ArrowRightLeft,
+  Search,
+  TrendingUp,
+  Table2,
+  Percent,
+  Layers,
+} from 'lucide-react';
 
-const MAX_RESULTS = 8;
+const PAGES = [
+  { href: '/ativos', label: 'Explorar ativos', icon: Table2, shortcut: '' },
+  { href: '/rankings', label: 'Rankings', icon: TrendingUp, shortcut: '' },
+  { href: '/comparador', label: 'Comparador', icon: ArrowRightLeft, shortcut: '' },
+  {
+    href: '/ferramentas/backtest',
+    label: 'Simulador de backtest',
+    icon: BarChart3,
+    shortcut: '',
+  },
+  {
+    href: '/ferramentas/rendimento-real',
+    label: 'Rendimento real',
+    icon: Percent,
+    shortcut: '',
+  },
+] as const;
+
+const MAX_ASSETS = 8;
 
 export function TickerSearch() {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
-  const [query, setQuery] = React.useState('');
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  useHotkey('Mod+K', () => setOpen((previous) => !previous), { preventDefault: true });
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ['assets', 'search'],
     queryFn: () => fetchAssets(),
     enabled: open,
     staleTime: 60_000,
   });
-  const assets = data ?? [];
+  const assets = React.useMemo(() => (data ?? []).slice(0, MAX_ASSETS), [data]);
 
-  const toggle = React.useCallback(() => {
-    setOpen((previous) => {
-      if (!previous) setQuery('');
-      return !previous;
-    });
-  }, []);
-  React.useEffect(() => {
-    if (open) inputRef.current?.focus();
-  }, [open]);
-  React.useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node))
-        setOpen(false);
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [open]);
-  useHotkey('Mod+K', toggle, { preventDefault: true });
-
-  const normalized = query.trim().toLowerCase();
-  const results = (
-    normalized
-      ? assets.filter((asset) =>
-          [
-            asset.ticker,
-            asset.name,
-            (asset as unknown as { benchmark?: string; benchmarkSymbol?: string })
-              .benchmarkSymbol ??
-              (asset as unknown as { benchmark?: string }).benchmark ??
-              '',
-          ]
-            .filter(Boolean)
-            .some((value) => value.toLowerCase().includes(normalized)),
-        )
-      : assets
-  ).slice(0, MAX_RESULTS);
-  const select = (asset: AssetDto) => {
-    setOpen(false);
-    setQuery('');
-    router.push(getAssetDetailHref(asset));
-  };
+  const go = React.useCallback(
+    (href: string) => {
+      setOpen(false);
+      router.push(href);
+    },
+    [router],
+  );
 
   return (
-    <div ref={containerRef} className="relative">
+    <>
       <Button
         variant="ghost"
         size="sm"
-        onClick={toggle}
+        onClick={() => setOpen(true)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label="Buscar ativo"
+        aria-label="Buscar página ou ativo"
         className="gap-1.5 text-muted-foreground hover:text-foreground"
       >
         <Search className="size-3.5" />
@@ -87,68 +87,65 @@ export function TickerSearch() {
           Ctrl K
         </kbd>
       </Button>
-      {open ? (
-        <div className="absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10">
-          <div className="px-1.5 py-1">
-            <Input
-              ref={inputRef}
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') setOpen(false);
-                if (event.key === 'Enter' && results[0]) select(results[0]);
-              }}
-              placeholder="Buscar ticker, nome ou benchmark..."
-              aria-label="Buscar por ticker, nome ou benchmark"
-              className="h-8 text-xs"
-            />
-          </div>
-          <ul className="max-h-72 divide-y divide-border/40 overflow-y-auto p-1">
-            {isLoading ? (
-              <li className="px-2 py-4 text-center text-xs text-muted-foreground">
-                Carregando catálogo...
-              </li>
-            ) : isError ? (
-              <li className="px-2 py-4 text-center text-xs text-destructive">
-                Não foi possível carregar o catálogo.
-              </li>
-            ) : results.length ? (
-              results.map((asset) => (
-                <li key={asset.ticker}>
-                  <button
-                    type="button"
-                    onClick={() => select(asset)}
-                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+
+      <CommandDialog open={open} onOpenChange={(nextOpen) => setOpen(nextOpen)}>
+        <CommandInput placeholder="Buscar ferramenta ou ticker…" />
+        <CommandList>
+          {isLoading ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+              Carregando catálogo…
+            </p>
+          ) : null}
+          {!isLoading && !isError ? (
+            <>
+              <CommandEmpty>Nada encontrado para essa busca.</CommandEmpty>
+              <CommandGroup heading="Navegação">
+                {PAGES.map((page) => (
+                  <CommandItem
+                    key={page.href}
+                    value={`${page.label} ${page.href}`}
+                    onSelect={() => go(page.href)}
                   >
-                    <span className="flex min-w-0 flex-col">
-                      <span className="flex items-center gap-1.5 font-mono text-xs font-semibold text-foreground">
-                        {asset.ticker}
+                    <page.icon className="text-muted-foreground" />
+                    {page.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              {assets.length > 0 ? (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup heading="Ativos">
+                    {assets.map((asset) => (
+                      <CommandItem
+                        key={asset.ticker}
+                        value={`${asset.ticker} ${asset.name}`}
+                        onSelect={() => go(getAssetDetailHref(asset))}
+                      >
+                        <Layers className="text-muted-foreground" />
+                        <span className="font-mono text-xs font-semibold">{asset.ticker}</span>
                         <Badge variant="secondary" className="px-1 py-0 text-[9px]">
                           {getAssetCategory(asset)}
                         </Badge>
-                      </span>
-                      <span className="truncate text-[11px] text-muted-foreground">
-                        {asset.name}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-[11px] text-muted-foreground">
-                      {((asset as unknown as { benchmark?: string; benchmarkSymbol?: string })
-                        .benchmarkSymbol ??
-                        (asset as unknown as { benchmark?: string }).benchmark ??
-                        '') ||
-                        '—'}
-                    </span>
-                  </button>
-                </li>
-              ))
-            ) : (
-              <li className="px-2 py-4 text-center text-xs text-muted-foreground">
-                Nenhum ativo encontrado para “{query}”.
-              </li>
-            )}
-          </ul>
-        </div>
-      ) : null}
-    </div>
+                        <span className="truncate text-xs text-muted-foreground">{asset.name}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </>
+              ) : null}
+            </>
+          ) : null}
+          {!isLoading && isError ? (
+            <p className="px-3 py-6 text-center text-sm text-destructive">
+              Não foi possível carregar o catálogo agora.
+            </p>
+          ) : null}
+        </CommandList>
+        {PAGES[0] ? (
+          <div className="border-t px-3 py-2">
+            <CommandShortcut>Enter abre · Esc fecha</CommandShortcut>
+          </div>
+        ) : null}
+      </CommandDialog>
+    </>
   );
 }

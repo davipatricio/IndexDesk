@@ -171,6 +171,15 @@ export const RANKING_METRICS = [
 
 export type RankingsMetric = (typeof RANKING_METRICS)[number];
 
+/** Macro indicator snapshot returned by GET /api/v1/assets/market-indicators. */
+export interface MarketIndicatorDto {
+  code: string;
+  name: string;
+  latestValue: number;
+  latestDate: string;
+  accum12mPercent: number | null;
+}
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? '' : 'http://127.0.0.1:5000');
 
@@ -461,8 +470,7 @@ export async function fetchRealYield(
   return (await res.json()) as RealYieldResponse;
 }
 
-/** Fetch the metric ranking from GET /api/v1/assets/rankings. */
-export async function fetchAssetRankings(options?: {
+/** Fetch the metric ranking from GET /api/v1/assets/rankings. */ export async function fetchAssetRankings(options?: {
   assetType?: string;
   metric?: string;
   orderDirection?: 'asc' | 'desc';
@@ -484,4 +492,12 @@ export async function fetchAssetRankings(options?: {
     if (Array.isArray(items)) return items as AssetRankingDto[];
   }
   throw new Error('Resposta inválida do ranking de ativos.');
+}
+
+/** Fetch CDI/Selic/IPCA snapshot from GET /api/v1/assets/market-indicators. */
+export async function fetchMarketIndicators(): Promise<MarketIndicatorDto[]> {
+  const url = `${API_BASE_URL}/api/v1/assets/market-indicators`;
+  const res = await fetch(url, { credentials: 'include', next: { revalidate: 3600 } });
+  if (!res.ok) throw await readApiError(res, `Falha ao obter indicadores: ${res.statusText}`);
+  return (await res.json()) as MarketIndicatorDto[];
 }

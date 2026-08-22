@@ -29,6 +29,11 @@ public interface IAssetQueryService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>Latest CDI/Selic/IPCA snapshot with trailing 12m accumulation.</summary>
+    Task<IReadOnlyList<MarketIndicatorDto>> GetMarketIndicatorsAsync(
+        CancellationToken cancellationToken = default
+    );
+
     Task<AssetDetailDto?> GetDetailAsync(
         string ticker,
         CancellationToken cancellationToken = default
