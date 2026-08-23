@@ -1,0 +1,31 @@
+[project]
+name = "sidecar"
+version = "0.1.0"
+description = "IndexDesk provider sidecar - NDJSON CLI over yfinance and tv-scraper, spawned by IndexDesk.Worker (.NET)"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+dependencies = [
+    # Pinned exactly (Fase 0 measured facts, 2026-08-23, CPython 3.13/3.14).
+    # Bump consciously: yfinance pins exist because its TLS/cookie stack breaks often.
+    "yfinance==1.6.0",
+    "tv-scraper==1.5.1",
+    "curl-cffi==0.16.1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.3"]
+
+[project.scripts]
+sidecar = "sidecar.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sidecar"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

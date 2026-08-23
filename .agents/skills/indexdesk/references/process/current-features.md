@@ -1,6 +1,6 @@
 # Features Atuais — Inventário do que JÁ existe implementado
 
-> Snapshot 2026-08-22. **Antes de usar/estender uma superfície, confirme aqui ou no código.**
+> Snapshot 2026-08-23 (pós provider-sync Fases 0–4; Fase 5 docs). **Antes de usar/estender uma superfície, confirme aqui ou no código.**
 > Este arquivo é atualizado sempre que uma feature entra/sai (ver seção "Skills internas" do CLAUDE.md raiz).
 > Estado macro de fases/tarefas: [`project-state.md`](project-state.md).
 
@@ -38,6 +38,56 @@ de forma idempotente — única exceção à regra "curadoria cria o ativo antes
 mapeia IBOV→`^BVSP`; `BrapiClient.SupportsTicker` rejeita benchmarks (Yahoo only). INDEX fica fora de
 catálogo/rankings públicos.
 
+### Clientes sidecar Python (`Modules.MarketData/Clients/`, Fase 2 provider-sync)
+Três `IMarketDataClient` que delegam o fetch ao processo Python `tools/providers/sidecar` via
+`SidecarProcessRunner` (spawn uv, timeout 120 s default com kill da árvore, NDJSON no stdout,
+erros como envelope JSON no stderr; exit 2/3/4 → `Sidecar.Usage/FetchFailed/ParseError`,
+spawn falho → `Sidecar.SpawnFailed`). Desde a Fase 3 a cadeia declarativa `IMarketDataClient`
+(Priority) é **Brapi (1) → YahooSidecar (2) → TradingViewSidecar (3)**; HG Brasil saiu da cadeia
+(pago, client inativo); InfoMoney segue FORA da cadeia — secundária explícita:
+- `YfinanceSidecarClient` (`YahooSidecar`, Priority 2) — `sidecar yf quotes|dividends`.
+- `TradingViewSidecarClient` (`TradingView`, Priority 3) — `sidecar tv history`, prefixo
+  `BMFBOVESPA:`, cookie de `Providers__TradingView__Cookie` (opcional; falha auth =
+  `TradingView.AuthFailed`; dividends = vazio por design).
+- `InfoMoneySidecarClient` (`InfoMoney`, Priority 4, secundária) — `sidecar im quotes|dividends`;
+  key de `Providers__InfoMoney__SubscriptionKeys__0` injetada como env
+  `INFOMONEY_SUBSCRIPTION_KEY` no filho; sem key = `InfoMoney.NoApiKey` sem spawn;
+  403 Akamai = `Scrape.WafBlocked`, 401 = `InfoMoney.AuthFailed`; série diária **sem ajuste**
+  (`adj_close=close`) e dividends com vocabulário B3 nativo (DIVIDENDO/JRSCAPPROPRIO...).
+Config: `Providers__Sidecar__UvPath` (default `uv`), `Providers__Sidecar__ProjectPath`
+(default: resolve subindo diretórios até `tools/providers/sidecar/pyproject.toml`),
+`Providers__Sidecar__TimeoutSeconds` (default 120). Smoke manual permanente:
+`SIDECAR_SMOKE=1 dotnet test --filter FullyQualifiedName~SidecarSmokeTests`.
+
+### Transporte HTTP genérico anti-WAF (`sidecar fetch` + `ISidecarHttp`, Fase 3 adendo)
+Hosts com fingerprinting TLS Akamai (ex.: `www.itnow.com.br`: curl/HttpClient nativo = 403
+"Access Denied" mesmo com headers de browser; `curl_cffi impersonate="chrome"` = 200) são
+servidos por um comando genérico do sidecar: `sidecar fetch --url URL [--method GET|POST]
+[--data BODY] [--header "K: V"...] [--timeout-s N] [--b64]` — **corpo cru no stdout**
+(texto; `--b64` para binário tipo XLSX), envelope no stderr com campo extra `status`
+(`Scrape.WafBlocked` p/ 403, senão `Fetch.Failed`; ambos exit 3). Wrapper C#:
+`ISidecarHttp`/`SidecarHttp` (singleton sobre o runner). Consumidor atual:
+`ItNowHoldingsFeed` roteia página de composição + POST `history-api-json` pelo sidecar
+por default (`Providers:Holdings:ItNow:Transport=sidecar|native`, default sidecar).
+Smoke ao vivo 23/08: BOVV11 = 78 holdings, as-of 2026-08-21, top VALE3 11,2377%.
+
+### FX e Holdings (Fase 3 provider-sync)
+- `AwesomeApiClient`/`IAwesomeApiClient` — HttpClient nativo (sem sidecar);
+  `GET json/last/{pares}` multi-par e `GET json/daily/{par}` histórico; contrato bid/ask com
+  **bid = proxy de close**; token premium `Providers__AwesomeApi__Token` vai só como query param,
+  nunca logado. Persistência em tabela `fx_rates` (PK pair+date, upsert idempotente) via
+  `FxRateSyncService`.
+- Holdings (`Ingestion/Holdings/`): parsers puros + feeds HttpClient — iShares CSV
+  (link ajax extraído por regex da página do produto; mapa ticker→página em
+  `Providers:Ishares:Products:{TICKER}`), SPDR XLSX via ClosedXML, It Now/Investo HTML via
+  AngleSharp (`HtmlCompositionParser`: classifica tabela pelo header, ignora "País",
+  Investo publica nomes sem tickers). It Now (JSON API + fallback HTML) vai por transporte
+  **sidecar** (`ISidecarHttp`) — host bloqueia TLS nativo. `EtfHoldingsSyncService` faz upsert
+  idempotente em `etf_holdings` (dedupe etf+as_of_date+ticker; linhas sem ticker dedupe por
+  nome); fonte que falha = PARTIAL_WARNING e o job continua. Ao vivo 23/08: serviço SUCCESS
+  4/4 contra o Postgres dev; WRLD11 upsertou 10 linhas idempotentes; backfill CLI
+  `--backfill IVVB11 --provider yahoo` = 1405 quotes idempotentes (2021→2026).
+
 ### `/api/v1/analytics` (módulo Analytics)
 - `POST /backtest` — simulação com pesos/aportes.
 - `GET /real-yield?nominalRate&inflationRate` — rendimento real (Fisher).
@@ -52,15 +102,43 @@ catálogo/rankings públicos.
 | Job | Agenda (UTC) | Serviço |
 | :--- | :--- | :--- |
 | `BcbSyncJob` | diário 23:00 | `IMacroEconomicSyncService.SyncAllAsync` |
-| `MarketDataDailySyncJob` | Mon–Fri 22:00 | `IAssetSyncService.SyncDailyQuotesAsync` |
+| `MarketDataDailySyncJob` | Mon–Fri 22:00 | `IDailyCloseSyncService.SyncDailyCloseAsync` — 1 batch Brapi + proventos espaçados ≥7 s + gap fill Yahoo→TV sidecar |
+| `FxRatesDailySyncJob` | Mon–Fri 22:05 | `IFxRateSyncService.SyncLatestAsync` (AwesomeAPI USD/EUR/BTC-BRL → `fx_rates`) |
+| `TradingViewDailySyncJob` | Mon–Fri 22:30 | `ITradingViewRefreshSyncService.RefreshAsync` (config ou séries defasadas) |
+| `HoldingsWeeklySyncJob` | sáb 08:00 | `IEtfHoldingsSyncService.SyncWeeklyAsync` (iShares/SPDR/It Now/Investo → `etf_holdings`) |
 | `PilotAssetBackfillJob` | sem agenda (manual/CLI) | `IAssetBackfillService.BackfillPilotAssetsAsync` |
 
-CLI on-demand: `dotnet run --project src/IndexDesk.Worker -- --backfill TICKER[,TICKER2]` — aceita os
-pilotos e benchmarks (IBOV start 2015, IFIX start hoje-7d). Sync diário (`SyncDailyQuotesAsync` default)
-cobre MXRF11, VWRA11, GOLD11, WRLD11, IBOV, IFIX. Backfill executado: IBOV 2890 cotações (2015→hoje,
-YahooFinance); IFIX 1 ponto (forward-only).
-Serviços de ingestão persistem auditoria em `sync_job_logs`. Polly: apenas pipeline default definido
-(`ResiliencePipelines.cs`) — circuit breaker/rate limiter por provider **ainda não wired**.
+CLI on-demand: `dotnet run --project src/IndexDesk.Worker -- --backfill TICKER[,TICKER2] [--provider yahoo|tv|infomoney|brapi]`
+(`SidecarProviderDirectory`; InfoMoney só por aqui). Aceita os pilotos e benchmarks
+(IBOV start 2015, IFIX start hoje-7d). Backfill executado: IBOV 2890 cotações (2015→hoje,
+YahooFinance); IFIX 1 ponto (forward-only); **IVVB11/yahoo 1405 quotes idempotentes**
+(2021-01-04→2026-08-21, 2ª execução estável).
+Serviços de ingestão persistem auditoria em `sync_job_logs`.
+
+### Resiliência de providers (Fase 4 provider-sync)
+- **`IApiKeyPool`/`InMemoryApiKeyPool`** (`Resilience/`, singleton): round-robin entre chaves
+  saudáveis; cooldown `RateLimited` honrando `Retry-After` (quota diária → `UntilNextUtcDay`);
+  `Invalid` (401/403) fora até reinício; token bucket por chave DENTRO do pool (`Acquire`
+  consome token, refill proporcional; Brapi 10 req/min/chave). Chave única legada
+  (`Brapi:ApiKey`, `AwesomeApi:Token`, `InfoMoney:SubscriptionKey`) liga como índice 0;
+  provider sem chaves roda keyless (`HasKeys`). Config arrays:
+  `Providers__Brapi__ApiKeys__*`, `Providers__AwesomeApi__Tokens__*`,
+  `Providers__InfoMoney__SubscriptionKeys__*`; rpm em `Providers:{P}:RequestsPerMinutePerKey`.
+- **`ProviderResilience`** + `BuildingBlocks.Resilience.ResiliencePipelines.CreateProviderCallPipeline<T>`:
+  retry exp+jitter (respeita Retry-After) + circuit breaker (knobs `Providers:Resilience:*`;
+  estado por NOME de provider, pipelines cacheados no singleton — clientes transient não perdem
+  estado). Circuito aberto = `Provider.CircuitOpen`; pool esgotado = `Provider.PoolExhausted` —
+  ambos **soft**: o estágio vira PARTIAL_WARNING (`DailyCloseChain.StatusFor`) e a cadeia faz
+  failover Brapi → YahooSidecar → TVSidecar, sem retry cego.
+- **Taxonomia de error codes** (documentada nos comentários dos clientes): `.RateLimit` =
+  retry sim/breaker não · `Scrape.WafBlocked`/`*.AuthFailed` = breaker sim/retry não ·
+  `Sidecar.Timeout/FetchFailed/.HttpError/.Exception` = ambos · `*.NoApiKey/.NoData/
+  PoolExhausted/ParseError/Usage/SpawnFailed` = pass-through. Sidecar clients têm 1 retry só em
+  Timeout/FetchFailed (`Providers:Sidecar:MaxRetries`).
+- **Health:** `ProviderHealthDto.Keys` (`ProviderKeyHealthDto`) expõe contadores success/429/
+  Invalid **por índice** de chave (nunca o valor); `GET /api/v1/providers/health` agrega.
+- Planners puros testáveis: `Ingestion/DailyCloseChain.cs` e `Ingestion/DividendQueue.cs`
+  (spacing ≥7 s após cada ticker, delay injetável).
 
 ## Frontend (`apps/web/src/app`) — páginas com implementação atual
 

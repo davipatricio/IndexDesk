@@ -14,6 +14,19 @@ Snapshot do roadmap (2026-08-22). Estado atual: `.roadmap/**/decisions.json` e `
 | **DEC-007** (P0) | Toolchain de qualidade frontend/C# | open | Oxlint/Oxfmt latest; TS moderno (preserve/bundler/noEmit); fixar TS 7 só quando publicado e validado com Next/Turbopack; CSharpier + dotnet format analyzers/style. |
 | **DEC-006** (P0) | Local-first estrito nas calculadoras | **accepted** | Calculadoras/páginas públicas leem só Postgres/Redis; Worker ingere tudo em background. |
 
+### Iniciativa provider-sync (plans/provider-sync-scrapers.md) — decisões de implementação
+
+Registradas em 2026-08-23 durante a execução das Fases 0–5 (namespace próprio `DEC-PS-*`
+para não colidir com a numeração do roadmap; refinam o eixo "provedores" de DEC-004).
+
+| ID | Tema | Status | Recomendação registrada |
+| :--- | :--- | :---: | :--- |
+| **DEC-PS-01** | Sidecar Python p/ fetch de providers | **accepted** | Fetch externo delegado ao processo Python `tools/providers/sidecar` (uv; `yfinance==1.6.0`, `tv-scraper==1.5.1`, `curl-cffi==0.16.1` pinados) via `SidecarProcessRunner`; contrato NDJSON v1 no stdout (erros JSON no stderr; exit 0/2/3/4); .NET orquestra (Quartz/upsert idempotente), Python só transporta anti-bloqueio (curl_cffi impersonate=chrome). |
+| **DEC-PS-02** | TradingView como fonte OHLCV slot 3 | **accepted** | `tv history` (tv-scraper `CandleStreamer`, pin/fork consciente — protocolo privado), símbolos `BMFBOVESPA:TICKER`, auth por **COOKIE autenticado** (lib sem login email/senha), chunking interno por payloads ≥4500 bars flaky; dividends vazio por design; job dedicado 22:30 UTC MON–FRI. |
+| **DEC-PS-03** | HG Brasil removido da cadeia | **accepted** | Descoberto pago (não freemium): fora da coleção `IMarketDataClient`; client compilando inativo; contingência de câmbio herdada pela AwesomeAPI (`fx_rates`, bid=proxy de close). Reativação só com decisão explícita de custo. |
+| **DEC-PS-04** | InfoMoney secundária-fora-da-cadeia | **accepted** | Key APIM pública do frontend + WAF TLS → acesso só via sidecar `im`; série sem adjclose (não substitui Brapi/Yahoo p/ backtest); vocabulário B3 nativo nos proventos (JSCP ≠ DIVIDENDO); uso apenas por `--backfill --provider infomoney` e validação cruzada; nunca primária (ToS não-oficial + chave revogável). |
+| **DEC-PS-05** | Transporte sidecar `fetch` p/ fontes WAF'd | **accepted** | Hosts com fingerprinting TLS Akamai (It Now hoje; XP/InfoMoney mesmo padrão) vão pelo comando genérico `sidecar fetch` (`ISidecarHttp`/`SidecarHttp`) — UA spoof nativo descartado (JA3), binário curl-impersonate descartado (segundo runtime); `Providers:Holdings:ItNow:Transport=sidecar` default com degradação p/ nativo. |
+
 ## Riscos
 
 | ID | Risco | P×I | Mitigação |

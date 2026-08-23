@@ -57,13 +57,43 @@ builder.Services.AddQuartz(q =>
             .WithCronSchedule("0 0 23 ? * * *")
     );
 
-    // B3 Market Data Daily Sync (MXRF11, VWRA11, GOLD11) - Scheduled Mon-Fri at 22:00 UTC (19:00 BRT)
+    // B3 Market Data Daily Sync - Scheduled Mon-Fri at 22:00 UTC (19:00 BRT).
+    // Budget-aware flow: ONE Brapi batch call, then sidecar gap fill (Yahoo -> TV).
     var marketDataJobKey = new JobKey("MarketDataDailySyncJob", "MarketDataIngest");
     q.AddJob<MarketDataDailySyncJob>(opts => opts.WithIdentity(marketDataJobKey));
     q.AddTrigger(opts =>
         opts.ForJob(marketDataJobKey)
             .WithIdentity("MarketDataDailySyncTrigger", "MarketDataIngest")
             .WithCronSchedule("0 0 22 ? * MON-FRI *")
+    );
+
+    // FX daily sync (AwesomeAPI: USD/EUR/BTC-BRL) - Mon-Fri at 22:05 UTC,
+    // right after the market-data job. Own job = own sync_job_logs + isolated failure.
+    var fxRatesJobKey = new JobKey("FxRatesDailySyncJob", "MarketDataIngest");
+    q.AddJob<FxRatesDailySyncJob>(opts => opts.WithIdentity(fxRatesJobKey));
+    q.AddTrigger(opts =>
+        opts.ForJob(fxRatesJobKey)
+            .WithIdentity("FxRatesDailySyncTrigger", "MarketDataIngest")
+            .WithCronSchedule("0 5 22 ? * MON-FRI *")
+    );
+
+    // TradingView OHLCV refresh for uncovered/stale tickers - Mon-Fri at 22:30 UTC.
+    var tradingViewJobKey = new JobKey("TradingViewDailySyncJob", "MarketDataIngest");
+    q.AddJob<TradingViewDailySyncJob>(opts => opts.WithIdentity(tradingViewJobKey));
+    q.AddTrigger(opts =>
+        opts.ForJob(tradingViewJobKey)
+            .WithIdentity("TradingViewDailySyncTrigger", "MarketDataIngest")
+            .WithCronSchedule("0 30 22 ? * MON-FRI *")
+    );
+
+    // Weekly holdings from manager feeds (iShares CSV, SPDR XLSX, It Now/Investo HTML)
+    // - Saturdays at 08:00 UTC.
+    var holdingsJobKey = new JobKey("HoldingsWeeklySyncJob", "MarketDataIngest");
+    q.AddJob<HoldingsWeeklySyncJob>(opts => opts.WithIdentity(holdingsJobKey));
+    q.AddTrigger(opts =>
+        opts.ForJob(holdingsJobKey)
+            .WithIdentity("HoldingsWeeklySyncTrigger", "MarketDataIngest")
+            .WithCronSchedule("0 0 8 ? * SAT *")
     );
 
     // Pilot Backfill Job (Manual/On-Demand execution)
@@ -75,7 +105,9 @@ builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
 var host = builder.Build();
 
-// CLI Backfill execution handling (e.g. dotnet run -- --backfill WRLD11)
+// CLI Backfill execution handling:
+//   dotnet run -- --backfill WRLD11            (fallback chain Brapi → Yahoo → TV)
+//   dotnet run -- -b IVVB11 --provider yahoo   (explicit provider: yahoo|tv|infomoney)
 var backfillIndex = Array.FindIndex(
     args,
     a =>
@@ -90,11 +122,36 @@ if (backfillIndex >= 0)
             ? args[backfillIndex + 1]
             : "WRLD11";
 
+    string? providerArg = null;
+    var providerIndex = Array.FindIndex(
+        args,
+        a =>
+            a.Equals("--provider", StringComparison.OrdinalIgnoreCase)
+            || a.Equals("-p", StringComparison.OrdinalIgnoreCase)
+    );
+    if (
+        providerIndex >= 0
+        && providerIndex + 1 < args.Length
+        && !args[providerIndex + 1].StartsWith('-')
+    )
+    {
+        providerArg = args[providerIndex + 1];
+    }
+
     using var scope = host.Services.CreateScope();
     var backfillService = scope.ServiceProvider.GetRequiredService<IAssetBackfillService>();
 
+    if (providerArg is not null && !SidecarProviderDirectory.TryNormalize(providerArg, out _))
+    {
+        Console.WriteLine(
+            $"[IndexDesk.Worker:CLI] Unknown provider '{providerArg}'. Supported: {SidecarProviderDirectory.SupportedNames}"
+        );
+        return;
+    }
+
     Console.WriteLine(
-        $"[IndexDesk.Worker:CLI] Running on-demand historical backfill for '{targetArg}'..."
+        $"[IndexDesk.Worker:CLI] Running on-demand historical backfill for '{targetArg}'"
+            + (providerArg is null ? "..." : $" via {providerArg}...")
     );
 
     var tickers = targetArg.Split(
@@ -117,7 +174,12 @@ if (backfillIndex >= 0)
         };
         var endDate = DateOnly.FromDateTime(DateTime.UtcNow);
 
-        var result = await backfillService.BackfillAssetAsync(ticker, startDate, endDate);
+        var result = await backfillService.BackfillAssetAsync(
+            ticker,
+            startDate,
+            endDate,
+            preferredProvider: providerArg
+        );
         if (result.IsSuccess)
         {
             var s = result.Value;

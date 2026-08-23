@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<!-- Trimmed 2026-08-23 from the LIVE https://www.itnow.com.br/bovv11/composicao/ page.
+     Preserves the two facts the parser relies on: distractor fund ISINs appear as
+     codProduct comparisons, while the page's own history-api-json calls embed
+     'fundo=BRBOVVCTF009'. -->
+<html lang="pt-BR">
+<head><title>BOVV11 - It Now</title></head>
+<body>
+<script>
+tFile($(this).attr('data-method-download'))
+                // })
+
+                function getIndex(codProduct) {
+
+                    let arr = [];
+
+                    if (
+                        codProduct === 'BRLFTICTF007' ||
+                        codProduct === 'BR5PRECTF008' ||
+                        codProduct === 'BRIMABCTF004' ||
+                        codProduct === 'BRIB5MCTF008' ||
+                        codProduct === 'BRIRFMCTF009' ||
+                        codProduct === 'BRTD50CTF009' ||
+                        codProduct === 'BRB5P2CTF001' ||
+                        codProduct === 'BRGOATCTF006' ||
+                        codProduct === 'BRIDKACTF004'
+                    ) {
+
+                        arr = ['{rfb}', 'IMA-B'];
+
+                        if (codProduct === 'BRIB5MCTF008') {
+                            return ['{rfb}', 'IMA-B 5X'];
+                        }
+
+                        if (codProduct === 'BRIRFMCTF009') {
+                            return ['{rfb}', 'IRF-M P2'];
+                        }
+
+                        if (codProduct === 'BRGOATCTF006') {
+                            return ['{rfb}', 'SPBSIB28'];
+                        }
+
+                        if (codProduct === 'BRB5P2CTF001') {
+                            return ['{rfb}', 'IMA-B 5 P2'];
+                        }
+
+                        if (codProduct === 'BRIDKACTF004') {
+                            return ['{rfb}', 'IRF-M P3'];
+                        }
+
+                        if (codProduct === 'BR5PRECTF008') {
+                            return ['{rfb}', 
+</script>
+<div class="tableAtivos"></div>
+<script>
+function GetAtivosMaioresPesos() {
+            const isRendaFixaComData = false;
+
+            const param = new Array(
+                'type=composicoes-indices',
+                'fundo=BRBOVVCTF009'
+            );
+
+            fetch('/history-api-json/?' + param.join('&'), requestOptions)
+                .then(function(response) {
+                    return response.text()
+                })
+                .then(function(result) {
+                    let resData = JSON.parse(result)
+                    let resultApi = resData.dados
+                    let $table = $('.tableAtivos');
+
+                    console.log('=== DADOS DA API: Ativos Maiores Pesos ===');
+                    console.log('Código ISIN Ativo:', 'BRBOVVCTF009');
+                    console.log('De onde vem (URL):', '/history-api-json/?' + param.join('&'));
+                    console.log('Dados da Tabela:', resData);
+
+                    $table.find('.loadingApi').hide();
+                    $('#chartAtivos').find('.loadingApi').hide();
+
+                    if (isRendaFixaComData) {
+                        if (resultApi) {
+                            if (resultApi[0]) {
+                                $('.ativos .dataAtualizacao .date').text(moment(resultApi[0].data_posicao).format(dateFormat))
+                            }
+
+                            resultApi.sort(function(a, b) {
+                                return b.porcentagem_participacao_renda_fixa - a.porcentagem_participacao_renda_fixa;
+                            });
+
+                            let top10 = resultApi.slice(0, 10);
+        
+</script>
+</body>
+</html>

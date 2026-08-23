@@ -14,6 +14,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\BuildingBlocks\BuildingBlocks.Common\BuildingBlocks.Common.csproj" />
     <ProjectReference Include="..\..\src\Modules\IndexDesk.Modules.Auth\IndexDesk.Modules.Auth.csproj" />
     <ProjectReference Include="..\..\src\Modules\IndexDesk.Modules.MarketData\IndexDesk.Modules.MarketData.csproj" />

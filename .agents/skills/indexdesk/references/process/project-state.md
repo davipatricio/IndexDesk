@@ -1,6 +1,6 @@
 # Estado Atual do Projeto & Roadmap
 
-> Snapshot do `ROADMAP.md` gerado em **2026-08-22** (pós-MVP-023). Para o estado exato, rode
+> Snapshot do `ROADMAP.md` gerado em **2026-08-23** (pós-MVP-023 + iniciativa provider-sync). Para o estado exato, rode
 > `bun run roadmap:check` ou leia `ROADMAP.md`. Este resumo pode estar defasado.
 
 ## Visão geral
@@ -37,8 +37,20 @@ Dependências: PHASE-00 → 01 → 02 → 03. Auth→admin→saved backtests→p
   painéis fiscais por classe (FiiTaxCard p/ FII).
 - **Benchmarks IBOV/IFIX ingeridos** (IBOV 2890 cotações desde 2015; IFIX forward-only) +
   `GET /api/v1/assets/macro-series` (taxas brutas p/ acumulação client-side, cache 24h).
+- **Iniciativa provider-sync (Fases 0–4 implementadas 2026-08-23; plano em
+  `plans/provider-sync-scrapers.md`):** sidecar Python (`tools/providers/sidecar`, NDJSON v1)
+  com clients C# `YfinanceSidecarClient`/`TradingViewSidecarClient`/`InfoMoneySidecarClient`
+  (+ `sidecar fetch` anti-WAF); cadeia OHLCV Brapi → YahooSidecar → TVSidecar (HG Brasil fora,
+  InfoMoney secundária); jobs `MarketDataDailySyncJob`/`FxRatesDailySyncJob`/`TradingViewDailySyncJob`/
+  `HoldingsWeeklySyncJob` (tabela nova `fx_rates`, holdings em `etf_holdings`); pool de chaves +
+  breaker por provider (`PARTIAL_WARNING` soft); backfill CLI multi-provider; recon + 7 HARs em
+  `tools/providers/recon/`. Detalhe: [`current-features.md`](current-features.md).
 
 ## ⬜ Pendente na fase atual (próximo trabalho provável)
+
+- **Provider-sync — calibração final:** credenciais TV (cookie autenticado) e token Brapi free
+  pendentes (Fase 0 bloqueada neles); calibrar 429 da fila de proventos pós-token; DDL manual de
+  `etf_holdings`/`fx_rates` vira migration formal quando FND-013 avançar.
 
 - **FND-013** migrations/banco (roadmap segue `not_started`; migrations já aplicadas no banco local — ver abaixo).
 - **MVP-003 reaberto:** ingestão CVM streaming (`inf_diario_fi`, CNPJ filter, COPY) — pré-requisito de
