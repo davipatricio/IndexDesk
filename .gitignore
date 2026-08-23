@@ -42,6 +42,12 @@ build/
 **/TestResults/
 **/artifacts/
 
+# Python (provider sidecar tooling)
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
 # IDE and OS files
 .vscode/*
 !.vscode/extensions.json
