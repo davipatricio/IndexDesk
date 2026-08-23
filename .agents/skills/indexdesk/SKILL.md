@@ -51,6 +51,10 @@ Este é o índice com regras que valem sempre. **Leia apenas os arquivos necess�
 | [common-mistakes.md](references/process/common-mistakes.md) | Antes de commit/PR — checklist ❌→✅ de erros comuns deste repo |
 | [decisions-risks.md](references/process/decisions-risks.md) | Antes de decidir arquitetura/ferramenta; decisões abertas (DEC-\*) e riscos (RISK-\*) |
 | [conventions.md](references/process/conventions.md) | Comandos turbo, quality gates, idioma da UI, visibilidade de rotas, contratos DTO/erro |
+| **how-tos/** | |
+| [feature-development.md](how-tos/feature-development.md) | Antes de implementar feature — ciclo em 7 passos, quando criar plano em `plans/`, DOD por fase, modo sidecar vs nativo |
+| [backend-module.md](how-tos/backend-module.md) | Adicionar módulo backend ou rota — pattern 2 extensões, hosts, DTOs, OpenAPI, persistência/timescale, jobs ingest local-first |
+| [validation.md](how-tos/validation.md) | Antes de commit/PR e ao integrar job de ingestão — gates de qualidade (CSharpier vs dotnet format, cache turbo), resiliência pool/breaker, testes offline/smoke, verificação pós-deploy (`sync_job_logs`, health) |
 | **market/** | |
 | [_overview.md](market/_overview.md) | Sempre que for tocar em regras de mercado/fisco — mapa e regras-fonte de dados |
 | [b3-operacoes.md](market/b3-operacoes.md) | Tickers, horários, índices, corporate actions, liquidação, feriados B3 |
@@ -71,8 +75,10 @@ Quando precisar do texto integral: `PRODUCT.md`, `STACK_SETUP.md`, `MODELS.md`, 
 
 Além desta skill, existem `CLAUDE.md`/`AGENTS.md` colados no código que documentam convenções locais —
 leia o mais próximo do arquivo que for editar: `apps/web/CLAUDE.md`, `apps/backend/CLAUDE.md`,
-`apps/backend/src/CLAUDE.md`, `apps/backend/src/IndexDesk.Worker/CLAUDE.md` e
-`apps/backend/src/Modules/IndexDesk.Modules.Auth/CLAUDE.md`.
+`apps/backend/src/CLAUDE.md`, `apps/backend/src/IndexDesk.Worker/CLAUDE.md`,
+`apps/backend/src/Modules/IndexDesk.Modules.Auth/CLAUDE.md`,
+`apps/backend/src/Modules/IndexDesk.Modules.MarketData/CLAUDE.md` e
+`apps/backend/src/BuildingBlocks/BuildingBlocks.Resilience/CLAUDE.md`; `tools/providers/sidecar/CLAUDE.md`.
 Regras de domínio (mercado/fisco/fórmulas) ficam aqui na skill (`market/*`); regras locais de código
 ficam nesses arquivos. Ao criar doc novo, siga o padrão `CLAUDE.md` + symlink `AGENTS.md`.
 
