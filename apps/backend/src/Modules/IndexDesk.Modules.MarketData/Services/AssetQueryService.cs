@@ -46,18 +46,24 @@ public class AssetQueryService : IAssetQueryService
             {
                 var query = _dbContext.Assets.Where(a => a.IsActive);
 
+                // Benchmark indices (IBOV, IFIX…) back the simulation/comparison features
+                // but are not catalog products; hide them unless explicitly requested.
+                if (!string.IsNullOrWhiteSpace(assetType))
+                {
+                    var type = assetType.Trim();
+                    query = query.Where(a => a.AssetType.ToUpper() == type.ToUpper());
+                }
+                else
+                {
+                    query = query.Where(a => a.AssetType != "INDEX");
+                }
+
                 if (!string.IsNullOrWhiteSpace(search))
                 {
                     var term = search.Trim();
                     query = query.Where(a =>
                         a.Ticker.Contains(term) || a.Name.Contains(term) || a.Cnpj!.Contains(term)
                     );
-                }
-
-                if (!string.IsNullOrWhiteSpace(assetType))
-                {
-                    var type = assetType.Trim();
-                    query = query.Where(a => a.AssetType.ToUpper() == type.ToUpper());
                 }
 
                 if (!string.IsNullOrWhiteSpace(currency))
@@ -109,10 +115,16 @@ public class AssetQueryService : IAssetQueryService
             {
                 var query = _dbContext.Assets.Where(a => a.IsActive);
 
+                // Indices are benchmarks, not rankable products — exclude unless the
+                // caller explicitly filters by their type.
                 if (!string.IsNullOrWhiteSpace(assetType))
                 {
                     var type = assetType.Trim();
                     query = query.Where(a => a.AssetType.ToUpper() == type.ToUpper());
+                }
+                else
+                {
+                    query = query.Where(a => a.AssetType != "INDEX");
                 }
 
                 var assets = await query.OrderBy(a => a.Ticker).ToListAsync(ct);
@@ -345,7 +357,9 @@ public class AssetQueryService : IAssetQueryService
         if (normalized.Length == 0)
             return Array.Empty<AssetQuotesBatchItemDto>();
 
-        var windowDays = Math.Clamp(days ?? DefaultSparklineWindowDays, 7, 3650);
+        // Up to ~20 years of closes: the investment-simulation section slices
+        // 6M/1A/3A/TUDO windows client-side from a single fetch.
+        var windowDays = Math.Clamp(days ?? DefaultSparklineWindowDays, 7, 7300);
         var cacheKey = $"marketdata:quotesbatch:{string.Join(",", normalized)}:{windowDays}";
 
         return await _cache.GetOrCreateAsync(
@@ -399,6 +413,142 @@ public class AssetQueryService : IAssetQueryService
 
     private const int MaxBatchTickers = 50;
     private const int DefaultSparklineWindowDays = 90;
+
+    /// <summary>
+    /// Dividend sheet for one asset: all locally known events plus trailing-12-months
+    /// totals and yield. Returns null when the ticker is unknown or has no events.
+    /// </summary>
+    public async Task<AssetDividendsDto?> GetDividendsAsync(
+        string ticker,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var normalized = ticker.Trim().ToUpperInvariant();
+        if (normalized.Length == 0)
+            return null;
+
+        var cacheKey = $"marketdata:dividends:{normalized}:v1";
+        var cached = await _cache.GetAsync<AssetDividendsDto?>(cacheKey, cancellationToken);
+        if (cached is not null)
+            return cached;
+
+        var asset = await FindAssetAsync(normalized, cancellationToken);
+        if (asset is null)
+            return null;
+
+        var events = await _dbContext
+            .AssetDividends.Where(d => d.AssetId == asset.Id)
+            .OrderBy(d => d.ComDate)
+            .Select(d => new
+            {
+                d.ComDate,
+                d.PaymentDate,
+                d.Rate,
+                d.DividendType,
+            })
+            .ToListAsync(cancellationToken);
+
+        if (events.Count == 0)
+            return null;
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var last12m = DividendCalculators.SumLast12Months(
+            events.Select(e => (e.ComDate, e.Rate)).ToList(),
+            today
+        );
+
+        var lastClose = await _dbContext
+            .AssetQuotes.Where(q => q.AssetId == asset.Id)
+            .OrderByDescending(q => q.Date)
+            .Select(q => (decimal?)q.Close)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var dto = new AssetDividendsDto(
+            Ticker: asset.Ticker,
+            Events: events
+                .Select(e => new AssetDividendEventDto(
+                    e.ComDate,
+                    e.PaymentDate,
+                    e.Rate,
+                    e.DividendType ?? "Provento"
+                ))
+                .ToList(),
+            TotalCount: events.Count,
+            Last12mTotal: last12m,
+            DividendYield12mPercent: DividendCalculators.YieldPercent(last12m, lastClose)
+        );
+
+        // Payout history changes rarely — a 30-minute cache keeps repeat visits cheap.
+        await _cache.SetAsync(cacheKey, dto, TimeSpan.FromMinutes(30), cancellationToken);
+        return dto;
+    }
+
+    /// <summary>
+    /// Raw rate windows for the requested macro-economic series (codes: CDI, SELIC, IPCA),
+    /// newest last. Unknown codes are omitted; an empty result is not cached.
+    /// </summary>
+    public async Task<IReadOnlyList<MacroRateSeriesDto>> GetMacroRateSeriesAsync(
+        IReadOnlyCollection<string> codes,
+        int? days,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var definitions = new (string Code, string Name, int SeriesCode)[]
+        {
+            ("CDI", "CDI", 12),
+            ("SELIC", "Selic", 11),
+            ("IPCA", "IPCA", 433),
+        };
+
+        var requested = codes
+            .Where(c => !string.IsNullOrWhiteSpace(c))
+            .Select(c => c.Trim().ToUpperInvariant())
+            .Distinct()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var selected = definitions.Where(d => requested.Contains(d.Code)).ToArray();
+        if (selected.Length == 0)
+            return Array.Empty<MacroRateSeriesDto>();
+
+        var windowDays = Math.Clamp(days ?? 365, 7, 7300);
+        var cacheKey =
+            $"marketdata:macroseries:{string.Join(",", selected.Select(s => s.Code))}:{windowDays}";
+
+        var cached = await _cache.GetAsync<IReadOnlyList<MacroRateSeriesDto>>(
+            cacheKey,
+            cancellationToken
+        );
+        if (cached is not null)
+            return cached;
+
+        var end = DateOnly.FromDateTime(DateTime.UtcNow);
+        var start = end.AddDays(-windowDays);
+
+        var result = new List<MacroRateSeriesDto>(selected.Length);
+        foreach (var definition in selected)
+        {
+            var points = await _dbContext
+                .MacroEconomicSeries.Where(s =>
+                    s.SeriesCode == definition.SeriesCode && s.Date >= start && s.Date <= end
+                )
+                .OrderBy(s => s.Date)
+                .Select(s => new MacroRatePointDto(s.Date, s.Value))
+                .ToListAsync(cancellationToken);
+
+            if (points.Count == 0)
+                continue;
+
+            result.Add(new MacroRateSeriesDto(definition.Code, definition.Name, points));
+        }
+
+        if (result.Count > 0)
+        {
+            // DEC-002: macro data TTL is 24h after ingest.
+            await _cache.SetAsync(cacheKey, result, TimeSpan.FromHours(24), cancellationToken);
+        }
+
+        return result;
+    }
 
     private async Task<AssetEntity?> FindAssetAsync(
         string ticker,

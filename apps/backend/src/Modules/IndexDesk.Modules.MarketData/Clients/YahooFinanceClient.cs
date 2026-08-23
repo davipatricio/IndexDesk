@@ -262,6 +262,13 @@ public class YahooFinanceClient : IMarketDataClient
     private static string ToYahooSymbol(string ticker)
     {
         ticker = ticker.Trim();
+
+        // Curated benchmark indices use internal tickers that differ from Yahoo symbols.
+        if (ticker.Equals("IBOV", StringComparison.OrdinalIgnoreCase))
+        {
+            return "^BVSP";
+        }
+
         if (
             ticker.EndsWith(".SA", StringComparison.OrdinalIgnoreCase)
             || ticker.StartsWith('^')

@@ -355,6 +355,37 @@ public static class MarketDataModuleExtensions
 
         group
             .MapGet(
+                "/macro-series",
+                async (
+                    string? codes,
+                    int? days,
+                    IAssetQueryService queryService,
+                    CancellationToken ct
+                ) =>
+                {
+                    var requested = (codes ?? string.Empty).Split(
+                        ',',
+                        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+                    );
+                    var series = await queryService.GetMacroRateSeriesAsync(requested, days, ct);
+                    return series.Count == 0
+                        ? Results.NotFound(
+                            new
+                            {
+                                code = "MarketData.MacroSeriesUnavailable",
+                                message = "No macro-economic series available for the request.",
+                            }
+                        )
+                        : Results.Ok(series);
+                }
+            )
+            .WithName("GetMacroRateSeries")
+            .WithSummary(
+                "Raw CDI/Selic/IPCA rate windows used to build accumulated benchmark curves"
+            );
+
+        group
+            .MapGet(
                 "/{ticker}/quotes",
                 async (
                     string ticker,
@@ -380,6 +411,28 @@ public static class MarketDataModuleExtensions
             .WithName("GetAssetQuotes")
             .WithSummary(
                 "Get historical daily OHLCV series for TradingView Lightweight Charts with optional date range"
+            );
+
+        group
+            .MapGet(
+                "/{ticker}/dividends",
+                async (string ticker, IAssetQueryService queryService, CancellationToken ct) =>
+                {
+                    var dividends = await queryService.GetDividendsAsync(ticker, ct);
+                    return dividends is null
+                        ? Results.NotFound(
+                            new
+                            {
+                                code = "MarketData.DividendsUnavailable",
+                                message = $"No dividend records found for '{ticker}'.",
+                            }
+                        )
+                        : Results.Ok(dividends);
+                }
+            )
+            .WithName("GetAssetDividends")
+            .WithSummary(
+                "Full local dividend history with trailing-12-months totals and yield per quote"
             );
 
         group

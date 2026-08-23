@@ -41,7 +41,7 @@ public class AssetSyncService : IAssetSyncService
         var tickers =
             targetTickers != null && targetTickers.Count > 0
                 ? targetTickers
-                : new[] { "MXRF11", "VWRA11", "GOLD11" };
+                : new[] { "MXRF11", "VWRA11", "GOLD11", "WRLD11", "IBOV", "IFIX" };
 
         _logger.LogInformation(
             "[Sync:DailyStart] Executing incremental daily sync for {Count} assets (Lookback: {Days} days, {StartDate} to {EndDate})...",

@@ -45,6 +45,25 @@ public interface IAssetQueryService
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>
+    /// Raw rate windows for the requested macro-economic series (codes: CDI, SELIC, IPCA),
+    /// newest last. Unknown codes are omitted; an empty result is not cached.
+    /// </summary>
+    Task<IReadOnlyList<MacroRateSeriesDto>> GetMacroRateSeriesAsync(
+        IReadOnlyCollection<string> codes,
+        int? days,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// Dividend sheet for one asset: all locally known events plus trailing-12-months
+    /// totals and yield. Returns null when the ticker is unknown or has no events.
+    /// </summary>
+    Task<AssetDividendsDto?> GetDividendsAsync(
+        string ticker,
+        CancellationToken cancellationToken = default
+    );
+
     Task<AssetDetailDto?> GetDetailAsync(
         string ticker,
         CancellationToken cancellationToken = default

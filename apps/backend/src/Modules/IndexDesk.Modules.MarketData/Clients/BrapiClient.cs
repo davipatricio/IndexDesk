@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using IndexDesk.BuildingBlocks.Common.Results;
 using IndexDesk.Modules.MarketData.Domain;
+using IndexDesk.Modules.MarketData.Ingestion;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -33,7 +34,8 @@ public class BrapiClient : IMarketDataClient
         // Brapi supports all B3 tickers (ETFs, BDRs, FIIs, Stocks)
         return !string.IsNullOrWhiteSpace(ticker)
             && !ticker.StartsWith('^')
-            && !ticker.Contains('=');
+            && !ticker.Contains('=')
+            && !BenchmarkCatalog.IsBenchmark(ticker); // indices are served by Yahoo only
     }
 
     public async Task<Result<IReadOnlyList<NormalizedQuote>>> GetHistoricalQuotesAsync(

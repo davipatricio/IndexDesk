@@ -109,6 +109,10 @@ if (backfillIndex >= 0)
             "VWRA11" => new DateOnly(2021, 1, 1),
             "GOLD11" => new DateOnly(2020, 1, 1),
             "WRLD11" => new DateOnly(2021, 1, 1),
+            // Benchmark indices: full depth for IBOV; IFIX is forward-only (Yahoo
+            // exposes no history) so the window starts around "now".
+            "IBOV" => new DateOnly(2015, 1, 1),
+            "IFIX" => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-7),
             _ => new DateOnly(2021, 1, 1),
         };
         var endDate = DateOnly.FromDateTime(DateTime.UtcNow);

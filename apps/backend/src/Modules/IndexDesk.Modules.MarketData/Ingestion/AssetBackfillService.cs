@@ -229,8 +229,30 @@ public class AssetBackfillService : IAssetBackfillService
             return Result<AssetEntity>.Success(existing);
         }
 
-        // Ingestion must never create an asset with guessed name, type, CNPJ, or
-        // other metadata. A curator/importer must create the catalog record first.
+        // Benchmark indices are the one exception to "curator creates the record first":
+        // their metadata is fully curated in code (BenchmarkCatalog), so ingestion can
+        // create them idempotently. Regular B3 assets still require explicit curation —
+        // never fabricate name, type, CNPJ or other metadata.
+        if (BenchmarkCatalog.All.TryGetValue(ticker, out var benchmark))
+        {
+            var entity = new AssetEntity
+            {
+                Ticker = benchmark.Ticker,
+                Name = benchmark.Name,
+                AssetType = "INDEX",
+                Currency = "BRL",
+                TradingViewSymbol = benchmark.TradingViewSymbol,
+            };
+            _dbContext.Assets.Add(entity);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation(
+                "[Backfill:Catalog] Created curated INDEX asset {Ticker} ({Name}).",
+                entity.Ticker,
+                entity.Name
+            );
+            return Result<AssetEntity>.Success(entity);
+        }
+
         return Result<AssetEntity>.Failure(Error.NotFound("Asset.Metadata", ticker));
     }
 

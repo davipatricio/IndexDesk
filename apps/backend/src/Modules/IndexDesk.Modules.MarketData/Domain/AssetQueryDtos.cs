@@ -131,8 +131,41 @@ public sealed record MarketIndicatorDto(
 /// <summary>Single closing point used to render inline sparklines.</summary>
 public sealed record QuoteSparkPointDto(DateOnly Date, decimal Close);
 
+/// <summary>One dividend/income event of an asset (cash rate per quote).</summary>
+public sealed record AssetDividendEventDto(
+    DateOnly ComDate,
+    DateOnly? PaymentDate,
+    decimal Rate,
+    string Type
+);
+
+/// <summary>
+/// Dividend sheet for one asset: full local event list plus trailing-12-months
+/// aggregates. An empty Events list means the asset never paid locally.
+/// </summary>
+public sealed record AssetDividendsDto(
+    string Ticker,
+    IReadOnlyList<AssetDividendEventDto> Events,
+    int TotalCount,
+    decimal Last12mTotal,
+    decimal? DividendYield12mPercent
+);
+
 /// <summary>Closing-price window for one ticker in a batch sparkline request.</summary>
 public sealed record AssetQuotesBatchItemDto(
     string Ticker,
     IReadOnlyList<QuoteSparkPointDto> Quotes
+);
+
+/// <summary>One raw rate observation (percent per period) of a macro-economic series.</summary>
+public sealed record MacroRatePointDto(DateOnly Date, decimal Value);
+
+/// <summary>
+/// Raw rate window of one macro-economic series (CDI/Selic daily %, IPCA monthly %),
+/// used client-side to build accumulated benchmark curves.
+/// </summary>
+public sealed record MacroRateSeriesDto(
+    string Code,
+    string Name,
+    IReadOnlyList<MacroRatePointDto> Points
 );
