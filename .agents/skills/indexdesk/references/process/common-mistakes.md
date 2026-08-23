@@ -66,3 +66,12 @@ Regras completas por tema nos arquivos de [`../..`](../../SKILL.md) (mapa no SKI
     → ✅ curadoria via `locked_fields`/`is_manually_overridden` — o sync ignora campos travados.
 24. ❌ Encerrar tarefa sem atualizar roadmap + skill interna
     → ✅ ver seção "Skills internas" do CLAUDE.md raiz (definição de pronto).
+25. ❌ Passar cores computadas (`getComputedStyle`) a charts canvas (lightweight-charts)
+    → ✅ tokens Tailwind v4 resolvem p/ `lab()`/`oklch()`; usar `lib/chart-colors.ts` → hex.
+26. ❌ Rodar `dotnet build -c Release`/`dotnet test` com o watch ligado
+    → ✅ colide com `obj/` do watch e mata/recompila em loop; parar o dev ou aceitar rebuild lento.
+27. ❌ Contar eventos com LEFT JOIN + `COUNT(*)`
+    → ✅ asset sem proventos retorna 1 linha nula contada como 1; usar `COUNT(d."Id")`.
+28. ❌ Confiar no dev server do Next após HMR pesado
+    → ✅ Turbopack pode morrer com panic interno (`turbo-tasks ... Aborting`); reiniciar e revalidar
+    as rotas tocadas.

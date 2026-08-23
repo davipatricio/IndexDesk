@@ -45,6 +45,12 @@ virtual ^3.14, hotkeys ^0.10, store/db · nuqs ^2.9 · zustand ^5 · Vitest ^3 +
 Séries temporais/equity/drawdown → `lightweight-charts` (Canvas ~60fps) ·
 Alocação/top-10/donut → `recharts` (SVG, tokens Tailwind) · Venn overlap/heatmap correlação → `@visx/group+shape`.
 
+Gotchas de canvas: lightweight-charts **não parseia** cores computadas `lab()/oklch()` dos tokens
+Tailwind v4 — resolver com `lib/chart-colors.ts` (`chartColor('--token', fallback)` converte
+oklch→hex seguindo `.dark`). Fatiamento de período compartilhado c/ testes em `lib/chart-period.ts`.
+Interações granulares (`handleScroll/handleScale`) em vez de `false` total quando se quer wheel sem
+drag-caótico.
+
 ## UI & convenções
 
 - shadcn CLI resolve para base-nova: `bunx shadcn@latest add <component>` → `src/components/ui`.

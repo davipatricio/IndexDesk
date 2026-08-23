@@ -32,10 +32,15 @@ Dependências: PHASE-00 → 01 → 02 → 03. Auth→admin→saved backtests→p
 - **Rankings (MVP-023):** `GET /api/v1/assets/rankings` + página `/rankings` (métrica × tipo × direção
   na URL via nuqs; `avgVolume30D` nas estatísticas; cache Redis 10 min).
 - TanStack suite + hydration (MVP-019), gráficos híbridos Lightweight Charts/Recharts/Visx (MVP-020).
+- **Redesign frontend fases A/B/C (2026-08-22):** home mini-dashboard, tabelas densas + sparklines,
+  página de ativo com hero chart (lightweight-charts), seção "Simular investimento" vs benchmarks e
+  painéis fiscais por classe (FiiTaxCard p/ FII).
+- **Benchmarks IBOV/IFIX ingeridos** (IBOV 2890 cotações desde 2015; IFIX forward-only) +
+  `GET /api/v1/assets/macro-series` (taxas brutas p/ acumulação client-side, cache 24h).
 
 ## ⬜ Pendente na fase atual (próximo trabalho provável)
 
-- **FND-013** migrations/banco (bloqueador — ver abaixo).
+- **FND-013** migrations/banco (roadmap segue `not_started`; migrations já aplicadas no banco local — ver abaixo).
 - **MVP-003 reaberto:** ingestão CVM streaming (`inf_diario_fi`, CNPJ filter, COPY) — pré-requisito de
   MVP-025 (premium/desconto vs PL + captação líquida) e de parte do MVP-024.
 - Screener avançado no catálogo (MVP-024).
@@ -46,7 +51,9 @@ Dependências: PHASE-00 → 01 → 02 → 03. Auth→admin→saved backtests→p
 
 ## 🚧 Bloqueadores e notas de ambiente
 
-1. **FND-013 pendente:** migrations não aplicadas porque os containers Docker não foram iniciados (por solicitação do dono do repo).
+1. **FND-013:** containers Docker agora **rodando** e migrations aplicadas no banco local (tabelas
+   verificadas em 2026-08-22); task permanece `not_started` no roadmap — aceite exige restaurar banco
+   vazio e reaplicar.
 2. **MVP-003 reaberto:** implementação CVM anterior foi removida no purge de dados sintéticos (commit `532fde5`); nenhum job CVM existe hoje.
 3. SDK .NET local usa `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` (libicu ausente no Debian sem sudo).
 4. `OpenTelemetry.Exporter.OpenTelemetryProtocol 1.11.1` registra advisory NU1902 — atualizar antes de produção.
