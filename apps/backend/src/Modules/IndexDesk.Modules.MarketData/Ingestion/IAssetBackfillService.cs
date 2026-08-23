@@ -8,7 +8,8 @@ public interface IAssetBackfillService
         string ticker,
         DateOnly startDate,
         DateOnly endDate,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        string? preferredProvider = null
     );
 
     Task<Result<IReadOnlyList<BackfillExecutionSummary>>> BackfillPilotAssetsAsync(

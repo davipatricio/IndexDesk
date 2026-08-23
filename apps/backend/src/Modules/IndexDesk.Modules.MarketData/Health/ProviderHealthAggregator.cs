@@ -36,6 +36,13 @@ internal static class ProviderHealthAggregator
 
     public static IReadOnlyList<ProviderHealthDto> BuildProviders(
         IReadOnlyList<SyncJobLogEntity> logs
+    ) => BuildProviders(logs, keyStatsByProvider: null);
+
+    /// <summary>Overload accepting live key-pool stats (Fase 4): success/429 counters per
+    /// provider + key INDEX are surfaced alongside the sync_job_logs aggregation.</summary>
+    public static IReadOnlyList<ProviderHealthDto> BuildProviders(
+        IReadOnlyList<SyncJobLogEntity> logs,
+        IReadOnlyDictionary<string, IReadOnlyList<ProviderKeyHealthDto>>? keyStatsByProvider
     )
     {
         var providerLogs = logs.GroupBy(l => l.ProviderName)
@@ -44,6 +51,7 @@ internal static class ProviderHealthAggregator
         // Known providers first (stable contract), then any catalogued-in-logs provider.
         var keys = KnownProviders
             .Select(p => p.Key)
+            .Concat(keyStatsByProvider?.Keys ?? Enumerable.Empty<string>())
             .Concat(providerLogs.Keys.Where(k => KnownProviders.All(p => p.Key != k)))
             .Distinct()
             .ToList();
@@ -53,7 +61,11 @@ internal static class ProviderHealthAggregator
                     key,
                     providerLogs.TryGetValue(key, out var list)
                         ? list
-                        : new List<SyncJobLogEntity>()
+                        : new List<SyncJobLogEntity>(),
+                    keyStatsByProvider is not null
+                    && keyStatsByProvider.TryGetValue(key, out var keyStats)
+                        ? keyStats
+                        : null
                 )
             )
             .ToList();
@@ -70,7 +82,11 @@ internal static class ProviderHealthAggregator
         return Healthy;
     }
 
-    private static ProviderHealthDto BuildProvider(string key, IReadOnlyList<SyncJobLogEntity> logs)
+    private static ProviderHealthDto BuildProvider(
+        string key,
+        IReadOnlyList<SyncJobLogEntity> logs,
+        IReadOnlyList<ProviderKeyHealthDto>? keyStats = null
+    )
     {
         var descriptor = KnownProviders.FirstOrDefault(p => p.Key == key);
         var (displayName, role) = descriptor is not null
@@ -94,7 +110,8 @@ internal static class ProviderHealthAggregator
                     WarningCount: 0,
                     ErrorCount: 0
                 ),
-                Issues: Array.Empty<SyncIssueDto>()
+                Issues: Array.Empty<SyncIssueDto>(),
+                Keys: keyStats
             );
         }
 
@@ -140,7 +157,8 @@ internal static class ProviderHealthAggregator
                 WarningCount: logs.Count(l => l.Status == "PARTIAL_WARNING"),
                 ErrorCount: logs.Count(l => l.Status == "FAILED")
             ),
-            Issues: issues
+            Issues: issues,
+            Keys: keyStats
         );
     }
 
