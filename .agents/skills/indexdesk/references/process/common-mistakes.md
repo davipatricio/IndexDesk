@@ -15,8 +15,10 @@ Regras completas por tema nos arquivos de [`../..`](../../SKILL.md) (mapa no SKI
    → ✅ upsert/COPY idempotente; reexecutar o mesmo dia atualiza, nunca duplica.
 5. ❌ Módulo referenciando outro módulo (`Modules.Auth` → `Modules.MarketData`)
    → ✅ módulos só referenciam `BuildingBlocks/*`; hosts compõem.
-6. ❌ Assumir que circuit breaker/rate limiter por provider já estão ativos
-   → ✅ só existe `CreateDefaultHttpPipeline` (retry+timeout); wiring é pendente.
+6. ❌ Assumir taxonomia de resiliência "ainda não wired"
+   → ✅ desde a Fase 4 provider-sync existe breaker por provider (`ProviderResilience`), pool de
+   chaves (`IApiKeyPool`) e códigos soft `Provider.CircuitOpen`/`Provider.PoolExhausted` que viram
+   PARTIAL_WARNING (não erro duro); `CreateDefaultHttpPipeline` continua para HTTP genérico.
 
 ## Regras de negócio (mercado/fisco)
 
@@ -54,24 +56,79 @@ Regras completas por tema nos arquivos de [`../..`](../../SKILL.md) (mapa no SKI
     → ✅ Redis pode estar fora localmente; o fallback é intencional.
 20. ❌ Logar senha/token/hash ou colocar segredo em appsettings commitado
     → ✅ segredos via `.env`/env vars; logs nunca contêm credenciais.
+21. ❌ Logar os argumentos do processo sidecar (`SidecarProcessRunner`)
+    → ✅ o cookie TV vai no argv do filho e a key InfoMoney no env do filho — logue só o
+    executável/timeout; tail de stderr citado em erros já é truncado (4000 chars).
+22. ❌ Assumir que `bash -c <script>` lê um arquivo
+    → ✅ `-c` executa a string como comando: arquivo sem +x dá exit 126; nos testes use
+    `exec bash '<path>' "$@"`. Kill em timeout precisa `Kill(entireProcessTree: true)`
+    (filhos como `sleep &` sobrevivem ao kill simples).
+
+## Ingestão / providers (provider-sync)
+
+31. ❌ Chamar Brapi por ticker no fluxo diário ("1 req por ativo")
+    → ✅ UMA chamada batch `/quote/list` por dia útil (`GetDailyBatchQuotesAsync`); resposta
+    anônima ignora o filtro `tickers` — filtrar client-side. Proventos: fila espaçada ≥7 s
+    (`Providers:Brapi:DividendSpacingMs`). Bulk history nunca via Brapi.
+32. ❌ Assumir que o CSV do Investo/It Now traz coluna de ticker
+    → ✅ layout real do Investo (08/2026): "Ativo | Peso" com **nomes de empresas**, sem
+    ticker, mais uma tabela "País" (exposição) que não é holding. Parser classifica pelo header;
+    holdings sem ticker dedupe por nome (`etf_holdings.holding_ticker` é nullable e NULLs são
+    distintos em índice unique — dedupe por ticker NÃO cobre essas linhas).
+33. ❌ Hardcodar o id/hash do produto iShares na URL do CSV
+    → ✅ o link `.ajax?fileType=csv` rotaciona: extrair por regex da página do produto
+    (`ISharesHoldingsParser.ExtractAjaxCsvUrl`); mapa ticker→página em config.
+34. ❌ Tratar `itnow.com.br` como garantidamente acessível
+    → ✅ DNS já falhou (NXDOMAIN) nesta máquina em 08/2026 — feeds de gestoras podem falhar
+    por rede/geo/WAF; cada fonte = PARTIAL_WARNING isolado, job segue com as demais.
+35. ❌ Colocar FX em `macro_economic_series`
+    → ✅ contrato FX tem bid/ask (sem OHLCV/volume) — usar `fx_rates` (PK pair+date,
+    bid como proxy de close).
+36. ❌ Chamar TV com ticker bare ou login email/senha (`TV_EMAIL`/`TV_PASSWORD`)
+    → ✅ símbolo exige prefixo `BMFBOVESPA:` e a autenticação é **COOKIE de sessão autenticado**
+    (`Providers__TradingView__Cookie`; tv-scraper 1.5.x não tem fluxo de senha). Export de cookies
+    SEM `sessionid`/JWT não autentica — falha com `TradingView.AuthFailed`.
+37. ❌ Escrever logs/erros do sidecar no stdout ("só um print a mais")
+    → ✅ stdout = NDJSON **puro** (contrato v1); todo erro vai como envelope JSON no stderr
+    (`{"error":{"code":...}}`, exit 2/3/4) — qualquer linha extra no stdout quebra o parser C#
+    com `Sidecar.ParseError`.
+38. ❌ Assumir que Brapi anônimo cobre o catálogo
+    → ✅ anônimo é **whitelist-only** (observado: só PETR4/VALE3; resto = 401 `MISSING_TOKEN`)
+    e o batch `/quote/list` ignora o filtro `tickers` (vem o mercado inteiro). Token/chave do
+    pool obrigatórios para o fluxo real.
+39. ❌ Montar URL SPDR com ticker maiúsculo (`holdings-daily-us-en-SPY.xlsx`)
+    → ✅ SSGA é case-sensitive: ticker **minúsculo** (`...us-en-spy.xlsx` = 200; `SPY.xlsx` = 404).
+40. ❌ Interpretar peso pt-BR com vírgula decimal como fração ("1,32" → ×100)
+    → ✅ vírgula decimal já são pontos percentuais (RENT3 "1,32" = 1,32%); fração só dot-only
+    começando com "0." (regra em `TryParseWeight`; caso Alphabet/132% corrigido com regressão).
+41. ❌ Esperar que `EnsureCreated` adicione tabelas novas num banco existente
+    → ✅ EF `EnsureCreated` **não migra** DB já criado: `etf_holdings` e `fx_rates` precisaram de
+    DDL aditivo manual no Postgres dev (ou migration) — rodar sync contra banco velho falha se
+    a tabela não existir.
+42. ❌ Contornar WAF Akamai spoofando User-Agent/headers no HttpClient/curl nativo
+    → ✅ Akamai valida **fingerprint TLS (JA3)**, não headers — 403 "Access Denied" mesmo com
+    headers completos de browser. Usar o transporte sidecar (`sidecar fetch` / `ISidecarHttp`,
+    curl_cffi impersonate=chrome); It Now default `Transport=sidecar`.
+43. ❌ Usar o apex `itnow.com.br`
+    → ✅ apex tem NXDOMAIN — host real é **`www.itnow.com.br`** (BaseUrl default já aponta pra lá).
 
 ## Processo
 
-21. ❌ Editar `ROADMAP.md` direto
+23. ❌ Editar `ROADMAP.md` direto
     → ✅ editar `.roadmap/**/*.json` → `roadmap:validate` → `roadmap:generate`.
-22. ❌ Assumir banco/Docker ativos ao rodar testes/migrations
+24. ❌ Assumir banco/Docker ativos ao rodar testes/migrations
     → ✅ FND-013 pendente: containers podem estar parados por decisão do dono; SDK usa
     `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1`.
-23. ❌ Travar campo manualmente editando linha no banco
+25. ❌ Travar campo manualmente editando linha no banco
     → ✅ curadoria via `locked_fields`/`is_manually_overridden` — o sync ignora campos travados.
-24. ❌ Encerrar tarefa sem atualizar roadmap + skill interna
+26. ❌ Encerrar tarefa sem atualizar roadmap + skill interna
     → ✅ ver seção "Skills internas" do CLAUDE.md raiz (definição de pronto).
-25. ❌ Passar cores computadas (`getComputedStyle`) a charts canvas (lightweight-charts)
+27. ❌ Passar cores computadas (`getComputedStyle`) a charts canvas (lightweight-charts)
     → ✅ tokens Tailwind v4 resolvem p/ `lab()`/`oklch()`; usar `lib/chart-colors.ts` → hex.
-26. ❌ Rodar `dotnet build -c Release`/`dotnet test` com o watch ligado
+28. ❌ Rodar `dotnet build -c Release`/`dotnet test` com o watch ligado
     → ✅ colide com `obj/` do watch e mata/recompila em loop; parar o dev ou aceitar rebuild lento.
-27. ❌ Contar eventos com LEFT JOIN + `COUNT(*)`
+29. ❌ Contar eventos com LEFT JOIN + `COUNT(*)`
     → ✅ asset sem proventos retorna 1 linha nula contada como 1; usar `COUNT(d."Id")`.
-28. ❌ Confiar no dev server do Next após HMR pesado
+30. ❌ Confiar no dev server do Next após HMR pesado
     → ✅ Turbopack pode morrer com panic interno (`turbo-tasks ... Aborting`); reiniciar e revalidar
     as rotas tocadas.

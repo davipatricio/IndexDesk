@@ -128,28 +128,67 @@ AI/chat/billing/auth/maps/web3 collections (no product use case; auth is our own
 
 ### Data fetching client (`src/lib/api-client.ts`)
 
-- Typed DTOs (`AssetDto`, `AssetDetailDto`, `QuoteItem`, `PerformanceResponse`,
-  `BacktestRequest/Response`, `RealYieldResponse`). Keep DTOs aligned with the generated OpenAPI
-  contract; do not widen them with page-specific mock fields.
-- Base URL: `process.env.NEXT_PUBLIC_API_URL` (default `http://localhost:5000`). API routes are `/api/v1/*`.
-- Uses `fetch(..., { next: { revalidate } })` for ISR at the route boundary
-  (asset list `revalidate: 60`, single asset `revalidate: 300`).
+- Typed DTOs aligned with the backend contract: `AssetDto`, `AssetDetailDto` (+ nested
+  `stats`/`fiscal` blocks), `QuoteItem`, `PerformanceResponse`, `AssetRankingDto` +
+  `RANKING_METRICS` whitelist, `MarketIndicatorDto`, `AssetDividendsDto`, `BacktestRequest/Response`,
+  `RealYieldResponse`, plus spark/series types (`QuoteSparkPointDto`, `MacroRatePointDto`). Do not
+  widen them with page-specific mock fields.
+- Base URL: `process.env.NEXT_PUBLIC_API_URL` (server default `http://127.0.0.1:5000`; in-browser
+  default is same-origin, served by the dev rewrite). API routes are `/api/v1/*`.
+- ISR per fetcher via `fetch(..., { next: { revalidate } })`: asset list 60 · detail/rankings 300 ·
+  quotes/performance/sparks 900 · dividends 1800 · market-indicators/macro-series 3600 (seconds).
+- Auth flow lives here too: access token kept **in memory only** (`get/setAccessToken`), refresh via
+  HttpOnly cookie (`POST /api/v1/auth/refresh`, single-flight `performRefresh`), `fetchWithAuth`
+  retries once after refresh on `401`.
 - **API-only data source (NON-NEGOTIABLE):** market-data and analytics fetchers must call the local
   .NET API and must not import fixture catalogs, synthesize unknown assets, or calculate replacement
   responses when the request fails. Preserve an empty array returned by the API as a valid empty state.
 - Fetchers must surface transport and HTTP failures as `Error` values so route-level error boundaries and
   client query states can render a truthful error/retry UI. A `404` for an asset/detail/quote/performance
-  endpoint is not a successful mock response.
+  endpoint is not a successful mock response — `fetchAssetDividends` is the one deliberate exception:
+  `404` maps to `null` ("never paid locally" is a valid state).
 - Authentication may retain its explicitly documented session behavior, but market-data fallbacks must
   never be used to make a catalog or asset page appear populated while the API is unavailable.
 
+### Market-data consumption map (all local-first)
+
+| Surface                                                                 | Fetchers / endpoints                                                                                                                                      |
+| :---------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Catalog `/ativos`, home movers, rankings rows, tooltip sparklines       | `fetchAssets`, `fetchAssetRankings`, `fetchQuoteSparks` → `/api/v1/assets[... ]`, `/rankings`, `/quotes/batch`                                            |
+| Detail sheet `/ativos/[ticker]` (re-exported by `/etf`, `/bdr`, `/fii`) | `fetchAssetDetail` + `fetchAssetQuotes(days: 7300)` + `fetchAssetDividends`; JSON-LD `FinancialProduct` + `generateMetadata` from the same detail payload |
+| "What if" simulation on detail page                                     | `fetchQuoteSparks(['IBOV','IFIX'])` + `fetchMacroRateSeries(['CDI'])` — benchmark curves accumulated client-side from local series                        |
+| Backtest `/ferramentas/backtest`                                        | `POST /api/v1/analytics/backtest`                                                                                                                         |
+| Real yield `/ferramentas/rendimento-real`                               | `GET /api/v1/analytics/real-yield`                                                                                                                        |
+
+- React Query wrappers with normalized uppercase tickers live in `src/hooks/use-asset-queries.ts`
+  (`assetKeys` factory; staleTime 5 min detail / 15 min quotes+performance).
+- **No web consumer of `GET /api/v1/providers/health` exists yet** — provider health is backend-only
+  today (`ProviderHealthService`). Add a fetcher + surface deliberately instead of assuming one exists.
+- OG images per ticker are **metadata text only** today (`openGraph.title/description`); no dynamic OG
+  image route is built (the `@ogimagecn` registry item remains approved-but-uninstalled).
+
 ### App routing layout
 
-- `src/app/(public)/` — catalog, comparators, calculators, news/reports (`/etf/[ticker]`, `/bdr/[ticker]`,
-  `/comparador`, `/ferramentas`, `/noticias`, `/relatorios`).
-- `src/app/(admin)/` — backoffice (`/admin/assets`, `/admin/holdings`, `/admin/sync-jobs`).
+- `src/app/(public)/ativos/page.tsx` — asset catalog (`asset-explorer`). **`src/app/(public)/ativos/[ticker]/page.tsx`
+  is the canonical detail page**; `/etf/[ticker]`, `/bdr/[ticker]` and `/fii/[ticker]` are thin
+  re-exports of it (`export { default, generateMetadata, instant }`) so one implementation serves
+  all asset classes. Do not fork them — extend the canonical page.
+- Other public routes: `/comparador`, `/ferramentas/backtest`, `/ferramentas/rendimento-real`,
+  `/rankings`, `/entrar` (auth).
+- `src/app/(admin)/admin/page.tsx` — backoffice entry. The granular `/admin/assets|holdings|sync-jobs`
+  pages and the news/reports hubs (`/noticias`, `/relatorios`) are planned but do not exist yet —
+  check the tree before referencing them.
 - `src/app/~offline` — offline fallback route. `src/app/sw.ts` — Serwist worker source.
 - Other: `layout.tsx`, `page.tsx`, `loading.tsx`, `error.tsx`, `not-found.tsx`, `globals.css`, `manifest.json`.
+
+### Next config flags (`next.config.ts`)
+
+- `cacheComponents: true` + `partialPrefetching: true`: blocking routes that must render full HTML
+  per request export `const instant = false` (see the ticker page) instead of opting out globally.
+- `reactCompiler: true`; Turbopack dev+build with `turbopackMemoryEviction` and Rust React Compiler
+  experiments enabled.
+- Dev rewrite: `/api/v1/:path*` → `http://127.0.0.1:5000/api/v1/:path*` — same-origin API access in
+  dev without CORS; keep it aligned with the backend port.
 
 ### PWA / Service Worker (Serwist + Turbopack) — `src/app/sw.ts`
 
@@ -158,6 +197,10 @@ AI/chat/billing/auth/maps/web3 collections (no product use case; auth is our own
   - **Asset sheets** (`/etf/`, `/bdr/`): `StaleWhileRevalidate`, `maxEntries: 100`, `maxAgeSeconds: 24h`.
   - **Tools / comparator** (`/ferramentas/`, `/comparador`): `CacheFirst`, `maxEntries: 50`, `maxAgeSeconds: 7d`.
   - `...defaultCache` merges Serwist's sensible defaults.
+- Scope note: matchers cover **document navigations only** for those prefixes. `/ativos/[ticker]`
+  (the canonical page), `/fii/`, and all `/api/v1/*` JSON responses are NOT service-worker cached —
+  series data offline comes from the HTTP/React Query caches, not from Serwist. Extend matchers
+  deliberately if that changes.
 - `navigationPreload: true`, `skipWaiting: true`, `clientsClaim: true`.
 
 ### Charts

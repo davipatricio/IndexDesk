@@ -125,4 +125,40 @@ public class ProviderHealthAggregatorTests
         all.DisplayName.Should().Contain("fallback");
         all.Issues.Should().ContainSingle();
     }
+
+    [Fact]
+    public void KeyPoolStats_AreSurfacedByKeyIndex_NeverByValue()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var logs = new[] { Log("Brapi", "SUCCESS", now) };
+        var keyStats = new Dictionary<string, IReadOnlyList<ProviderKeyHealthDto>>
+        {
+            ["Brapi"] = new[]
+            {
+                new ProviderKeyHealthDto(0, "Healthy", 42, 1, 0),
+                new ProviderKeyHealthDto(1, "Cooldown", 7, 3, 0),
+                new ProviderKeyHealthDto(2, "Disabled", 0, 0, 1),
+            },
+            ["AwesomeApi"] = new[] { new ProviderKeyHealthDto(0, "Healthy", 5, 0, 0) },
+        };
+
+        var providers = ProviderHealthAggregator.BuildProviders(logs, keyStats);
+
+        var brapi = providers.Single(p => p.Provider == "Brapi");
+        brapi.Keys.Should().HaveCount(3);
+        brapi.Keys![1].State.Should().Be("Cooldown");
+        brapi.Keys[1].RateLimitedCount.Should().Be(3);
+        brapi.Keys[2].InvalidCount.Should().Be(1);
+
+        // Providers with keys but no logs still appear (pool-only visibility).
+        providers.Should().Contain(p => p.Provider == "AwesomeApi");
+        providers.Single(p => p.Provider == "AwesomeApi").Keys.Should().HaveCount(1);
+
+        // Without stats (legacy overload), the DTO keeps Keys null.
+        ProviderHealthAggregator
+            .BuildProviders(logs)
+            .Single(p => p.Provider == "Brapi")
+            .Keys.Should()
+            .BeNull();
+    }
 }

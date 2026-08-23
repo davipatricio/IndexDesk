@@ -25,6 +25,7 @@ Fluxo: Worker → Postgres → evento RabbitMQ → `Modules.Analytics` invalida 
 ## Agendamentos (Quartz.NET)
 
 BCB **23:00 UTC** diário · CVM informe **~04:00** · Brapi pós-fechamento (nunca pollar <30 min — delay upstream) · IPCA mensal · holdings semanal.
+Implementado (Fase 3 provider-sync): `MarketDataDailySyncJob` **22:00 UTC MON-FRI** (1 batch Brapi + proventos espaçados ≥7 s + gap fill Yahoo/TV sidecar) · `FxRatesDailySyncJob` **22:05 UTC MON-FRI** (AwesomeAPI → `fx_rates`) · `TradingViewDailySyncJob` **22:30 UTC MON-FRI** · `HoldingsWeeklySyncJob` **sáb 08:00 UTC** (`0 0 8 ? * SAT *`). Cadeia OHLCV declarativa: Brapi → YahooSidecar → TVSidecar; InfoMoney fora da cadeia (backfill explícito).
 Cada job: schedule configurável, correlation id, grava em `sync_job_logs`, falha de um provider não derruba os demais.
 
 ## Pipeline CVM streaming (padrão para arquivos grandes)
@@ -50,4 +51,4 @@ Invalidação orientada a eventos: invalidar somente as chaves afetadas. Políti
 
 ## Segredos
 
-Somente `.env` / appsettings: `ConnectionStrings__{Postgres,Redis,RabbitMQ}`, `Providers__{Brapi__ApiKey,BCB__BaseUrl,CVM__BaseUrl,ANBIMA__BaseUrl,FMP__ApiKey,HGBrasil__ApiKey}` (HGBrasil **sem valor por ora** — plano pago não contratado; client mantido desativado). Frontend lê apenas `NEXT_PUBLIC_API_URL`. Nunca em código/commits; nunca logar tokens/dados financeiros em spans OTel.
+Somente `.env` / appsettings: `ConnectionStrings__{Postgres,Redis,RabbitMQ}`, `Providers__{Brapi__ApiKey,BCB__BaseUrl,CVM__BaseUrl,ANBIMA__BaseUrl,FMP__ApiKey,HGBrasil__ApiKey,AwesomeApi__Token,TradingView__Cookie,InfoMoney__SubscriptionKeys__0}` (HGBrasil **sem valor por ora** — plano pago não contratado; client mantido desativado). Frontend lê apenas `NEXT_PUBLIC_API_URL`. Nunca em código/commits; nunca logar tokens/dados financeiros em spans OTel.
