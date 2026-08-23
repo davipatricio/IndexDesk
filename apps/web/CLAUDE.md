@@ -33,7 +33,7 @@ All data is fetched from the .NET API (`apps/backend`) — **never call external
 | Tables/Forms/Virtual/Hotkeys | **`@tanstack/react-table ^9.1`**, **`react-form ^1.33`**, **`react-virtual ^3.14`**, **`react-hotkeys ^0.10`**             |                                                                                                 |
 | URL state                    | **`nuqs ^2.9.6`** (wrapped by `NuqsAdapter` in `providers.tsx`)                                                            |                                                                                                 |
 | Client state                 | **`zustand ^5.0.15`** + **`@tanstack/store` / `@tanstack/db`** (offline layer)                                             |                                                                                                 |
-| Registry extras              | `calligraph ^1.4`, `motion ^13`                                                                                             | Deps pulled by the vendored `@kinetic/scrub-number-field`; do not import directly in app code.  |
+| Registry extras              | `calligraph ^1.4`, `motion ^13`                                                                                            | Deps pulled by the vendored `@kinetic/scrub-number-field`; do not import directly in app code.  |
 | Tests                        | **Vitest ^3.0.7** + Testing Library + `jsdom`                                                                              | `vitest.config.ts`, `vitest.setup.ts`.                                                          |
 
 ## 3. Commands (run from repo root via Turborepo, or `cd apps/web`)
@@ -82,7 +82,7 @@ Official shadcn already ships **Base UI variants** for every core primitive (`ui
 with `style: "base-nova"` the plain CLI form resolves to them. Only reach for a third-party registry when the
 official set lacks the component.
 
-**Primitive rule:** this app standardizes on **`@base-ui/react`**. Never install *interactive* components built on
+**Primitive rule:** this app standardizes on **`@base-ui/react`**. Never install _interactive_ components built on
 Radix UI or other primitive libs — they duplicate primitives, split focus/a11y behavior and add bundle weight.
 Visual-only registries (charts on Recharts, OG images on Satori) carry no primitive and are exempt.
 
@@ -95,15 +95,15 @@ Visual-only registries (charts on Recharts, OG images on Satori) carry no primit
 
 **Approved registry items and their destination**
 
-| Registry item | Destination here | Status |
-| :--- | :--- | :--- |
-| `@kinetic/scrub-number-field` | Numeric inputs in backtest/calculators (`ScrubNumberField`) | Installed; used by `terminal-backtest.tsx` |
-| `@evilcharts/*` (area/donut/bar) | Allocation donut + comparison bars when those surfaces are built | Approved, install on first render site |
-| `@kibo-ui/file-upload` | Admin CSV holdings upload (MVP-016) | Approved, install with the admin feature |
-| `@dsikeres1/*` date-range picker | Backtest/comparador period selection if native dates fall short | Candidate |
-| `@ogimagecn/*` | Dynamic per-ticker OG images (MVP-022) | Approved |
-| Rich-text editor for admin reports (MVP-017) | Decide between `@prosekit` (lighter) and `@shadcn-editor` (Lexical); avoid `@plate` (heavy) | Open decision |
-| `@lytenyte` grid | Only if TanStack Table + react-virtual cannot handle 10y+ daily quote tables | Fallback |
+| Registry item                                | Destination here                                                                            | Status                                     |
+| :------------------------------------------- | :------------------------------------------------------------------------------------------ | :----------------------------------------- |
+| `@kinetic/scrub-number-field`                | Numeric inputs in backtest/calculators (`ScrubNumberField`)                                 | Installed; used by `terminal-backtest.tsx` |
+| `@evilcharts/*` (area/donut/bar)             | Allocation donut + comparison bars when those surfaces are built                            | Approved, install on first render site     |
+| `@kibo-ui/file-upload`                       | Admin CSV holdings upload (MVP-016)                                                         | Approved, install with the admin feature   |
+| `@dsikeres1/*` date-range picker             | Backtest/comparador period selection if native dates fall short                             | Candidate                                  |
+| `@ogimagecn/*`                               | Dynamic per-ticker OG images (MVP-022)                                                      | Approved                                   |
+| Rich-text editor for admin reports (MVP-017) | Decide between `@prosekit` (lighter) and `@shadcn-editor` (Lexical); avoid `@plate` (heavy) | Open decision                              |
+| `@lytenyte` grid                             | Only if TanStack Table + react-virtual cannot handle 10y+ daily quote tables                | Fallback                                   |
 
 **Banned categories:** animation libraries (`@magicui`, `@aceternity`, `@animate-ui`, `@react-bits` — violate the
 project MOTION ≤ 3 / anti-slop rules), template dashboards (`@bundui`, `@shadcnblocks`, …), ready-made theme packs,

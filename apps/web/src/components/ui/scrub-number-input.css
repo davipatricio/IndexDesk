@@ -1,27 +1,27 @@
-[data-slot="scrub-number-calligraph-value"],
-[data-slot="scrub-number-calligraph-value"] .scrub-number-calligraph {
+[data-slot='scrub-number-calligraph-value'],
+[data-slot='scrub-number-calligraph-value'] .scrub-number-calligraph {
   line-height: 1;
   overflow: hidden;
 }
 
-[data-slot="scrub-number-calligraph-value"] {
+[data-slot='scrub-number-calligraph-value'] {
   color: inherit;
   display: flex;
   justify-content: flex-start;
   position: relative;
 }
 
-[data-slot="scrub-number-calligraph-value"] .scrub-number-calligraph,
-[data-slot="scrub-number-calligraph-value"] .scrub-number-calligraph * {
+[data-slot='scrub-number-calligraph-value'] .scrub-number-calligraph,
+[data-slot='scrub-number-calligraph-value'] .scrub-number-calligraph * {
   color: inherit;
 }
 
-[data-slot="scrub-number-calligraph-value"] .scrub-number-calligraph {
+[data-slot='scrub-number-calligraph-value'] .scrub-number-calligraph {
   align-items: center !important;
   justify-content: flex-start !important;
 }
 
-[data-slot="scrub-number-calligraph-value"] .scrub-number-calligraph > span {
+[data-slot='scrub-number-calligraph-value'] .scrub-number-calligraph > span {
   align-items: center !important;
   display: inline-flex !important;
   justify-content: flex-start !important;
@@ -30,9 +30,9 @@
   padding: 0 !important;
 }
 
-[data-slot="scrub-number-calligraph-value"]
+[data-slot='scrub-number-calligraph-value']
   .scrub-number-calligraph
-  span[style*="vertical-align: top"] {
+  span[style*='vertical-align: top'] {
   align-items: center !important;
   display: inline-flex !important;
   height: 1em !important;
@@ -43,15 +43,15 @@
   vertical-align: middle !important;
 }
 
-[data-slot="scrub-number-calligraph-value"]
+[data-slot='scrub-number-calligraph-value']
   .scrub-number-calligraph
-  span[style*="visibility: hidden"] {
+  span[style*='visibility: hidden'] {
   font: inherit !important;
   line-height: inherit !important;
 }
 
-[data-slot="scrub-number-scrubbable"],
-[data-slot="input-group-control"] {
+[data-slot='scrub-number-scrubbable'],
+[data-slot='input-group-control'] {
   text-align: start;
 }
 
@@ -80,25 +80,25 @@
   }
 }
 
-[data-slot="scrub-bound-feedback"][data-bound-hit] [data-slot="input-group"],
-[data-slot="scrub-bound-feedback"][data-bound-hit] [data-slot="scrub-number-scrubbable"],
-[data-slot="scrub-bound-feedback"][data-bound-hit] [data-slot="input-group-control"] {
+[data-slot='scrub-bound-feedback'][data-bound-hit] [data-slot='input-group'],
+[data-slot='scrub-bound-feedback'][data-bound-hit] [data-slot='scrub-number-scrubbable'],
+[data-slot='scrub-bound-feedback'][data-bound-hit] [data-slot='input-group-control'] {
   animation: scrub-bound-pulse var(--scrub-bound-feedback-ms) linear;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-slot="scrub-bound-feedback"][data-bound-hit] [data-slot="input-group"],
-  [data-slot="scrub-bound-feedback"][data-bound-hit] [data-slot="scrub-number-scrubbable"],
-  [data-slot="scrub-bound-feedback"][data-bound-hit] [data-slot="input-group-control"] {
+  [data-slot='scrub-bound-feedback'][data-bound-hit] [data-slot='input-group'],
+  [data-slot='scrub-bound-feedback'][data-bound-hit] [data-slot='scrub-number-scrubbable'],
+  [data-slot='scrub-bound-feedback'][data-bound-hit] [data-slot='input-group-control'] {
     animation: none;
     box-shadow: 0 0 0 2px var(--scrub-bound-shake-color);
   }
 }
 
-.scrub-bound-field:not([data-slot="input-group"]),
-[data-slot="scrub-number-scrubbable"],
-[data-slot="input-group-control"],
-[data-slot="scrub-bound-feedback"] [data-slot="input-group"] [data-slot="input-group-control"] {
+.scrub-bound-field:not([data-slot='input-group']),
+[data-slot='scrub-number-scrubbable'],
+[data-slot='input-group-control'],
+[data-slot='scrub-bound-feedback'] [data-slot='input-group'] [data-slot='input-group-control'] {
   padding-inline: var(--scrub-number-field-padding-inline) !important;
 }
 
@@ -116,7 +116,7 @@
   animation: scrub-bound-shake-x var(--scrub-bound-feedback-ms) linear;
 }
 
-.scrub-bound-wrap[data-bound-direction="vertical"] .scrub-bound-field.is-shaking {
+.scrub-bound-wrap[data-bound-direction='vertical'] .scrub-bound-field.is-shaking {
   animation-name: scrub-bound-shake-y;
 }
 

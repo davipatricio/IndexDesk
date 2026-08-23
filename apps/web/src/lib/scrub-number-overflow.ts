@@ -1,22 +1,19 @@
-import { useLayoutEffect, useState, type RefObject } from "react"
+import { useLayoutEffect, useState, type RefObject } from 'react';
 
-function measureContentOverflow(
-  container: HTMLElement | null,
-  content: HTMLElement | null,
-) {
+function measureContentOverflow(container: HTMLElement | null, content: HTMLElement | null) {
   if (!container || !content) {
-    return false
+    return false;
   }
 
   const contentOverflows =
     content.scrollWidth > content.clientWidth + 1 ||
-    content.getBoundingClientRect().width > container.clientWidth + 1
+    content.getBoundingClientRect().width > container.clientWidth + 1;
 
   if (!contentOverflows) {
-    return false
+    return false;
   }
 
-  return content.scrollWidth > container.clientWidth + 1
+  return content.scrollWidth > container.clientWidth + 1;
 }
 
 export function useDisplayOverflowTruncated(
@@ -24,38 +21,38 @@ export function useDisplayOverflowTruncated(
   deps: ReadonlyArray<unknown>,
   contentRef?: RefObject<HTMLElement | null>,
 ) {
-  const [isTruncated, setIsTruncated] = useState(false)
+  const [isTruncated, setIsTruncated] = useState(false);
 
   useLayoutEffect(() => {
-    const container = containerRef.current
-    const content = contentRef?.current ?? container
+    const container = containerRef.current;
+    const content = contentRef?.current ?? container;
 
     if (!container || !content) {
-      setIsTruncated(false)
-      return
+      setIsTruncated(false);
+      return;
     }
 
     const update = () => {
-      setIsTruncated(measureContentOverflow(container, content))
+      setIsTruncated(measureContentOverflow(container, content));
+    };
+
+    update();
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
     }
 
-    update()
-
-    if (typeof ResizeObserver === "undefined") {
-      return
-    }
-
-    const observer = new ResizeObserver(update)
-    observer.observe(container)
+    const observer = new ResizeObserver(update);
+    observer.observe(container);
     if (content !== container) {
-      observer.observe(content)
+      observer.observe(content);
     }
 
     return () => {
-      observer.disconnect()
-    }
+      observer.disconnect();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- remeasure when display content changes
-  }, deps)
+  }, deps);
 
-  return isTruncated
+  return isTruncated;
 }
