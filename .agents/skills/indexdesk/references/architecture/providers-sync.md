@@ -20,7 +20,7 @@ Fluxo: Worker → Postgres → evento RabbitMQ → `Modules.Analytics` invalida 
 | **Feeds gestoras** (iShares/Investo/Vanguard) | Grátis | CSVs públicos | Holdings diários oficiais |
 | **Brapi.dev** | Free · ciclo **15k req** | dados +30 min · 1 ativo/req | Cotações B3 + proventos (data COM/EX). Guardrails: ≥80% pausa backfill, ≥90% só EOD; contador Redis `providers:brapi:ciclo:{YYYYMM}`; detalhes em `PROVIDERS.md` §2.5 |
 | **Yahoo Finance** (não oficial) | Grátis | ~2000 req/IP/h | Benchmarks `^BVSP ^GSPC ^IXIC`, câmbio `USDBRL=X`, ouro `GC=F`; overflow natural do Brapi em guardrail (tickers `.SA`) |
-| **FMP / HG Brasil** | Freemium | 250–500 req/dia | Contingência (UCITS/cotações) |
+| **FMP / HG Brasil** | FMP freemium · HG Brasil **pago (não contratado)** | FMP 250–500 req/dia | Contingência (UCITS/cotações). HG Brasil: client mantido, **sem key por ora**, desativado |
 
 ## Agendamentos (Quartz.NET)
 
@@ -50,4 +50,4 @@ Invalidação orientada a eventos: invalidar somente as chaves afetadas. Políti
 
 ## Segredos
 
-Somente `.env` / appsettings: `ConnectionStrings__{Postgres,Redis,RabbitMQ}`, `Providers__{Brapi__ApiKey,BCB__BaseUrl,CVM__BaseUrl,ANBIMA__BaseUrl,FMP__ApiKey,HGBrasil__ApiKey}`. Frontend lê apenas `NEXT_PUBLIC_API_URL`. Nunca em código/commits; nunca logar tokens/dados financeiros em spans OTel.
+Somente `.env` / appsettings: `ConnectionStrings__{Postgres,Redis,RabbitMQ}`, `Providers__{Brapi__ApiKey,BCB__BaseUrl,CVM__BaseUrl,ANBIMA__BaseUrl,FMP__ApiKey,HGBrasil__ApiKey}` (HGBrasil **sem valor por ora** — plano pago não contratado; client mantido desativado). Frontend lê apenas `NEXT_PUBLIC_API_URL`. Nunca em código/commits; nunca logar tokens/dados financeiros em spans OTel.

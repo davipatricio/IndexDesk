@@ -17,7 +17,7 @@ Este documento especifica todas as fontes de dados e APIs externas utilizadas pe
 | **Brapi.dev**                                              | B3 Market Data          |  **Free cycle 15k req**    |       15.000 req/ciclo · dados +30 min · 1 ativo/req       | Cotações diárias ajustadas e dividendos de ETFs e BDRs na B3.       |
 | **Yahoo Finance API**                                      | Benchmarks Globais      | **Gratuito (Não oficial)** |       ~2.000 req/IP/hora        | Índices globais (`^BVSP`, `^GSPC`, `^IXIC`) e Câmbio (`USDBRL=X`).  |
 | **Financial Modeling Prep (FMP) / EODHD**                  | Dados Globais (Backup)  | **Freemium / $19-$29/mês** |      250 a 10.000 req/dia       | Holdings e setores de ETFs UCITS (Irlanda) e ETFs dos EUA.          |
-| **HG Brasil Finanças**                                     | B3 Backup Data          |  **Freemium / R$ 39/mês**  |       500 req/dia (Free)        | Provedor nacional de contingência para cotações e moedas.           |
+| **HG Brasil Finanças**                                     | B3 Backup Data          |  **Pago (não contratado)** |       —                            | Provedor nacional de contingência para cotações e moedas. Client mantido no código; **sem chave por ora** — ativar só se Brapi+Yahoo provarem insuficiente. |
 
 ---
 
@@ -139,7 +139,8 @@ Muitos emissores disponibilizam arquivos diários de composição de carteira:
   câmbio (`USDBRL=X`). Overflow natural se Brapi entrar em guardrail e o dado existir lá
   (tickers `.SA`).
 - **HG Brasil** = fallback de câmbio/cotações B3 quando Brapi sofre instabilidade ou ciclo
-  estourado (client já existe; key pendente).
+  estourado — **porém é plano pago e não está contratado**: permanece desativado (client no
+  código, sem key). Enquanto isso, o papel de fallback recai sobre Yahoo (`.SA`) e dado local.
 - **FMP** = contingência para holdings/alocação de ETFs globais UCITS (client ainda não escrito).
 - Regra geral: **dado local-first primeiro** — provider só roda via Worker agendado; usuário
   nunca dispara chamada externa.
@@ -162,7 +163,10 @@ Muitos emissores disponibilizam arquivos diários de composição de carteira:
 ### 2.7. Provedores de Contingência / Backup (FMP & HG Brasil)
 
 - **Financial Modeling Prep (FMP):** Usado como plano de contingência caso os feeds diretos de gestoras mudem de formato para ETFs internacionais (Holdings, country allocation e sector allocation via `/api/v3/etf-holder/{ticker}`).
-- **HG Brasil Finanças:** Utilizado como fallback para cotações da B3 e câmbio em tempo real caso a Brapi sofra instabilidade.
+- **HG Brasil Finanças:** fallback para cotações da B3 e câmbio caso Brapi sofra instabilidade.
+  **Plano pago — não contratado por ora.** O `HgBrasilClient` permanece no código (mantido e
+  compilando), mas sem `ApiKey` configurada ele não deve ser acionado pelo Worker: tratar como
+  contingência de último recurso, ativação futura mediante decisão explícita de custo.
 
 ---
 
@@ -222,6 +226,7 @@ Providers__CVM__BaseUrl="https://dados.cvm.gov.br/dados/FI/DOC/"
 Providers__ANBIMA__BaseUrl="https://www.anbima.com.br/"
 
 # Contingency / Global Providers (Opcionais para Fase 1)
+# HG Brasil: plano pago — SEM chave por ora. Client mantido no código, desativado.
 Providers__FMP__ApiKey=""
-Providers__HGBrasil__ApiKey=""
+# Providers__HGBrasil__ApiKey=""
 ```
