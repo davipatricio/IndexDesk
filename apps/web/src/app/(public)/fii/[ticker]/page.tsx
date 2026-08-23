@@ -1,1 +1,1 @@
-export { default, generateMetadata } from '../../ativos/[ticker]/page';
+export { default, generateMetadata, instant } from '../../ativos/[ticker]/page';

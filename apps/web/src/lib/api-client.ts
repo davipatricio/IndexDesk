@@ -67,6 +67,7 @@ export interface AssetQuoteStatsDto {
   annualizedVolatilityPercent: number | null;
   sharpeRatio: number | null;
   maxDrawdownPercent: number | null;
+  avgVolume30D: number | null;
   firstQuoteDate: string | null;
   lastQuoteDate: string | null;
 }
@@ -529,4 +530,67 @@ export async function fetchQuoteSparks(
   if (!res.ok) throw await readApiError(res, `Falha ao obter cotações: ${res.statusText}`);
   const items = (await res.json()) as AssetQuotesBatchItemDto[];
   return Object.fromEntries(items.map((item) => [item.ticker, item.quotes]));
+}
+
+/** Raw rate observation of a macro-economic series (percent per period). */
+export interface MacroRatePointDto {
+  date: string;
+  value: number;
+}
+
+/** One dividend/income event of an asset (cash rate per quote). */
+export interface AssetDividendEventDto {
+  comDate: string;
+  paymentDate: string | null;
+  rate: number;
+  type: string;
+}
+
+/** Dividend sheet for one asset, with trailing-12-months aggregates. */
+export interface AssetDividendsDto {
+  ticker: string;
+  events: AssetDividendEventDto[];
+  totalCount: number;
+  last12mTotal: number;
+  dividendYield12mPercent: number | null;
+}
+
+/** Raw rate window of one macro-economic series, newest last. */
+export interface MacroRateSeriesDto {
+  code: string;
+  name: string;
+  points: MacroRatePointDto[];
+}
+
+/**
+ * Fetch raw CDI/Selic/IPCA rate windows from GET /api/v1/assets/macro-series,
+ * used to build accumulated benchmark curves client-side. Returns a code-keyed map.
+ */
+export async function fetchMacroRateSeries(
+  codes: string[],
+  days = 3650,
+): Promise<Record<string, MacroRatePointDto[]>> {
+  const cleaned = codes.map((code) => code.trim().toUpperCase()).filter(Boolean);
+  if (cleaned.length === 0) return {};
+  const url = `${API_BASE_URL}/api/v1/assets/macro-series?codes=${encodeURIComponent(cleaned.join(','))}&days=${days}`;
+  const res = await fetch(url, { credentials: 'include', next: { revalidate: 3600 } });
+  if (!res.ok)
+    throw await readApiError(res, `Falha ao obter séries de indicadores: ${res.statusText}`);
+  const items = (await res.json()) as MacroRateSeriesDto[];
+  return Object.fromEntries(items.map((item) => [item.code, item.points]));
+}
+
+/**
+ * Fetch the dividend sheet from GET /api/v1/assets/{ticker}/dividends.
+ * Returns null when the asset has no local dividend history — that is a valid
+ * state (most ETF/BDR pilots), not an error.
+ */
+export async function fetchAssetDividends(ticker: string): Promise<AssetDividendsDto | null> {
+  const upperTicker = ticker.trim().toUpperCase();
+  if (!upperTicker) return null;
+  const url = `${API_BASE_URL}/api/v1/assets/${encodeURIComponent(upperTicker)}/dividends`;
+  const res = await fetch(url, { credentials: 'include', next: { revalidate: 1800 } });
+  if (res.status === 404) return null;
+  if (!res.ok) throw await readApiError(res, `Falha ao obter proventos: ${res.statusText}`);
+  return (await res.json()) as AssetDividendsDto;
 }

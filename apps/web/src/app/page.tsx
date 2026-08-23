@@ -13,6 +13,10 @@ import {
 import { formatCurrencyBRL, formatPercent, cn } from '@/lib/utils';
 import { Sparkline } from '@/components/charts/sparkline';
 
+// Dashboard fetches with time-based revalidate need per-request rendering
+// under cacheComponents — an instant static shell cannot represent them.
+export const instant = false;
+
 const MOVERS_COUNT = 5;
 
 const TOOLS = [
