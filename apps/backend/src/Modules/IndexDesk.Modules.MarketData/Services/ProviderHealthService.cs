@@ -1,6 +1,8 @@
 using IndexDesk.BuildingBlocks.Persistence;
+using IndexDesk.BuildingBlocks.Persistence.Entities;
 using IndexDesk.Modules.MarketData.Domain;
 using IndexDesk.Modules.MarketData.Health;
+using IndexDesk.Modules.MarketData.Resilience;
 using Microsoft.EntityFrameworkCore;
 
 namespace IndexDesk.Modules.MarketData.Services;
@@ -8,8 +10,13 @@ namespace IndexDesk.Modules.MarketData.Services;
 public class ProviderHealthService : IProviderHealthService
 {
     private readonly IndexDeskDbContext _dbContext;
+    private readonly IApiKeyPool _apiKeyPool;
 
-    public ProviderHealthService(IndexDeskDbContext dbContext) => _dbContext = dbContext;
+    public ProviderHealthService(IndexDeskDbContext dbContext, IApiKeyPool apiKeyPool)
+    {
+        _dbContext = dbContext;
+        _apiKeyPool = apiKeyPool;
+    }
 
     public async Task<ProviderHealthResponseDto> GetProvidersHealthAsync(
         CancellationToken cancellationToken = default
@@ -17,7 +24,24 @@ public class ProviderHealthService : IProviderHealthService
     {
         var logs = await _dbContext.SyncJobLogs.AsNoTracking().ToListAsync(cancellationToken);
 
-        var providers = ProviderHealthAggregator.BuildProviders(logs);
+        var keyStats = _apiKeyPool
+            .Snapshot()
+            .GroupBy(s => s.Provider, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                    (IReadOnlyList<ProviderKeyHealthDto>)
+                        g.Select(s => new ProviderKeyHealthDto(
+                                s.KeyIndex,
+                                s.State,
+                                s.SuccessCount,
+                                s.RateLimitedCount,
+                                s.InvalidCount
+                            ))
+                            .ToList()
+            );
+
+        var providers = ProviderHealthAggregator.BuildProviders(logs, keyStats);
         var status = ProviderHealthAggregator.OverallStatus(providers);
 
         var summary = new ProviderHealthSummaryDto(

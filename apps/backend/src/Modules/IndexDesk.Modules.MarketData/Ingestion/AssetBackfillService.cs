@@ -13,16 +13,19 @@ public class AssetBackfillService : IAssetBackfillService
 {
     private readonly IndexDeskDbContext _dbContext;
     private readonly IFallbackMarketDataService _fallbackService;
+    private readonly SidecarProviderDirectory _providers;
     private readonly ILogger<AssetBackfillService> _logger;
 
     public AssetBackfillService(
         IndexDeskDbContext dbContext,
         IFallbackMarketDataService fallbackService,
+        SidecarProviderDirectory providers,
         ILogger<AssetBackfillService> logger
     )
     {
         _dbContext = dbContext;
         _fallbackService = fallbackService;
+        _providers = providers;
         _logger = logger;
     }
 
@@ -79,7 +82,8 @@ public class AssetBackfillService : IAssetBackfillService
         string ticker,
         DateOnly startDate,
         DateOnly endDate,
-        CancellationToken cancellationToken = default
+        CancellationToken cancellationToken = default,
+        string? preferredProvider = null
     )
     {
         ticker = ticker.ToUpperInvariant();
@@ -105,35 +109,74 @@ public class AssetBackfillService : IAssetBackfillService
 
             var asset = assetResult.Value;
 
-            // 2. Fetch Quotes with Multi-Provider Fallback
-            var quotesResult = await _fallbackService.GetQuotesWithFallbackAsync(
-                ticker,
-                startDate,
-                endDate,
-                cancellationToken
-            );
-            if (quotesResult.IsFailure)
+            // 2. Fetch Quotes: explicit provider (--provider yahoo|tv|infomoney) or the
+            //    Brapi → Yahoo → TV fallback chain.
+            Result<IReadOnlyList<NormalizedQuote>> quotesResult;
+            if (!string.IsNullOrWhiteSpace(preferredProvider))
             {
-                await LogJobExecutionAsync(
-                    jobName: $"Backfill_{ticker}",
-                    provider: "ALL",
-                    status: "FAILED",
-                    processed: 0,
-                    updated: 0,
-                    error: quotesResult.Error.Message,
-                    timeMs: (int)sw.ElapsedMilliseconds,
-                    startedAt: startedAt,
-                    cancellationToken: cancellationToken
+                quotesResult = await _providers.FetchQuotesFromProviderAsync(
+                    preferredProvider,
+                    ticker,
+                    startDate,
+                    endDate,
+                    cancellationToken
                 );
+                if (quotesResult.IsFailure)
+                {
+                    await LogJobExecutionAsync(
+                        jobName: $"Backfill_{ticker}",
+                        provider: preferredProvider.ToUpperInvariant(),
+                        status: "FAILED",
+                        processed: 0,
+                        updated: 0,
+                        error: quotesResult.Error.Message,
+                        timeMs: (int)sw.ElapsedMilliseconds,
+                        startedAt: startedAt,
+                        cancellationToken: cancellationToken
+                    );
 
-                return Result<BackfillExecutionSummary>.Failure(quotesResult.Error);
+                    return Result<BackfillExecutionSummary>.Failure(quotesResult.Error);
+                }
+            }
+            else
+            {
+                quotesResult = await _fallbackService.GetQuotesWithFallbackAsync(
+                    ticker,
+                    startDate,
+                    endDate,
+                    cancellationToken
+                );
+                if (quotesResult.IsFailure)
+                {
+                    await LogJobExecutionAsync(
+                        jobName: $"Backfill_{ticker}",
+                        provider: "ALL",
+                        status: "FAILED",
+                        processed: 0,
+                        updated: 0,
+                        error: quotesResult.Error.Message,
+                        timeMs: (int)sw.ElapsedMilliseconds,
+                        startedAt: startedAt,
+                        cancellationToken: cancellationToken
+                    );
+
+                    return Result<BackfillExecutionSummary>.Failure(quotesResult.Error);
+                }
             }
 
             var quotes = quotesResult.Value;
-            var providerName = quotes.FirstOrDefault().SourceProvider ?? "UNKNOWN";
+            var providerName =
+                preferredProvider?.ToUpperInvariant()
+                ?? quotes.FirstOrDefault().SourceProvider
+                ?? "UNKNOWN";
 
-            // 3. Upsert Quotes into PostgreSQL/TimescaleDB
-            var quotesCount = await UpsertQuotesAsync(asset.Id, quotes, cancellationToken);
+            // 3. Upsert Quotes into PostgreSQL/TimescaleDB (idempotent — safe restart)
+            var quotesCount = await IngestionUpserts.QuotesAsync(
+                _dbContext,
+                asset.Id,
+                quotes,
+                cancellationToken
+            );
 
             // 4. Fetch and Upsert Dividends (especially relevant for MXRF11)
             var dividendsCount = 0;
@@ -143,7 +186,8 @@ public class AssetBackfillService : IAssetBackfillService
             );
             if (dividendsResult.IsSuccess && dividendsResult.Value.Count > 0)
             {
-                dividendsCount = await UpsertDividendsAsync(
+                dividendsCount = await IngestionUpserts.DividendsAsync(
+                    _dbContext,
                     asset.Id,
                     dividendsResult.Value,
                     cancellationToken
@@ -254,110 +298,6 @@ public class AssetBackfillService : IAssetBackfillService
         }
 
         return Result<AssetEntity>.Failure(Error.NotFound("Asset.Metadata", ticker));
-    }
-
-    private async Task<int> UpsertQuotesAsync(
-        Guid assetId,
-        IReadOnlyList<NormalizedQuote> quotes,
-        CancellationToken cancellationToken
-    )
-    {
-        if (quotes.Count == 0)
-            return 0;
-
-        var dates = quotes.Select(q => q.Date).ToList();
-        var existingQuotes = await _dbContext
-            .AssetQuotes.Where(q => q.AssetId == assetId && dates.Contains(q.Date))
-            .ToDictionaryAsync(q => q.Date, cancellationToken);
-
-        var toAdd = new List<AssetQuoteEntity>();
-
-        foreach (var quote in quotes)
-        {
-            if (existingQuotes.TryGetValue(quote.Date, out var existing))
-            {
-                existing.Open = quote.Open;
-                existing.High = quote.High;
-                existing.Low = quote.Low;
-                existing.Close = quote.Close;
-                existing.AdjClose = quote.AdjClose;
-                existing.Volume = quote.Volume;
-                existing.SourceProvider = quote.SourceProvider;
-            }
-            else
-            {
-                toAdd.Add(
-                    new AssetQuoteEntity
-                    {
-                        AssetId = assetId,
-                        Date = quote.Date,
-                        Open = quote.Open,
-                        High = quote.High,
-                        Low = quote.Low,
-                        Close = quote.Close,
-                        AdjClose = quote.AdjClose,
-                        Volume = quote.Volume,
-                        TradesCount = quote.TradesCount,
-                        SourceProvider = quote.SourceProvider,
-                    }
-                );
-            }
-        }
-
-        if (toAdd.Count > 0)
-        {
-            await _dbContext.AssetQuotes.AddRangeAsync(toAdd, cancellationToken);
-        }
-
-        await _dbContext.SaveChangesAsync(cancellationToken);
-        return quotes.Count;
-    }
-
-    private async Task<int> UpsertDividendsAsync(
-        Guid assetId,
-        IReadOnlyList<NormalizedDividend> dividends,
-        CancellationToken cancellationToken
-    )
-    {
-        if (dividends.Count == 0)
-            return 0;
-
-        var existingDividends = await _dbContext
-            .AssetDividends.Where(d => d.AssetId == assetId)
-            .ToListAsync(cancellationToken);
-
-        var existingSet = existingDividends.ToHashSet();
-        var toAdd = new List<AssetDividendEntity>();
-
-        foreach (var div in dividends)
-        {
-            var alreadyExists = existingDividends.Any(e =>
-                e.ComDate == div.ComDate && e.Rate == div.Rate
-            );
-            if (!alreadyExists)
-            {
-                toAdd.Add(
-                    new AssetDividendEntity
-                    {
-                        AssetId = assetId,
-                        ComDate = div.ComDate,
-                        PaymentDate = div.PaymentDate,
-                        Rate = div.Rate,
-                        DividendType = div.DividendType,
-                        Currency = div.Currency,
-                        SourceProvider = div.SourceProvider,
-                    }
-                );
-            }
-        }
-
-        if (toAdd.Count > 0)
-        {
-            await _dbContext.AssetDividends.AddRangeAsync(toAdd, cancellationToken);
-            await _dbContext.SaveChangesAsync(cancellationToken);
-        }
-
-        return toAdd.Count;
     }
 
     private async Task LogJobExecutionAsync(

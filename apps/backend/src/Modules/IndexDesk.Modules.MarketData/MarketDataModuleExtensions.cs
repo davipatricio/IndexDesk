@@ -1,17 +1,23 @@
 using IndexDesk.Modules.MarketData.Clients;
 using IndexDesk.Modules.MarketData.Ingestion;
+using IndexDesk.Modules.MarketData.Ingestion.Holdings;
 using IndexDesk.Modules.MarketData.Pipeline;
+using IndexDesk.Modules.MarketData.Resilience;
 using IndexDesk.Modules.MarketData.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace IndexDesk.Modules.MarketData;
 
 public static class MarketDataModuleExtensions
 {
+    private static readonly IConfiguration EmptyConfiguration = new ConfigurationBuilder().Build();
+
     /// <summary>Metrics accepted by GET /api/v1/assets/rankings.</summary>
     private static readonly HashSet<string> RankingMetrics = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -31,6 +37,21 @@ public static class MarketDataModuleExtensions
         IConfiguration? configuration = null
     )
     {
+        // 0. Resilience (Fase 4): per-provider retry + circuit breaker and the API-key
+        //    pool (rotation, cooldown, token bucket). Both are singletons — the breaker
+        //    state and key health must outlive the transient/scoped clients that use them.
+        //    Key VALUES come only from configuration (.env); nothing is seeded here.
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton<ProviderResilience>(sp => new ProviderResilience(
+            configuration ?? EmptyConfiguration,
+            sp.GetRequiredService<ILoggerFactory>().CreateLogger<ProviderResilience>()
+        ));
+        services.AddSingleton<IApiKeyPool>(sp => new InMemoryApiKeyPool(
+            configuration ?? EmptyConfiguration,
+            sp.GetRequiredService<ILoggerFactory>().CreateLogger<InMemoryApiKeyPool>(),
+            sp.GetRequiredService<TimeProvider>()
+        ));
+
         // 1. Validator
         services.AddSingleton<MarketDataValidator>();
 
@@ -74,10 +95,104 @@ public static class MarketDataModuleExtensions
             }
         );
 
-        // 3. Register as IMarketDataClient collection
+        // FX (AwesomeAPI) — native HttpClient, no sidecar. Optional premium token is
+        // appended as a query parameter by the client and never logged.
+        services.AddHttpClient<AwesomeApiClient>(
+            (sp, client) =>
+            {
+                var baseUrl =
+                    configuration?["Providers:AwesomeApi:BaseUrl"]
+                    ?? "https://economia.awesomeapi.com.br/";
+                client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+                client.Timeout = TimeSpan.FromSeconds(15);
+            }
+        );
+
+        // Holdings feeds (manager sites) — native HttpClient + module parsers.
+        services.AddHttpClient<ISharesHoldingsFeed>(
+            (sp, client) =>
+            {
+                var baseUrl =
+                    configuration?["Providers:Ishares:BaseUrl"]
+                    ?? "https://www.blackrock.com/br/intermediarios/en/products/";
+                client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+                client.Timeout = TimeSpan.FromSeconds(30);
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+                );
+            }
+        );
+
+        services.AddHttpClient<SpdrHoldingsFeed>(
+            (sp, client) =>
+            {
+                var baseUrl = configuration?["Providers:Spdr:BaseUrl"] ?? "https://www.ssga.com/";
+                client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+                client.Timeout = TimeSpan.FromSeconds(30);
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+                );
+            }
+        );
+
+        services.AddHttpClient<ItNowHoldingsFeed>(
+            (sp, client) =>
+            {
+                // Apex itnow.com.br NXDOMAINs — real host is www.itnow.com.br (recon 0.5).
+                var baseUrl =
+                    configuration?["Providers:ItNow:BaseUrl"] ?? "https://www.itnow.com.br/";
+                client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+                client.Timeout = TimeSpan.FromSeconds(30);
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+                );
+            }
+        );
+
+        services.AddHttpClient<InvestoHoldingsFeed>(
+            (sp, client) =>
+            {
+                var baseUrl =
+                    configuration?["Providers:Investo:BaseUrl"] ?? "https://investoetf.com/";
+                client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+                client.Timeout = TimeSpan.FromSeconds(30);
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(
+                    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+                );
+            }
+        );
+
+        // 3. Register as IMarketDataClient collection — the declarative OHLCV chain
+        //    decided in Fase 3 (plans/provider-sync-scrapers.md): Brapi → Yahoo
+        //    sidecar → TradingView sidecar. HG Brasil left the chain (paid source;
+        //    concrete client kept but inactive). InfoMoney stays OUT on purpose:
+        //    explicitly SECONDARY, reachable only via backfill --provider infomoney.
         services.AddScoped<IMarketDataClient>(sp => sp.GetRequiredService<BrapiClient>());
-        services.AddScoped<IMarketDataClient>(sp => sp.GetRequiredService<YahooFinanceClient>());
-        services.AddScoped<IMarketDataClient>(sp => sp.GetRequiredService<HgBrasilClient>());
+        services.AddScoped<IMarketDataClient>(sp => sp.GetRequiredService<YfinanceSidecarClient>());
+        services.AddScoped<IMarketDataClient>(sp =>
+            sp.GetRequiredService<TradingViewSidecarClient>()
+        );
+
+        // 3b. Sidecar-backed clients (Python sidecar under tools/providers/sidecar,
+        // spawned through uv — see plans/provider-sync-scrapers.md Fase 2). Registered
+        // as concrete types only on purpose: joining the IMarketDataClient fallback
+        // chain above is a declarative-chain decision left for Fase 3 (jobs &
+        // scheduling), keeping the current pipeline behavior untouched.
+        services.AddSingleton<SidecarProcessRunner>();
+        services.AddTransient<YfinanceSidecarClient>();
+        services.AddTransient<TradingViewSidecarClient>();
+        services.AddTransient<InfoMoneySidecarClient>();
+
+        // 3b'. Generic WAF-safe HTTP over the sidecar `fetch` command (curl_cffi
+        // impersonate=chrome). Feeds opt in per source via config — e.g.
+        // Providers:Holdings:ItNow:Transport=sidecar|native (default sidecar) —
+        // for hosts that Akamai-block non-browser TLS (measured: itnow.com.br).
+        services.AddSingleton<ISidecarHttp>(sp => new SidecarHttp(
+            sp.GetRequiredService<SidecarProcessRunner>()
+        ));
+
+        // 3c. Explicit-provider directory for backfill (--provider yahoo|tv|infomoney)
+        services.AddScoped<SidecarProviderDirectory>();
 
         // 4. Fallback Engine & Ingestion Services
         services.AddScoped<IFallbackMarketDataService, FallbackMarketDataService>();
@@ -85,6 +200,13 @@ public static class MarketDataModuleExtensions
         services.AddScoped<IAssetSyncService, AssetSyncService>();
         services.AddScoped<IBcbSeriesClient>(sp => sp.GetRequiredService<BcbSeriesClient>());
         services.AddScoped<IMacroEconomicSyncService, MacroEconomicSyncService>();
+
+        // 4b. Daily-close chain, FX and TradingView refresh (Fase 3 jobs' logic lives here)
+        services.AddScoped<IDailyCloseSyncService, DailyCloseSyncService>();
+        services.AddScoped<IAwesomeApiClient>(sp => sp.GetRequiredService<AwesomeApiClient>());
+        services.AddScoped<IFxRateSyncService, FxRateSyncService>();
+        services.AddScoped<ITradingViewRefreshSyncService, TradingViewRefreshSyncService>();
+        services.AddScoped<IEtfHoldingsSyncService, EtfHoldingsSyncService>();
 
         // 5. Query / Read APIs
         services.AddScoped<IAssetQueryService, AssetQueryService>();
@@ -120,6 +242,7 @@ public static class MarketDataModuleExtensions
                 async (
                     string? ticker,
                     string? startDate,
+                    string? provider,
                     IAssetBackfillService backfillService,
                     CancellationToken ct
                 ) =>
@@ -135,7 +258,8 @@ public static class MarketDataModuleExtensions
                             ticker,
                             start,
                             end,
-                            ct
+                            ct,
+                            preferredProvider: provider
                         );
                         if (singleResult.IsSuccess)
                         {

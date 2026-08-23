@@ -13,6 +13,8 @@ public class IndexDeskDbContext : DbContext
     public DbSet<AssetDividendEntity> AssetDividends => Set<AssetDividendEntity>();
     public DbSet<SyncJobLogEntity> SyncJobLogs => Set<SyncJobLogEntity>();
     public DbSet<MacroEconomicSeriesEntity> MacroEconomicSeries => Set<MacroEconomicSeriesEntity>();
+    public DbSet<FxRateEntity> FxRates => Set<FxRateEntity>();
+    public DbSet<EtfHoldingEntity> EtfHoldings => Set<EtfHoldingEntity>();
 
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<RoleEntity> Roles => Set<RoleEntity>();
@@ -100,6 +102,46 @@ public class IndexDeskDbContext : DbContext
             entity.ToTable("macro_economic_series");
             entity.HasKey(e => new { e.SeriesCode, e.Date });
             entity.Property(e => e.Value).HasPrecision(12, 6);
+        });
+
+        modelBuilder.Entity<FxRateEntity>(entity =>
+        {
+            entity.ToTable("fx_rates");
+            entity.HasKey(e => new { e.Pair, e.Date });
+            entity.Property(e => e.Pair).HasMaxLength(10).IsRequired();
+            entity.Property(e => e.Bid).HasPrecision(18, 8);
+            entity.Property(e => e.Ask).HasPrecision(18, 8);
+            entity.Property(e => e.SourceProvider).HasMaxLength(50);
+            entity.HasIndex(e => e.Date);
+        });
+
+        modelBuilder.Entity<EtfHoldingEntity>(entity =>
+        {
+            entity.ToTable("etf_holdings");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.HoldingTicker).HasMaxLength(20);
+            entity.Property(e => e.HoldingName).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.WeightPercentage).HasPrecision(6, 4);
+            entity.Property(e => e.Sector).HasMaxLength(100);
+            entity.Property(e => e.Country).HasMaxLength(3);
+
+            entity
+                .HasOne(e => e.Asset)
+                .WithMany()
+                .HasForeignKey(e => e.EtfAssetId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Idempotency key for the weekly manager-feed upsert.
+            entity
+                .HasIndex(e => new
+                {
+                    e.EtfAssetId,
+                    e.AsOfDate,
+                    e.HoldingTicker,
+                })
+                .IsUnique();
+            entity.HasIndex(e => new { e.EtfAssetId, e.AsOfDate });
+            entity.HasIndex(e => e.HoldingTicker);
         });
 
         modelBuilder.Entity<UserEntity>(entity =>
