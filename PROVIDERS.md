@@ -14,7 +14,7 @@ Este documento especifica todas as fontes de dados e APIs externas utilizadas pe
 | **B3 (Portal de Dados Abertos)**                           | Mercado Oficial         |        **Gratuito**        |  Download programático diário   | Carteiras teóricas de índices (IBOV, SMLL, IDIV) e códigos ISIN.    |
 | **ANBIMA (Dados Abertos)**                                 | Feriados & Renda Fixa   |        **Gratuito**        |        Sem limite rígido        | Feriados bancários (regra 252 dias úteis) e índices IMA-B / IDA.    |
 | **Feeds Diretos de Gestoras (iShares, Vanguard, Investo)** | Holdings Globais/Locais |        **Gratuito**        |    Download de CSVs públicos    | Holdings diários oficiais dos ETFs (Top 10, pesos, setores).        |
-| **Brapi.dev**                                              | B3 Market Data          |  **Freemium / R$ 29-99**   |       10 a 1.000 req/min        | Cotações diárias ajustadas e dividendos de ETFs e BDRs na B3.       |
+| **Brapi.dev**                                              | B3 Market Data          |  **Free cycle 15k req**    |       15.000 req/ciclo · dados +30 min · 1 ativo/req       | Cotações diárias ajustadas e dividendos de ETFs e BDRs na B3.       |
 | **Yahoo Finance API**                                      | Benchmarks Globais      | **Gratuito (Não oficial)** |       ~2.000 req/IP/hora        | Índices globais (`^BVSP`, `^GSPC`, `^IXIC`) e Câmbio (`USDBRL=X`).  |
 | **Financial Modeling Prep (FMP) / EODHD**                  | Dados Globais (Backup)  | **Freemium / $19-$29/mês** |      250 a 10.000 req/dia       | Holdings e setores de ETFs UCITS (Irlanda) e ETFs dos EUA.          |
 | **HG Brasil Finanças**                                     | B3 Backup Data          |  **Freemium / R$ 39/mês**  |       500 req/dia (Free)        | Provedor nacional de contingência para cotações e moedas.           |
@@ -101,6 +101,48 @@ Muitos emissores disponibilizam arquivos diários de composição de carteira:
   `GET https://brapi.dev/api/quote/list?tickers=VWRA11,BIJS39,GOLD11,LFTS11&token={TOKEN}`
 - **Dividendos e Proventos:**  
   `GET https://brapi.dev/api/quote/{ticker}?dividends=true&token={TOKEN}`
+
+#### Plano atual (contratado 2026-08) e política de consumo
+
+| Parâmetro | Valor |
+| :--- | :--- |
+| Cota do ciclo | **15.000 requisições** (ciclo mensal da conta) |
+| Custo por 1.000 req | Grátis (plano atual) |
+| Atualização dos dados | **A cada 30 minutos** (delay upstream) |
+| Granularidade | **1 ativo por requisição** — cada ticker consumido conta como 1 req |
+
+**Regras para não estourar a cota:**
+
+1. **Cadência mínima de polling = 30 min.** O upstream não tem dado mais fresco que isso;
+   pollar intraday abaixo disso queima cota sem ganho. Padrão do Worker continua **EOD
+   pós-fechamento**; coleta intraday (se um dia existir) nunca abaixo de 30 min.
+2. **Contador de consumo no Redis:** chave mensal `providers:brapi:ciclo:{YYYYMM}`
+   (`INCR` por requisição feita, incluindo cada ticker do batch). Sem leitura de saldo
+   exposta pela API, rastramos o que gastamos.
+3. **Guardrails por consumo do ciclo:**
+   - `< 80%` — operação normal.
+   - `≥ 80% (12k)` — pausa backfills e jobs não-críticos; mantém só EOD diário.
+   - `≥ 90% (13,5k)` — modo sobrevivência: nenhuma chamada Brapi fora do EOD essencial;
+     fallback assume o que der.
+4. **Orçamento de referência:** catálogo de 200 ativos × 21 dias úteis ≈ 4.200 req/mês
+   + proventos (~1 req/ativo/semana ≈ 800) → ~5k/mês em regime, sobrando ~10k do ciclo
+   para novos ativos e backfill histórico (backfill de 1 ticker com `range=5y` = 1 req,
+   é barato; re-poll desnecessário é caro).
+5. **Idempotência vale cota:** antes de chamar, checar se o dia-alvo já está persistido
+   (`quotes` upsert por `(ticker, date)`); nunca repetir ingestão concluída.
+
+**Balanceamento entre providers (presente e futuro):**
+
+- **Brapi** = exclusivo para cotações/proventos de **B3** (ETFs, BDRs, FIIs). Não usar para
+  benchmarks globais.
+- **Yahoo Finance** (free, ~2k req/h/IP) = benchmarks globais (`^GSPC`, `^IXIC`, `^BVSP`),
+  câmbio (`USDBRL=X`). Overflow natural se Brapi entrar em guardrail e o dado existir lá
+  (tickers `.SA`).
+- **HG Brasil** = fallback de câmbio/cotações B3 quando Brapi sofre instabilidade ou ciclo
+  estourado (client já existe; key pendente).
+- **FMP** = contingência para holdings/alocação de ETFs globais UCITS (client ainda não escrito).
+- Regra geral: **dado local-first primeiro** — provider só roda via Worker agendado; usuário
+  nunca dispara chamada externa.
 
 ---
 

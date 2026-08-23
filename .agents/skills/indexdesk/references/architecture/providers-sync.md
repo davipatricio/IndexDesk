@@ -18,13 +18,13 @@ Fluxo: Worker → Postgres → evento RabbitMQ → `Modules.Analytics` invalida 
 | **B3 dados abertos** | Grátis | download programático | Carteiras teóricas IBOV/SMLL/IDIV, ISIN |
 | **ANBIMA** | Grátis | sem limite rígido | Feriados até 2099 (base 252), índices IMA-B/IDA |
 | **Feeds gestoras** (iShares/Investo/Vanguard) | Grátis | CSVs públicos | Holdings diários oficiais |
-| **Brapi.dev** | Freemium R$29–99 | 10–1000 req/min | Cotações B3 + proventos (data COM/EX) |
-| **Yahoo Finance** (não oficial) | Grátis | ~2000 req/IP/h | Benchmarks `^BVSP ^GSPC ^IXIC`, câmbio `USDBRL=X`, ouro `GC=F` |
+| **Brapi.dev** | Free · ciclo **15k req** | dados +30 min · 1 ativo/req | Cotações B3 + proventos (data COM/EX). Guardrails: ≥80% pausa backfill, ≥90% só EOD; contador Redis `providers:brapi:ciclo:{YYYYMM}`; detalhes em `PROVIDERS.md` §2.5 |
+| **Yahoo Finance** (não oficial) | Grátis | ~2000 req/IP/h | Benchmarks `^BVSP ^GSPC ^IXIC`, câmbio `USDBRL=X`, ouro `GC=F`; overflow natural do Brapi em guardrail (tickers `.SA`) |
 | **FMP / HG Brasil** | Freemium | 250–500 req/dia | Contingência (UCITS/cotações) |
 
 ## Agendamentos (Quartz.NET)
 
-BCB **23:00 UTC** diário · CVM informe **~04:00** · Brapi pós-fechamento · IPCA mensal · holdings semanal.
+BCB **23:00 UTC** diário · CVM informe **~04:00** · Brapi pós-fechamento (nunca pollar <30 min — delay upstream) · IPCA mensal · holdings semanal.
 Cada job: schedule configurável, correlation id, grava em `sync_job_logs`, falha de um provider não derruba os demais.
 
 ## Pipeline CVM streaming (padrão para arquivos grandes)
