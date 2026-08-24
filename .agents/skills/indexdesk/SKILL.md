@@ -74,11 +74,12 @@ Quando precisar do texto integral: `PRODUCT.md`, `STACK_SETUP.md`, `MODELS.md`, 
 ### CLAUDE.md scoped aninhados (código específico)
 
 Além desta skill, existem `CLAUDE.md`/`AGENTS.md` colados no código que documentam convenções locais —
-leia o mais próximo do arquivo que for editar: `apps/web/CLAUDE.md`, `apps/backend/CLAUDE.md`,
-`apps/backend/src/CLAUDE.md`, `apps/backend/src/IndexDesk.Worker/CLAUDE.md`,
-`apps/backend/src/Modules/IndexDesk.Modules.Auth/CLAUDE.md`,
-`apps/backend/src/Modules/IndexDesk.Modules.MarketData/CLAUDE.md` e
-`apps/backend/src/BuildingBlocks/BuildingBlocks.Resilience/CLAUDE.md`; `tools/providers/sidecar/CLAUDE.md`.
+leia o mais próximo do arquivo que for editar. Top-level: `apps/web/CLAUDE.md`, `apps/backend/CLAUDE.md`,
+`apps/backend/src/CLAUDE.md`, hosts (`IndexDesk.Api` com README implícito no CLAUDE, `IndexDesk.Worker`
+com README + `Jobs/CLAUDE.md`), os 3 módulos (`Auth`, `Analytics`, `MarketData`) e a coleção
+`BuildingBlocks/` (índice + 1 doc por bloco). Módulos também têm docs por subpasta
+(`MarketData/{Clients,Ingestion,Resilience,Health,...}`, `Auth/{Endpoints,Security,Services,...}`) e
+`tools/providers/sidecar/CLAUDE.md`.
 Regras de domínio (mercado/fisco/fórmulas) ficam aqui na skill (`market/*`); regras locais de código
 ficam nesses arquivos. Ao criar doc novo, siga o padrão `CLAUDE.md` + symlink `AGENTS.md`.
 
