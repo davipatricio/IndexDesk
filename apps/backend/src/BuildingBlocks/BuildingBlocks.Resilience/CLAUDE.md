@@ -1,6 +1,7 @@
 # BuildingBlocks.Resilience — Pipelines Polly & Ponte Result⇄Exceção (scoped)
 
-> Companion to [`../CLAUDE.md`](../CLAUDE.md). Infra pura de resiliência: **não conhece provedores,
+> Companion to [`../../CLAUDE.md`](../../CLAUDE.md) (convenções de `src/`) e ao índice da coleção
+> [`../CLAUDE.md`](../CLAUDE.md). Infra pura de resiliência: **não conhece provedores,
 > módulos nem domínio** — só pipelines Polly e o tipo de exceção que traduz falhas de `Result<T>`
 > para as estratégias. Consumidor canônico: [`../../Modules/IndexDesk.Modules.MarketData/CLAUDE.md`](../../Modules/IndexDesk.Modules.MarketData/CLAUDE.md)
 > (seção "Breaker por provider"). **Do not modify code** when only instruction updates are requested.
