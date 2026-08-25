@@ -151,8 +151,10 @@ Serviços de ingestão persistem auditoria em `sync_job_logs`.
 | `(public)/comparador` | comparador multi-ativos |
 | `(public)/ferramentas/backtest` | simulador de backtest público |
 | `(public)/ferramentas/rendimento-real` | calculadora de rendimento real (Fisher) |
-| `(admin)/admin` | painel admin (uma página; subrotinas de curadoria/uploads pendentes) |
 | `~offline`, `serwist/[path]` | fallback offline PWA |
+
+Sem rotas admin: o mockup estático `(admin)/admin` foi removido em 2026-08-26 (botões sem handler,
+sem dados). O link "Backoffice" saiu do menu de conta; painel real volta com MVP-015/016.
 
 **Layout/nav:** navbar agrupada em dropdowns (Mercado/Ferramentas); command palette `Ctrl+K`
 (`cmdk` via `components/ui/command.tsx`) busca páginas + ativos e substitui o popover antigo;

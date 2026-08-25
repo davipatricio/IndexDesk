@@ -7,24 +7,23 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Shield, LogOut, UserCheck } from 'lucide-react';
+import { LogOut, UserCheck } from 'lucide-react';
 
 /**
  * Header account widget.
  *
  * - When not mounted / not ready: renders neutral placeholder buttons (no flash).
  * - When logged out: shows `Entrar` and `Criar conta` buttons.
- * - When logged in: shows an avatar + dropdown with identity, a role badge,
- *   a link to `/admin` ONLY if the user has the admin role, and `Sair`.
+ * - When logged in: shows an avatar + dropdown with identity, a role badge, and `Sair`.
+ *   The `/admin` backoffice link returns together with the admin module (MVP-015/016).
  */
 export function AccountMenu() {
-  const { account, isAuthenticated, isAdmin, isReady, signOut } = useSession();
+  const { account, isAuthenticated, isReady, signOut } = useSession();
 
   if (!isReady) {
     return (
@@ -86,16 +85,6 @@ export function AccountMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-
-        {isAdmin && (
-          <DropdownMenuGroup>
-            <DropdownMenuItem render={<Link href="/admin" className="w-full cursor-pointer" />}>
-              <Shield className="size-4 text-primary mr-1.5" />
-              <span>Backoffice</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-          </DropdownMenuGroup>
-        )}
 
         <DropdownMenuItem
           variant="destructive"

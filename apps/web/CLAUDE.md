@@ -12,8 +12,9 @@
 
 A **SSR-First** Next.js 16.3 App Router app (`src/` directory) for the B3 ETF intelligence platform
 (product name in docs: _ETFHub B3_; code/branding: _IndexDesk_). It renders catalog pages (`/etf/[ticker]`,
-`/bdr/[ticker]`), comparators, calculators, backtest simulator, a News/Reports hub, and an `/admin` backoffice.
-All data is fetched from the .NET API (`apps/backend`) — **never call external providers directly** (see Local-First §6).
+`/bdr/[ticker]`), comparators, calculators and a backtest simulator; a News/Reports hub and an `/admin`
+backoffice are planned (MVP-015..018) and intentionally absent until built for real. All data is fetched
+from the .NET API (`apps/backend`) — **never call external providers directly** (see Local-First §6).
 
 ## 2. Runtime & tooling (real versions, pinned in `package.json`)
 
@@ -175,9 +176,10 @@ AI/chat/billing/auth/maps/web3 collections (no product use case; auth is our own
   all asset classes. Do not fork them — extend the canonical page.
 - Other public routes: `/comparador`, `/ferramentas/backtest`, `/ferramentas/rendimento-real`,
   `/rankings`, `/entrar` (auth).
-- `src/app/(admin)/admin/page.tsx` — backoffice entry. The granular `/admin/assets|holdings|sync-jobs`
-  pages and the news/reports hubs (`/noticias`, `/relatorios`) are planned but do not exist yet —
-  check the tree before referencing them.
+- **No admin routes exist.** The former `(admin)/admin` placeholder mockup was removed
+  (2026-08-26) together with the account-menu backoffice link — the admin module is planned
+  (MVP-015/016) and must be built for real, not stubbed. The news/reports hubs (`/noticias`,
+  `/relatorios`) are also planned but do not exist yet — check the tree before referencing them.
 - `src/app/~offline` — offline fallback route. `src/app/sw.ts` — Serwist worker source.
 - Other: `layout.tsx`, `page.tsx`, `loading.tsx`, `error.tsx`, `not-found.tsx`, `globals.css`, `manifest.json`.
 
@@ -231,8 +233,14 @@ No user-facing request may call an external provider (BCB, CVM, Brapi, Yahoo, �
 
 - Rendered copy, SEO metadata, accessible labels, loading states, and error messages use clear, natural pt-BR aimed at investors. Do not expose implementation terms such as API, backend, endpoint, worker, local-first, persisted data, ingestion, transport status, or roadmap IDs (for example, `MVP-011`). These terms may remain in source comments, DTOs, query keys, API-client code, and architecture documentation.
 - Never render raw exception or API error messages. Map failures to stable, helpful messages such as “Não foi possível carregar os ativos agora. Tente novamente em instantes.” Keep technical details available only to internal diagnostics.
-- Every Next.js page is public by default, including `/admin` and `/ferramentas/backtest`. The `(public)` and `(admin)` folders are organizational route groups and do not provide access control. Do not add middleware or page-level authentication gates. Authentication remains optional for account actions and must not prevent public pages, catalogues, comparisons, calculators, or tools from rendering.
-- `src/middleware.ts` is an explicit pass-through. Middleware tests must keep anonymous access coverage for `/admin`, nested admin routes, and public tools, with no authentication redirect or `Location` header.
+- Every Next.js page is public by default, including `/ferramentas/backtest`. There is no `(admin)`
+  route group today; when the admin module lands it must also start public-by-default. Route groups are
+  organizational and do not provide access control. Do not add middleware or page-level authentication
+  gates. Authentication remains optional for account actions and must not prevent public pages,
+  catalogues, comparisons, calculators, or tools from rendering.
+- `src/middleware.ts` is an explicit pass-through. Middleware tests keep anonymous access coverage for
+  `/admin`-like paths (future admin routes), nested paths, and public tools, with no authentication
+  redirect or `Location` header — the policy applies before any admin UI exists.
 - Public market-data pages still use only the local application data layer and must preserve honest loading, empty, unavailable, and retry states. Public visibility does not permit fixture data, synthetic values, or direct provider calls.
 
 <!-- BEGIN:nextjs-agent-rules -->
