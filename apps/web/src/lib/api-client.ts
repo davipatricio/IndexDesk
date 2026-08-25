@@ -594,3 +594,161 @@ export async function fetchAssetDividends(ticker: string): Promise<AssetDividend
   if (!res.ok) throw await readApiError(res, `Falha ao obter proventos: ${res.statusText}`);
   return (await res.json()) as AssetDividendsDto;
 }
+
+// ---------------------------------------------------------------------------
+// Portfolios (dashboard do usuário) — GET/POST /api/v1/portfolios
+// ---------------------------------------------------------------------------
+
+/** Carteira retornada por GET /api/v1/portfolios. */
+export interface PortfolioDto {
+  id: string;
+  title: string;
+  description: string | null;
+  riskProfile: string;
+  visibility: 'private' | 'public' | 'link';
+  publicValuesMode: 'percent_only' | 'full_values';
+  createdAt: string;
+}
+
+/** Posição projetada de um par (ativo, corretora). */
+export interface PositionDto {
+  assetId: string | null;
+  ticker: string;
+  name: string;
+  broker: string;
+  quantity: number;
+  averagePrice: number;
+  investedAmount: number;
+  currentPrice: number;
+  currentValue: number;
+  /** false = sem cotação local; valor atual usa o custo. */
+  hasMarketPrice: boolean;
+  unrealizedPnl: number;
+  realizedPnl: number;
+  incomeReceived: number;
+}
+
+/** Resumo completo de GET /api/v1/portfolios/{id}. */
+export interface PortfolioSummaryDto {
+  portfolio: PortfolioDto;
+  totalValue: number;
+  totalInvested: number;
+  unrealizedPnl: number;
+  realizedPnl: number;
+  incomeReceived: number;
+  positions: PositionDto[];
+}
+
+export interface TransactionDto {
+  id: string;
+  portfolioId: string;
+  assetId: string | null;
+  syntheticIndexCode: string | null;
+  type: 'BUY' | 'SELL' | 'INCOME' | 'CORP_ACTION' | 'TRANSFER_IN' | 'TRANSFER_OUT';
+  broker: string;
+  quantity: number | null;
+  unitPrice: number | null;
+  grossAmount: number;
+  fees: number;
+  fxRate: number | null;
+  currency: string;
+  tradeDate: string;
+  maturityDate: string | null;
+  corpActionJson: string | null;
+  notes: string | null;
+  isAmendment: boolean;
+}
+
+export interface PagedTransactionsDto {
+  items: TransactionDto[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+}
+
+export interface CreatePortfolioInput {
+  title: string;
+  description?: string;
+  riskProfile?: 'conservador' | 'moderado' | 'arrojado';
+}
+
+export interface CreateTransactionInput {
+  type: TransactionDto['type'];
+  assetId?: string | null;
+  syntheticIndexCode?: string | null;
+  broker: string;
+  grossAmount?: number;
+  fees?: number;
+  quantity?: number;
+  unitPrice?: number;
+  currency?: string;
+  tradeDate?: string;
+  maturityDate?: string;
+  corpActionJson?: string;
+  notes?: string;
+}
+
+function portfolioApiError(res: Response, fallback: string): Promise<Error> {
+  return readApiError(res, fallback);
+}
+
+export async function fetchPortfolios(): Promise<PortfolioDto[]> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/portfolios`);
+  if (!res.ok) throw await portfolioApiError(res, `Falha ao obter carteiras: ${res.statusText}`);
+  return (await res.json()) as PortfolioDto[];
+}
+
+export async function fetchPortfolioSummary(id: string): Promise<PortfolioSummaryDto> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/portfolios/${id}`);
+  if (!res.ok) throw await portfolioApiError(res, `Falha ao obter carteira: ${res.statusText}`);
+  return (await res.json()) as PortfolioSummaryDto;
+}
+
+export async function createPortfolio(input: CreatePortfolioInput): Promise<PortfolioDto> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/portfolios`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw await portfolioApiError(res, 'Falha ao criar carteira.');
+  return (await res.json()) as PortfolioDto;
+}
+
+export async function deletePortfolio(id: string): Promise<void> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/portfolios/${id}`, { method: 'DELETE' });
+  if (!res.ok && res.status !== 204)
+    throw await portfolioApiError(res, 'Falha ao excluir carteira.');
+}
+
+export async function createTransaction(
+  portfolioId: string,
+  input: CreateTransactionInput,
+): Promise<TransactionDto> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/portfolios/${portfolioId}/transactions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw await portfolioApiError(res, 'Falha ao lançar transação.');
+  return (await res.json()) as TransactionDto;
+}
+
+/** Resultado compacto de GET /api/v1/portfolios/lookup/{ticker}. */
+export interface AssetLookupDto {
+  id: string;
+  ticker: string;
+  name: string;
+  assetType: string;
+  currency: string;
+}
+
+export async function fetchAssetLookup(ticker: string): Promise<AssetLookupDto | null> {
+  const normalized = ticker.trim().toUpperCase();
+  if (!normalized) return null;
+  const res = await fetchWithAuth(
+    `${API_BASE_URL}/api/v1/portfolios/lookup/${encodeURIComponent(normalized)}`,
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw await portfolioApiError(res, 'Falha ao buscar ativo no catálogo.');
+  return (await res.json()) as AssetLookupDto;
+}

@@ -33,7 +33,7 @@ Regra: ao concluir uma tarefa, marcar o checkbox no mesmo commit que entrega o c
 
 | Marco | Escopo | Status |
 | :--- | :--- | :--- |
-| M-P1 | Fundação: CRUD carteiras, transações BUY/SELL, PM, posições, home mínima | 🚧 em andamento |
+| M-P1 | Fundação: CRUD carteiras, transações BUY/SELL, PM, posições, home mínima | ✅ concluído (2026-08-25) — integração automatizada e tabela agregada pendentes |
 | M-P2 | Performance: snapshots, TWR/MWR, benchmarks, análise | 🔲 não iniciado |
 | M-P3 | Classes completas: RF accrual, Tesouro, cripto top100, previdência | 🔲 não iniciado |
 | M-P4 | Fiscal: simulador resgate, ledger prejuízos, DARF projeção | 🔲 não iniciado |

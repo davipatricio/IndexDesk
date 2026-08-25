@@ -23,11 +23,17 @@ public class IndexDeskDbContext : DbContext
     public DbSet<RolePermissionEntity> RolePermissions => Set<RolePermissionEntity>();
     public DbSet<RefreshTokenEntity> RefreshTokens => Set<RefreshTokenEntity>();
 
+    public DbSet<PortfolioEntity> Portfolios => Set<PortfolioEntity>();
+    public DbSet<PortfolioTransactionEntity> PortfolioTransactions =>
+        Set<PortfolioTransactionEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.HasPostgresExtension("uuid-ossp");
         modelBuilder.HasPostgresExtension("pgcrypto");
+
+        ConfigurePortfolio(modelBuilder);
 
         modelBuilder.Entity<AssetEntity>(entity =>
         {
@@ -231,6 +237,53 @@ public class IndexDeskDbContext : DbContext
 
         // RBAC is static application configuration; market data is populated only by ingestion jobs.
         SeedRbac(modelBuilder);
+    }
+
+    private static void ConfigurePortfolio(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<PortfolioEntity>(entity =>
+        {
+            entity.ToTable("portfolios");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).HasMaxLength(120).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.RiskProfile).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Visibility).HasMaxLength(10).IsRequired();
+            entity.Property(e => e.PublicValuesMode).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.DisplayIdentity).HasMaxLength(80);
+            entity.Property(e => e.Slug).HasMaxLength(80);
+            entity.Property(e => e.ShareTokenHash).HasMaxLength(128);
+            entity.Property(e => e.TargetAllocationJson).HasMaxLength(2000);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.Slug).IsUnique().HasFilter("slug is not null");
+
+            entity
+                .HasMany(e => e.Transactions)
+                .WithOne(t => t.Portfolio)
+                .HasForeignKey(t => t.PortfolioId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PortfolioTransactionEntity>(entity =>
+        {
+            entity.ToTable("portfolio_transactions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SyntheticIndexCode).HasMaxLength(10);
+            entity.Property(e => e.Type).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Broker).HasMaxLength(80).IsRequired();
+            entity.Property(e => e.Quantity).HasPrecision(20, 8);
+            entity.Property(e => e.UnitPrice).HasPrecision(20, 8);
+            entity.Property(e => e.GrossAmount).HasPrecision(20, 8);
+            entity.Property(e => e.Fees).HasPrecision(20, 8);
+            entity.Property(e => e.FxRate).HasPrecision(20, 10);
+            entity.Property(e => e.Currency).HasMaxLength(3).IsRequired();
+            entity.Property(e => e.CorpActionJson).HasMaxLength(500);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+
+            entity.HasIndex(e => new { e.PortfolioId, e.TradeDate });
+            entity.HasIndex(e => e.AssetId);
+            entity.HasIndex(e => e.AmendedTransactionId);
+        });
     }
 
     private static void SeedRbac(ModelBuilder modelBuilder)

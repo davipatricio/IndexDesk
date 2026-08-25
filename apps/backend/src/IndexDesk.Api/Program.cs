@@ -4,6 +4,7 @@ using IndexDesk.BuildingBlocks.Persistence;
 using IndexDesk.Modules.Analytics;
 using IndexDesk.Modules.Auth;
 using IndexDesk.Modules.MarketData;
+using IndexDesk.Modules.Portfolio;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using Scalar.AspNetCore;
@@ -45,6 +46,7 @@ catch
 builder.Services.AddAuthModule(builder.Configuration);
 builder.Services.AddMarketDataModule(builder.Configuration);
 builder.Services.AddAnalyticsModule();
+builder.Services.AddPortfolioModule();
 
 // Health Checks
 builder.Services.AddHealthChecks();
@@ -148,6 +150,7 @@ app.MapGet(
 app.MapAuthEndpoints();
 app.MapMarketDataEndpoints();
 app.MapAnalyticsEndpoints();
+app.MapPortfolioEndpoints();
 
 app.Run();
 

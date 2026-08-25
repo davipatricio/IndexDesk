@@ -1,0 +1,196 @@
+'use client';
+
+import * as React from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchPortfolioSummary, deletePortfolio, type PositionDto } from '@/lib/api-client';
+import { useSession } from '@/hooks/use-session';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { toast } from 'sonner';
+
+const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+/** Detalhe da carteira (M-P1): patrimônio + tabela de posições por custódia. */
+export default function CarteiraPage() {
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const id = params.id;
+  const queryClient = useQueryClient();
+  const { isAuthenticated, isReady } = useSession();
+
+  const summaryQuery = useQuery({
+    queryKey: ['portfolio', id],
+    queryFn: () => fetchPortfolioSummary(id),
+    enabled: Boolean(isReady && isAuthenticated && id),
+  });
+
+  React.useEffect(() => {
+    if (isReady && !isAuthenticated) router.replace('/entrar');
+  }, [isReady, isAuthenticated, router]);
+
+  const handleDelete = async () => {
+    if (!window.confirm('Excluir esta carteira e todas as suas transações?')) return;
+    try {
+      await deletePortfolio(id);
+      toast.success('Carteira excluída.');
+      await queryClient.invalidateQueries({ queryKey: ['portfolios'] });
+      router.push('/dashboard');
+    } catch (error) {
+      toast.error((error as Error).message);
+    }
+  };
+
+  if (!isReady || !isAuthenticated || summaryQuery.isLoading)
+    return <Skeleton className="mx-auto my-8 h-64 w-full max-w-6xl" />;
+
+  if (summaryQuery.isError) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-16 text-center">
+        <p className="text-sm text-muted-foreground">Carteira não encontrada.</p>
+        <Button variant="link" render={<Link href="/dashboard" />}>
+          Voltar ao dashboard
+        </Button>
+      </div>
+    );
+  }
+
+  const s = summaryQuery.data!;
+
+  return (
+    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">{s.portfolio.title}</h1>
+            <Badge variant="secondary">
+              {s.portfolio.visibility === 'private' ? 'Privada' : 'Compartilhada'}
+            </Badge>
+          </div>
+          {s.portfolio.description ? (
+            <p className="text-sm text-muted-foreground">{s.portfolio.description}</p>
+          ) : null}
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleDelete}>
+            Excluir
+          </Button>
+          <Button render={<Link href={`/dashboard/c/${id}/transacoes/nova`} />}>
+            Nova transação
+          </Button>
+        </div>
+      </header>
+
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-1">
+            <CardDescription>Patrimônio</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold tabular-nums">{brl.format(s.totalValue)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-1">
+            <CardDescription>Investido</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold tabular-nums">{brl.format(s.totalInvested)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-1">
+            <CardDescription>Não realizado</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p
+              className={`text-2xl font-semibold tabular-nums ${
+                s.unrealizedPnl >= 0 ? 'text-emerald-600' : 'text-red-600'
+              }`}
+            >
+              {brl.format(s.unrealizedPnl)}
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Posições</CardTitle>
+          <CardDescription>
+            Agrupadas por corretora. Preços do último fechamento local.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {s.positions.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nenhuma posição ainda. Lance a primeira transação.
+            </p>
+          ) : (
+            <PositionsTable positions={s.positions} />
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function PositionsTable({ positions }: { positions: PositionDto[] }) {
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Ativo</TableHead>
+          <TableHead>Corretora</TableHead>
+          <TableHead className="text-right">Quantidade</TableHead>
+          <TableHead className="text-right">Preço médio</TableHead>
+          <TableHead className="text-right">Atual</TableHead>
+          <TableHead className="text-right">Valor</TableHead>
+          <TableHead className="text-right">Resultado</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {positions.map((p, i) => (
+          <TableRow key={`${p.ticker}-${p.broker}-${i}`}>
+            <TableCell>
+              <span className="font-medium">{p.ticker}</span>
+              <span className="block text-xs text-muted-foreground">{p.name}</span>
+            </TableCell>
+            <TableCell>{p.broker}</TableCell>
+            <TableCell className="text-right tabular-nums">{formatQty(p.quantity)}</TableCell>
+            <TableCell className="text-right tabular-nums">{brl.format(p.averagePrice)}</TableCell>
+            <TableCell className="text-right tabular-nums">
+              {p.hasMarketPrice ? brl.format(p.currentPrice) : '—'}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">{brl.format(p.currentValue)}</TableCell>
+            <TableCell
+              className={`text-right tabular-nums ${
+                p.unrealizedPnl >= 0 ? 'text-emerald-600' : 'text-red-600'
+              }`}
+            >
+              {brl.format(p.unrealizedPnl)}
+              {!p.hasMarketPrice ? (
+                <span className="block text-[10px] text-muted-foreground">sem cotação</span>
+              ) : null}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}
+
+function formatQty(q: number): string {
+  return q % 1 === 0 ? String(q) : q.toLocaleString('pt-BR', { maximumFractionDigits: 8 });
+}
