@@ -17,6 +17,10 @@ public static class PortfolioModuleExtensions
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<IPortfolioPerformanceService, PortfolioPerformanceService>();
         services.AddScoped<IPortfolioFixedIncomeService, PortfolioFixedIncomeService>();
+        services.AddScoped<IPortfolioTaxService, PortfolioTaxService>();
+        services.AddScoped<IPortfolioSharingService, PortfolioSharingService>();
+        services.AddScoped<IPortfolioGoalsService, PortfolioGoalsService>();
+        services.AddScoped<IPortfolioExportService, PortfolioExportService>();
         return services;
     }
 
@@ -312,6 +316,294 @@ public static class PortfolioModuleExtensions
             .WithName("GetPortfolioTimeline")
             .WithSummary("Timeline de vencimentos e carências da carteira");
 
+        // ---------- fiscal (M-P4, educacional) ----------
+
+        var taxGroup = group.MapGroup("/{id:guid}/tax");
+
+        taxGroup
+            .MapPost(
+                "/redemption-simulation",
+                async (
+                    Guid id,
+                    SimulateRedemptionRequest request,
+                    IPortfolioTaxService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.SimulateRedemptionAsync(
+                        userId,
+                        id,
+                        request.AssetId,
+                        request.Broker,
+                        request.Quantity,
+                        ct
+                    );
+                    return result.IsSuccess ? Results.Ok(result.Value) : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:read")
+            .WithName("SimulateRedemption")
+            .WithSummary(
+                "Simula resgate/venda com IR regressivo ou swing 15%, IOF, come-cotas e isenções PF"
+            );
+
+        taxGroup
+            .MapGet(
+                "/darf/{year:int}/{month:int}",
+                async (
+                    Guid id,
+                    int year,
+                    int month,
+                    IPortfolioTaxService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.GetProjectionAsync(userId, id, year, month, ct);
+                    return result.IsSuccess ? Results.Ok(result.Value) : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:read")
+            .WithName("GetDarfProjection")
+            .WithSummary(
+                "Projeção mensal de DARF (código 6015 p/ renda variável) por classe com isenções PF"
+            );
+
+        // ---------- metas (multi-metas) ----------
+
+        var goalsGroup = group.MapGroup("/{id:guid}/goals");
+
+        goalsGroup
+            .MapPost(
+                "/",
+                async (
+                    Guid id,
+                    CreateGoalRequest request,
+                    IPortfolioGoalsService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.CreateAsync(userId, id, request, ct);
+                    return result.IsSuccess
+                        ? Results.Created(
+                            $"/api/v1/portfolios/{id}/goals/{result.Value!.Id}",
+                            result.Value
+                        )
+                        : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:write")
+            .WithName("CreateGoal")
+            .WithSummary("Cria uma meta (TARGET_AMOUNT | TARGET_RETURN_PCT | TARGET_DATE)");
+
+        goalsGroup
+            .MapGet(
+                "/",
+                async (
+                    Guid id,
+                    IPortfolioGoalsService service,
+                    HttpContext http,
+                    decimal currentValue,
+                    decimal? currentReturnPct,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.ListAsync(
+                        userId,
+                        id,
+                        currentValue,
+                        currentReturnPct,
+                        ct
+                    );
+                    return result.IsSuccess ? Results.Ok(result.Value) : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:read")
+            .WithName("ListGoals")
+            .WithSummary("Lista as metas com progresso % contra o valor atual informado");
+
+        goalsGroup
+            .MapPut(
+                "/{goalId:guid}",
+                async (
+                    Guid id,
+                    Guid goalId,
+                    UpdateGoalRequest request,
+                    IPortfolioGoalsService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.UpdateAsync(userId, id, goalId, request, ct);
+                    return result.IsSuccess ? Results.Ok(result.Value) : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:write")
+            .WithName("UpdateGoal")
+            .WithSummary("Atualiza uma meta (campos parciais)");
+
+        goalsGroup
+            .MapDelete(
+                "/{goalId:guid}",
+                async (
+                    Guid id,
+                    Guid goalId,
+                    IPortfolioGoalsService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.DeleteAsync(userId, id, goalId, ct);
+                    return result.IsSuccess ? Results.NoContent() : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:write")
+            .WithName("DeleteGoal")
+            .WithSummary("Remove uma meta");
+
+        // ---------- compartilhamento (dono) ----------
+
+        group
+            .MapPatch(
+                "/{id:guid}/visibility",
+                async (
+                    Guid id,
+                    UpdateVisibilityRequest request,
+                    IPortfolioSharingService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.UpdateVisibilityAsync(
+                        userId,
+                        id,
+                        request.Visibility,
+                        request.ExpiresInDays,
+                        ct
+                    );
+                    return result.IsSuccess ? Results.Ok(result.Value) : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:write")
+            .WithName("UpdateVisibility")
+            .WithSummary("Altera visibilidade (private | public | link) e expiração do link");
+
+        group
+            .MapPost(
+                "/{id:guid}/share-link/regenerate",
+                async (
+                    Guid id,
+                    RegenerateShareLinkRequest request,
+                    IPortfolioSharingService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.RegenerateShareLinkAsync(
+                        userId,
+                        id,
+                        request.ExpiresInDays,
+                        ct
+                    );
+                    return result.IsSuccess ? Results.Ok(result.Value) : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:write")
+            .WithName("RegenerateShareLink")
+            .WithSummary("Gera novo link restrito — token claro retornado UMA única vez");
+
+        group
+            .MapDelete(
+                "/{id:guid}/share-link",
+                async (
+                    Guid id,
+                    IPortfolioSharingService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.RevokeShareLinkAsync(userId, id, ct);
+                    return result.IsSuccess ? Results.NoContent() : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:write")
+            .WithName("RevokeShareLink")
+            .WithSummary("Revoga o link restrito (limpa token/expiração)");
+
+        // ---------- export CSV (XLSX pendente de pacote — documentado no plano M-P5) ----------
+
+        group
+            .MapGet(
+                "/{id:guid}/export/positions.csv",
+                async (
+                    Guid id,
+                    IPortfolioExportService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.PositionsCsvAsync(userId, id, ct);
+                    return result.IsSuccess
+                        ? Results.File(
+                            result.Value.Content,
+                            "text/csv; charset=utf-8",
+                            result.Value.FileName
+                        )
+                        : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:read")
+            .WithName("ExportPositionsCsv")
+            .WithSummary("Exporta posições em CSV (pt-BR)");
+
+        group
+            .MapGet(
+                "/{id:guid}/export/transactions.csv",
+                async (
+                    Guid id,
+                    IPortfolioExportService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.TransactionsCsvAsync(userId, id, ct);
+                    return result.IsSuccess
+                        ? Results.File(
+                            result.Value.Content,
+                            "text/csv; charset=utf-8",
+                            result.Value.FileName
+                        )
+                        : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:read")
+            .WithName("ExportTransactionsCsv")
+            .WithSummary("Exporta transações em CSV (pt-BR)");
+
         group
             .MapGet(
                 "/lookup/{ticker}",
@@ -352,8 +644,53 @@ public static class PortfolioModuleExtensions
             .WithName("LookupAssetForPortfolio")
             .WithSummary("Busca um ativo do catálogo por ticker para lançar na carteira");
 
+        // ---------- público (página /c/[slug] + clone por visitante logado) ----------
+
+        app
+            .MapGet(
+                "/api/v1/portfolios/public/{slug}",
+                async (
+                    string slug,
+                    IPortfolioSharingService service,
+                    string? shareToken,
+                    CancellationToken ct
+                ) =>
+                {
+                    var result = await service.GetPublicBySlugAsync(slug, shareToken, ct);
+                    return result.IsSuccess ? Results.Ok(result.Value) : MapError(result.Error);
+                }
+            )
+            .AllowAnonymous()
+            .WithName("GetPublicPortfolio")
+            .WithSummary("Carteira pública por slug (link restrito exige shareToken)");
+
+        app
+            .MapPost(
+                "/api/v1/portfolios/public/{slug}/clone",
+                async (
+                    string slug,
+                    IPortfolioSharingService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.ClonePublicAsync(slug, userId, ct);
+                    return result.IsSuccess
+                        ? Results.Created($"/api/v1/portfolios/{result.Value}", new { id = result.Value })
+                        : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:write")
+            .WithName("ClonePublicPortfolio")
+            .WithSummary("Importa carteira pública com BUYs sintéticos preservando pesos");
+
         return app;
     }
+
+    public sealed record UpdateVisibilityRequest(string Visibility, int? ExpiresInDays = null);
+    public sealed record RegenerateShareLinkRequest(int ExpiresInDays);
 
     private sealed record AssetLookupDto(
         Guid Id,
@@ -374,7 +711,12 @@ public static class PortfolioModuleExtensions
     private static IResult MapError(Error error) =>
         error.Code switch
         {
-            "Portfolio.NotFound" or "Transaction.NotFound" or "Asset.NotFound" => Results.NotFound(
+            "Portfolio.NotFound"
+                or "Transaction.NotFound"
+                or "Asset.NotFound"
+                or "Position.NotFound"
+                or "Goal.NotFound"
+                or "FixedIncome.NotFound" => Results.NotFound(
                 new { code = error.Code, message = error.Message }
             ),
             "Portfolio.LimitReached" => Results.Conflict(

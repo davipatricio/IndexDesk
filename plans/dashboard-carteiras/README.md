@@ -36,8 +36,8 @@ Regra: ao concluir uma tarefa, marcar o checkbox no mesmo commit que entrega o c
 | M-P1 | Fundação: CRUD carteiras, transações BUY/SELL, PM, posições, home mínima | ✅ concluído (2026-08-25) — integração automatizada e tabela agregada pendentes |
 | M-P2 | Performance: snapshots, TWR/MWR, benchmarks, análise | ✅ concluído (2026-08-25) |
 | M-P3 | Classes completas: RF accrual, Tesouro, cripto top100, previdência | 🔲 não iniciado |
-| M-P4 | Fiscal: simulador resgate, ledger prejuízos, DARF projeção | 🚧 em andamento (backend em build) |
-| M-P5 | Público/link, clone, metas, alocação-alvo, CSV/XLSX | 🚧 em andamento (backend em build) |
+| M-P4 | Fiscal: simulador resgate, ledger prejuízos, DARF projeção | ✅ concluído (2026-08-26) — revisão editorial pendente (⛔ RISK-003) |
+| M-P5 | Público/link, clone, metas, alocação-alvo, CSV/XLSX | 🚧 ~80% — backend ✅; faltam páginas públicas/UI de metas/XLSX |
 
 ## Bloqueios ativos (2026-08-26)
 

@@ -853,3 +853,72 @@ export async function fetchPortfolioTimeline(portfolioId: string): Promise<Timel
   if (!res.ok) throw await portfolioApiError(res, 'Falha ao obter vencimentos.');
   return (await res.json()) as TimelineItemDto[];
 }
+
+// ---------------------------------------------------------------------------
+// Fiscal (M-P4) — simulador de resgate e projeção DARF (educacional)
+// ---------------------------------------------------------------------------
+
+export interface RedemptionResultDto {
+  grossAmount: number;
+  costBasis: number;
+  profit: number;
+  irPercent: number;
+  irAmount: number;
+  iofAmount: number;
+  netAmount: number;
+  exemptApplied: boolean;
+  exemptReason: string | null;
+  comeCotasAlreadyPaid: number;
+  quantityAvailable: number;
+  priceDate: string;
+  premises: string[];
+  disclaimer: string;
+}
+
+export async function simulateRedemption(
+  portfolioId: string,
+  input: { assetId: string; broker?: string; quantity?: number },
+): Promise<RedemptionResultDto> {
+  const res = await fetchWithAuth(
+    `${API_BASE_URL}/api/v1/portfolios/${portfolioId}/tax/redemption-simulation`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    },
+  );
+  if (!res.ok) throw await portfolioApiError(res, 'Falha ao simular o resgate.');
+  return (await res.json()) as RedemptionResultDto;
+}
+
+export interface DarfProjectionItemDto {
+  assetClass: string;
+  realizedPnl: number;
+  taxDue: number;
+  darfCode: string;
+  dueDate: string;
+}
+
+export interface TaxProjectionDto {
+  year: number;
+  month: number;
+  items: DarfProjectionItemDto[];
+  premises: string[];
+  disclaimer: string;
+}
+
+export async function fetchTaxProjection(
+  portfolioId: string,
+  year?: number,
+  month?: number,
+): Promise<TaxProjectionDto> {
+  const params = new URLSearchParams();
+  if (year) params.set('year', String(year));
+  if (month) params.set('month', String(month));
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const res = await fetchWithAuth(
+    `${API_BASE_URL}/api/v1/portfolios/${portfolioId}/tax-projection${query}`,
+  );
+  if (!res.ok) throw await portfolioApiError(res, 'Falha ao projetar o DARF.');
+  return (await res.json()) as TaxProjectionDto;
+}

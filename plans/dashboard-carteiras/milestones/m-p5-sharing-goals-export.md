@@ -6,26 +6,27 @@ Objetivo: carteira pública/link, clonagem, metas com projeção e exportação 
 
 ### Visibilidade
 
-- [ ] `POST/DELETE /share-link` (gerar/regenerar/revogar, expiração configurável, token hasheado)
-- [ ] Slug público gerado quando visibilidade ≠ private; `/c/[slug]` SSR+ISR indexável
-- [ ] JSON-LD + OG dinâmico da página pública (padrão SEO do repo)
-- [ ] `public_values_mode`: percent_only esconde R$ (testes E2E de vazamento)
-- [ ] Identidade: display name ou anônimo "Investidor X"
+[x] `POST /share-link/regenerate` · `DELETE /share-link` · `PATCH /visibility` (token claro retornado 1×, hash SHA256 no banco)
+[x] Slug gerado (`titulo-abc123`) + endpoint público anônimo `/public/{slug}`
+- [ ] Página frontend `/c/[slug]` SSR+ISR (endpoint pronto) — pendente
+- [ ] JSON-LD + OG dinâmico da página pública (aguarda a página)
+[x] `percent_only` respeitado no DTO público — smoke E2E (allocation % sem R$, positions sem valores)
+[x] Identidade: display name ou anônimo "Investidor X" — smoke ✓
 - [ ] noindex automático para carteiras link-restritas
-- [ ] Clone 1 clique: BUYs sintéticos datados hoje preservando pesos
+[x] Clone 1 clique via POST `/public/{slug}/clone` — smoke: pesos normalizados p/ base 10000 ✓
 
 ### Metas & alocação
 
-- [ ] DDL `portfolio_goals` aplicado; CRUD `/goals`
-- [ ] Multi-metas: valor R$, % crescimento, prazo
-- [ ] Projeção run-rate ("atinge em mar/2028")
-- [ ] Simulação juros compostos (VP+PMT+i) na meta
-- [ ] Alocação-alvo editável por classe com barras de desvio
+- [x] DDL `portfolio_goals` aplicado; endpoints CRUD `/goals` + `/goals/{id}/projection`
+- [x] Multi-metas: valor R$, % crescimento, prazo (smoke: criação + progresso ✓)
+- [x] Projeção run-rate ("atinge em mar/2028") — `GoalProjectionCalculator` (10 testes)
+- [x] Simulação juros compostos (VP+PMT+i) na meta
+- [ ] UI de metas/alocação-alvo no frontend (endpoints prontos)
 
 ### Export
 
-- [ ] CSV posições/transações (server-side)
-- [ ] XLSX multi-aba formatado
+- [x] CSV posições/transações server-side (BOM UTF-8, ; pt-BR) — `/export/positions.csv`, `/export/transactions.csv`
+- [ ] ⛔ XLSX multi-aba: aguarda decisão de pacote (ClosedXML licença)
 
 ## Fora deste marco (decisão dono)
 

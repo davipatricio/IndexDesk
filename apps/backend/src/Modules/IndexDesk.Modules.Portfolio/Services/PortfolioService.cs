@@ -81,6 +81,30 @@ public sealed class PortfolioService(IndexDeskDbContext db) : IPortfolioService
                 Error.NotFound("Portfolio", portfolioId.ToString())
             );
 
+        return await BuildSummaryAsync(owned, portfolioId, ct);
+    }
+
+    /// <summary>Resumo sem checagem de dono (uso interno: export). Ownership é do chamador.</summary>
+    public async Task<Result<PortfolioSummaryDto>> GetSummaryInternalAsync(
+        Guid portfolioId,
+        CancellationToken ct
+    )
+    {
+        var owned = await db.Portfolios.FirstOrDefaultAsync(p => p.Id == portfolioId, ct);
+        if (owned is null)
+            return Result<PortfolioSummaryDto>.Failure(
+                Error.NotFound("Portfolio", portfolioId.ToString())
+            );
+
+        return await BuildSummaryAsync(owned, portfolioId, ct);
+    }
+
+    private async Task<Result<PortfolioSummaryDto>> BuildSummaryAsync(
+        PortfolioEntity owned,
+        Guid portfolioId,
+        CancellationToken ct
+    )
+    {
         var transactions = await db
             .PortfolioTransactions.Where(t =>
                 t.PortfolioId == portfolioId && t.ReversedByTransactionId == null

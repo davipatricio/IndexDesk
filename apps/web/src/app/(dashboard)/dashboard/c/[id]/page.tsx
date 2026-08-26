@@ -8,6 +8,7 @@ import { fetchPortfolioSummary, deletePortfolio, type PositionDto } from '@/lib/
 import { useSession } from '@/hooks/use-session';
 import { PerformancePanel } from '@/components/portfolio/performance-panel';
 import { AnalysisPanel } from '@/components/portfolio/analysis-panel';
+import { FiscalPanel } from '@/components/portfolio/fiscal-panel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { fetchPortfolioTimeline, type TimelineItemDto } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -143,6 +144,7 @@ export default function CarteiraPage() {
           <TabsTrigger value="posicoes">Posições</TabsTrigger>
           <TabsTrigger value="rentabilidade">Rentabilidade</TabsTrigger>
           <TabsTrigger value="analise">Análise</TabsTrigger>
+          <TabsTrigger value="fiscal">Fiscal</TabsTrigger>
         </TabsList>
 
         <TabsContent value="posicoes" className="space-y-4">
@@ -171,6 +173,10 @@ export default function CarteiraPage() {
 
         <TabsContent value="analise">
           <AnalysisPanel portfolioId={id} />
+        </TabsContent>
+
+        <TabsContent value="fiscal">
+          <FiscalPanel portfolioId={id} positions={s.positions} />
         </TabsContent>
       </Tabs>
     </div>

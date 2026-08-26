@@ -15,6 +15,10 @@ public interface IPortfolioService
         Guid portfolioId,
         CancellationToken ct
     );
+    Task<Result<PortfolioSummaryDto>> GetSummaryInternalAsync(
+        Guid portfolioId,
+        CancellationToken ct
+    );
     Task<Result<PortfolioDto>> UpdateAsync(
         Guid userId,
         Guid portfolioId,

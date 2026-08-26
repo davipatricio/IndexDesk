@@ -30,6 +30,7 @@ public class IndexDeskDbContext : DbContext
         Set<PortfolioDailySnapshotEntity>();
     public DbSet<PortfolioFixedIncomePositionEntity> PortfolioFixedIncomePositions =>
         Set<PortfolioFixedIncomePositionEntity>();
+    public DbSet<PortfolioGoalEntity> PortfolioGoals => Set<PortfolioGoalEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -296,6 +297,26 @@ public class IndexDeskDbContext : DbContext
             entity.Property(e => e.TotalValue).HasPrecision(20, 8);
             entity.Property(e => e.InvestedAmount).HasPrecision(20, 8);
             entity.Property(e => e.TwrSinceInception).HasPrecision(14, 8);
+        });
+
+        modelBuilder.Entity<PortfolioGoalEntity>(entity =>
+        {
+            entity.ToTable("portfolio_goals");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Kind).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.TargetValue).HasPrecision(20, 8);
+            entity.Property(e => e.TargetPct).HasPrecision(10, 4);
+            entity.Property(e => e.MonthlyContribution).HasPrecision(20, 8);
+            entity.Property(e => e.AssumedAnnualRate).HasPrecision(10, 4);
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+
+            entity
+                .HasOne(e => e.Portfolio)
+                .WithMany()
+                .HasForeignKey(e => e.PortfolioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.PortfolioId, e.Status });
         });
 
         modelBuilder.Entity<PortfolioFixedIncomePositionEntity>(entity =>
