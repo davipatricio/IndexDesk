@@ -10,6 +10,7 @@ import { PerformancePanel } from '@/components/portfolio/performance-panel';
 import { AnalysisPanel } from '@/components/portfolio/analysis-panel';
 import { FiscalPanel } from '@/components/portfolio/fiscal-panel';
 import { ShareControls } from '@/components/portfolio/share-controls';
+import { GoalsPanel } from '@/components/portfolio/goals-panel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { fetchPortfolioTimeline, type TimelineItemDto } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -148,6 +149,7 @@ export default function CarteiraPage() {
           <TabsTrigger value="rentabilidade">Rentabilidade</TabsTrigger>
           <TabsTrigger value="analise">Análise</TabsTrigger>
           <TabsTrigger value="fiscal">Fiscal</TabsTrigger>
+          <TabsTrigger value="metas">Metas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="posicoes" className="space-y-4">
@@ -180,6 +182,10 @@ export default function CarteiraPage() {
 
         <TabsContent value="fiscal">
           <FiscalPanel portfolioId={id} positions={s.positions} />
+        </TabsContent>
+
+        <TabsContent value="metas">
+          <GoalsPanel portfolioId={id} totalValue={s.totalValue} />
         </TabsContent>
       </Tabs>
     </div>

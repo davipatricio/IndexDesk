@@ -1028,3 +1028,64 @@ export async function revokeShareLink(portfolioId: string): Promise<void> {
   });
   if (!res.ok && res.status !== 204) throw await portfolioApiError(res, 'Falha ao revogar o link.');
 }
+
+// ---------------------------------------------------------------------------
+// Metas (M-P5) — multi-metas com progresso e projeção
+// ---------------------------------------------------------------------------
+
+export interface GoalDto {
+  id: string;
+  portfolioId: string;
+  kind: 'TARGET_AMOUNT' | 'TARGET_RETURN_PCT' | 'TARGET_DATE';
+  targetValue: number | null;
+  targetPct: number | null;
+  targetDate: string | null;
+  monthlyContribution: number | null;
+  assumedAnnualRate: number | null;
+  status: 'active' | 'achieved' | 'cancelled';
+  createdAt: string;
+}
+
+export interface GoalProgressDto {
+  goal: GoalDto;
+  currentValue: number;
+  progressPercent: number | null;
+}
+
+export interface CreateGoalInput {
+  kind: GoalDto['kind'];
+  targetValue?: number;
+  targetPct?: number;
+  targetDate?: string;
+  monthlyContribution?: number;
+  assumedAnnualRate?: number;
+}
+
+export async function fetchGoals(
+  portfolioId: string,
+  currentValue: number,
+): Promise<GoalProgressDto[]> {
+  const res = await fetchWithAuth(
+    `${API_BASE_URL}/api/v1/portfolios/${portfolioId}/goals?currentValue=${currentValue}`,
+  );
+  if (!res.ok) throw await portfolioApiError(res, 'Falha ao obter as metas.');
+  return (await res.json()) as GoalProgressDto[];
+}
+
+export async function createGoal(portfolioId: string, input: CreateGoalInput): Promise<GoalDto> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/portfolios/${portfolioId}/goals`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw await portfolioApiError(res, 'Falha ao criar a meta.');
+  return (await res.json()) as GoalDto;
+}
+
+export async function deleteGoal(portfolioId: string, goalId: string): Promise<void> {
+  const res = await fetchWithAuth(
+    `${API_BASE_URL}/api/v1/portfolios/${portfolioId}/goals/${goalId}`,
+    { method: 'DELETE' },
+  );
+  if (!res.ok && res.status !== 204) throw await portfolioApiError(res, 'Falha ao remover a meta.');
+}

@@ -22,7 +22,8 @@ Objetivo: carteira pública/link, clonagem, metas com projeção e exportação 
 - [x] Projeção run-rate ("atinge em mar/2028") — `GoalProjectionCalculator` (10 testes)
 - [x] Simulação juros compostos (VP+PMT+i) na meta
 - [x] Controles de compartilhamento na carteira (visibilidade + gerar/copiar/revogar link)
-- [ ] UI de metas/alocação-alvo (endpoints prontos)
+[x] UI de metas: aba Metas com criação (valor/%/prazo), progresso contra patrimônio e remoção
+- [ ] Alocação-alvo editável por classe com barras de desvio (target_allocation jsonb já no schema)
 
 ### Export
 
