@@ -299,6 +299,10 @@ public sealed class PortfolioService(IndexDeskDbContext db) : IPortfolioService
             .Where(f => f.SyntheticIndexCode != null)
             .GroupBy(f => f.SyntheticIndexCode!)
             .ToDictionary(g => g.Key, g => g.First());
+        var fiByAsset = fiRows
+            .Where(f => f.AssetId != null)
+            .GroupBy(f => f.AssetId!.Value)
+            .ToDictionary(g => g.Key, g => g.First());
 
         var rows = new List<(ProjectedPosition Source, PositionDto Dto)>(projected.Count);
         foreach (var p in projected)

@@ -110,6 +110,15 @@ builder.Services.AddQuartz(q =>
             .WithIdentity("PortfolioSnapshotDailyTrigger", "Portfolio")
             .WithCronSchedule("0 30 23 ? * MON-FRI *")
     );
+
+    // Fixed-income accrual — Mon-Fri at 23:10 UTC, before the snapshot job.
+    var accrualJobKey = new JobKey("PortfolioAccrualDailyJob", "Portfolio");
+    q.AddJob<PortfolioAccrualDailyJob>(opts => opts.WithIdentity(accrualJobKey));
+    q.AddTrigger(opts =>
+        opts.ForJob(accrualJobKey)
+            .WithIdentity("PortfolioAccrualDailyTrigger", "Portfolio")
+            .WithCronSchedule("0 10 23 ? * MON-FRI *")
+    );
 });
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);

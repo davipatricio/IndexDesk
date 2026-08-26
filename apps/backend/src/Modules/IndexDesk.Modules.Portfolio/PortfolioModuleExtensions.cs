@@ -16,6 +16,7 @@ public static class PortfolioModuleExtensions
         services.AddScoped<IPortfolioService, PortfolioService>();
         services.AddScoped<ITransactionService, TransactionService>();
         services.AddScoped<IPortfolioPerformanceService, PortfolioPerformanceService>();
+        services.AddScoped<IPortfolioFixedIncomeService, PortfolioFixedIncomeService>();
         return services;
     }
 
@@ -222,6 +223,94 @@ public static class PortfolioModuleExtensions
             .WithSummary(
                 "Série diária do patrimônio com retorno simples, TWR, MWR e benchmarks (CDI/IPCA/IBOV) — dados locais"
             );
+
+        // ---------- renda fixa (parâmetros + timeline) ----------
+
+        var fiGroup = group.MapGroup("/{id:guid}/fixed-income");
+
+        fiGroup
+            .MapPost(
+                "/",
+                async (
+                    Guid id,
+                    AttachFixedIncomeRequest request,
+                    IPortfolioFixedIncomeService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.AttachAsync(userId, id, request, ct);
+                    return result.IsSuccess ? Results.Ok(result.Value) : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:write")
+            .WithName("AttachFixedIncomeParams")
+            .WithSummary(
+                "Anexa/atualiza parâmetros de renda fixa (indexador, taxa, vencimento) a uma posição"
+            );
+
+        fiGroup
+            .MapGet(
+                "/",
+                async (
+                    Guid id,
+                    IPortfolioFixedIncomeService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.ListAsync(userId, id, ct);
+                    return result.IsSuccess ? Results.Ok(result.Value) : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:read")
+            .WithName("ListFixedIncomeParams")
+            .WithSummary("Lista os parâmetros de renda fixa da carteira");
+
+        fiGroup
+            .MapDelete(
+                "/{fixedIncomeId:guid}",
+                async (
+                    Guid id,
+                    Guid fixedIncomeId,
+                    IPortfolioFixedIncomeService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.DetachAsync(userId, id, fixedIncomeId, ct);
+                    return result.IsSuccess ? Results.NoContent() : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:write")
+            .WithName("DetachFixedIncomeParams")
+            .WithSummary("Remove parâmetros de renda fixa da posição");
+
+        group
+            .MapGet(
+                "/{id:guid}/timeline",
+                async (
+                    Guid id,
+                    IPortfolioFixedIncomeService service,
+                    HttpContext http,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.GetTimelineAsync(userId, id, ct);
+                    return result.IsSuccess ? Results.Ok(result.Value) : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:read")
+            .WithName("GetPortfolioTimeline")
+            .WithSummary("Timeline de vencimentos e carências da carteira");
 
         group
             .MapGet(
