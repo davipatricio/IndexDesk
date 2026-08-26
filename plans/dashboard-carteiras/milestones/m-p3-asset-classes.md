@@ -5,9 +5,10 @@ com accrual local-first.
 
 ## Tarefas
 
-- [ ] DDL `portfolio_fixed_income_positions` aplicado
-- [ ] `FixedIncomeAccrualCalculator` puro (CDI%/CDI+/Selic/IPCA+/Prefixado, base 252, dias úteis B3)
-      + vetores de teste com séries reais do `macro_economic_series`
+- [x] DDL `portfolio_fixed_income_positions` aplicado (`docker/init-db/05-portfolio-fixed-income.sql`)
+[x] `FixedIncomeAccrualCalculator` puro (CDI%/CDI+/Selic/IPCA+/Prefixado) + 9 testes unitários
+- [x] Accrual integrado ao valuation de caixa sintético no resumo (parâmetros RF por carteira+índice)
+- [ ] Vetores de teste com séries reais do `macro_economic_series` (validação financeira)
 - [ ] `PortfolioAccrualDailyJob` idempotente (`last_accrual_date` auditável)
 - [ ] Wizard: ramo de formulário por classe (RF: indexador/taxa/vencimento/liquidez; Tesouro:
       título+vencimento; fundos: cota manual; previdência: regime)

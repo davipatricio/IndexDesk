@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using IndexDesk.IntegrationTests.Auth;
 using FluentAssertions;
+using IndexDesk.IntegrationTests.Auth;
 using Xunit;
 
 namespace IndexDesk.IntegrationTests.Portfolio;
@@ -39,10 +39,7 @@ public class PortfolioEndpointsTests : IClassFixture<AuthWebApplicationFactory>
     private HttpClient NewClientWith(string token)
     {
         var client = _factory.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
-            "Bearer",
-            token
-        );
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         return client;
     }
 
@@ -165,8 +162,7 @@ public class PortfolioEndpointsTests : IClassFixture<AuthWebApplicationFactory>
 
         var portfolio = await (
             await client.PostAsJsonAsync("/api/v1/portfolios", new { title = "Edição" })
-        )
-            .Content.ReadFromJsonAsync<PortfolioItem>();
+        ).Content.ReadFromJsonAsync<PortfolioItem>();
 
         var buy = await (
             await client.PostAsJsonAsync(
@@ -181,8 +177,7 @@ public class PortfolioEndpointsTests : IClassFixture<AuthWebApplicationFactory>
                     grossAmount = 100,
                 }
             )
-        )
-            .Content.ReadFromJsonAsync<TransactionItem>();
+        ).Content.ReadFromJsonAsync<TransactionItem>();
 
         var amended = await client.PutAsJsonAsync(
             $"/api/v1/portfolios/{portfolio.Id}/transactions/{buy!.Id}",

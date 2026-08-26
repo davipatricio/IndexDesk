@@ -28,6 +28,8 @@ public class IndexDeskDbContext : DbContext
         Set<PortfolioTransactionEntity>();
     public DbSet<PortfolioDailySnapshotEntity> PortfolioDailySnapshots =>
         Set<PortfolioDailySnapshotEntity>();
+    public DbSet<PortfolioFixedIncomePositionEntity> PortfolioFixedIncomePositions =>
+        Set<PortfolioFixedIncomePositionEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -294,6 +296,21 @@ public class IndexDeskDbContext : DbContext
             entity.Property(e => e.TotalValue).HasPrecision(20, 8);
             entity.Property(e => e.InvestedAmount).HasPrecision(20, 8);
             entity.Property(e => e.TwrSinceInception).HasPrecision(14, 8);
+        });
+
+        modelBuilder.Entity<PortfolioFixedIncomePositionEntity>(entity =>
+        {
+            entity.ToTable("portfolio_fixed_income_positions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SyntheticIndexCode).HasMaxLength(10);
+            entity.Property(e => e.Indexer).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.IndexerRate).HasPrecision(12, 6);
+            entity.Property(e => e.Principal).HasPrecision(20, 8);
+            entity.Property(e => e.Liquidity).HasMaxLength(30);
+            entity.Property(e => e.TaxRegime).HasMaxLength(20);
+            entity.Property(e => e.AccruedValue).HasPrecision(20, 8);
+
+            entity.HasIndex(e => new { e.PortfolioId, e.AssetId });
         });
     }
 

@@ -1,6 +1,7 @@
 using IndexDesk.BuildingBlocks.Common.Results;
 using IndexDesk.BuildingBlocks.Persistence;
 using IndexDesk.BuildingBlocks.Persistence.Entities;
+using IndexDesk.Modules.Portfolio.Calculators;
 using Microsoft.EntityFrameworkCore;
 
 namespace IndexDesk.Modules.Portfolio.Services;
@@ -90,7 +91,7 @@ public sealed class PortfolioService(IndexDeskDbContext db) : IPortfolioService
         if (projection.IsFailure)
             return Result<PortfolioSummaryDto>.Failure(projection.Error);
 
-        var positions = await ValuePositionsAsync(projection.Value.Positions, ct);
+        var positions = await ValuePositionsAsync(portfolioId, projection.Value.Positions, ct);
 
         return Result<PortfolioSummaryDto>.Success(
             new PortfolioSummaryDto(
@@ -174,6 +175,53 @@ public sealed class PortfolioService(IndexDeskDbContext db) : IPortfolioService
         return Result.Success();
     }
 
+    private readonly Dictionary<(string Code, DateOnly End), decimal> _accrualCache = [];
+
+    /// <summary>Accrual local-first do caixa sintético com séries SGS já persistidas.</summary>
+    private decimal AccrueSynthetic(
+        BuildingBlocks.Persistence.Entities.PortfolioFixedIncomePositionEntity param,
+        decimal quantity
+    )
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var end =
+            param.MaturityDate < today && param.Liquidity == "maturity"
+                ? param.MaturityDate
+                : today;
+
+        var cacheKey = (param.SyntheticIndexCode ?? string.Empty, end);
+        if (_accrualCache.TryGetValue(cacheKey, out var cachedFactor))
+            return decimal.Round(quantity * cachedFactor, 2);
+
+        var sgsCode = param.Indexer.ToUpperInvariant() switch
+        {
+            "SELIC" => 11,
+            "IPCA_PLUS" => 433,
+            _ => 12, // CDI_PERCENT e CDI_PLUS usam CDI diária (SGS 12)
+        };
+
+        var rates = db
+            .MacroEconomicSeries.Where(m =>
+                m.SeriesCode == sgsCode && m.Date > param.StartDate && m.Date <= end
+            )
+            .OrderBy(m => m.Date)
+            .Select(m => new ValueTuple<DateOnly, decimal>(m.Date, m.Value))
+            .ToList();
+
+        var result = FixedIncomeAccrualCalculator.Accrue(
+            new FixedIncomeAccrualCalculator.Input(
+                param.Indexer,
+                param.IndexerRate,
+                quantity,
+                param.StartDate,
+                end,
+                rates
+            )
+        );
+        _accrualCache[cacheKey] = result.Factor;
+        return result.AccruedValue;
+    }
+
     // ---------- helpers ----------
 
     private async Task<PortfolioEntity?> OwnsAsync(
@@ -200,6 +248,7 @@ public sealed class PortfolioService(IndexDeskDbContext db) : IPortfolioService
     /// HasMarketPrice=false and are valued at cost so totals stay meaningful.
     /// </summary>
     private async Task<List<PositionDto>> ValuePositionsAsync(
+        Guid portfolioId,
         IReadOnlyList<ProjectedPosition> projected,
         CancellationToken ct
     )
@@ -243,6 +292,14 @@ public sealed class PortfolioService(IndexDeskDbContext db) : IPortfolioService
                 fx[pair] = rate.Value;
         }
 
+        var fiRows = await db
+            .PortfolioFixedIncomePositions.Where(f => f.PortfolioId == portfolioId)
+            .ToListAsync(ct);
+        var fiBySynthetic = fiRows
+            .Where(f => f.SyntheticIndexCode != null)
+            .GroupBy(f => f.SyntheticIndexCode!)
+            .ToDictionary(g => g.Key, g => g.First());
+
         var rows = new List<(ProjectedPosition Source, PositionDto Dto)>(projected.Count);
         foreach (var p in projected)
         {
@@ -261,9 +318,19 @@ public sealed class PortfolioService(IndexDeskDbContext db) : IPortfolioService
             }
             else if (p.AssetId is null && p.Quantity > 0)
             {
-                // Synthetic cash (CDI/Selic): accrual engine arrives in M-P3; value at cost meanwhile.
-                currentPrice = p.AveragePrice;
-                hasMarketPrice = true;
+                // Caixa sintético: usa o accrual quando há parâmetros RF; sem parâmetros, custo.
+                var param = fiBySynthetic.GetValueOrDefault(p.SyntheticIndexCode);
+                if (param is not null)
+                {
+                    var accrued = AccrueSynthetic(param, p.Quantity);
+                    currentPrice = p.Quantity > 0 ? decimal.Round(accrued / p.Quantity, 8) : 0m;
+                    hasMarketPrice = currentPrice > 0;
+                }
+                else
+                {
+                    currentPrice = p.AveragePrice;
+                    hasMarketPrice = true;
+                }
             }
 
             var currentValue = hasMarketPrice ? p.Quantity * currentPrice : p.InvestedAmount;
@@ -297,11 +364,9 @@ public sealed class PortfolioService(IndexDeskDbContext db) : IPortfolioService
             r.Dto.UnrealizedPnl + r.Dto.RealizedPnl + r.Dto.IncomeReceived
         );
 
-        var result = rows
-            .Select(r =>
+        var result = rows.Select(r =>
             {
-                var profit =
-                    r.Dto.UnrealizedPnl + r.Dto.RealizedPnl + r.Dto.IncomeReceived;
+                var profit = r.Dto.UnrealizedPnl + r.Dto.RealizedPnl + r.Dto.IncomeReceived;
                 decimal? contribution =
                     totalProfit > 0 ? decimal.Round(profit / totalProfit * 100m, 2) : null;
                 return r.Dto with { ContributionPercent = contribution };
