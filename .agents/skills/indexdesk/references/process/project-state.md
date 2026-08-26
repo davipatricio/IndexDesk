@@ -13,7 +13,7 @@
 | **00 Foundation** | Monorepo Bun+Turbo, Next.js SSR-first, monólito .NET, Docker/env, auth/RBAC, OTel, CI | 🔵 in_progress (P0) | 94% (15/16) |
 | **01 MVP & Core Intelligence** | Ingestão local-first, APIs MarketData/Analytics, catálogo, comparador, backtest, rankings, calculadoras, admin, notícias, PWA/SEO | 🔵 in_progress (P0) | 52% (13/25) |
 | **02 Growth & Programmatic SEO** | Saved backtests, expansão SEO, PDF export, newsletter/alertas | ⬜ not_started (P2) | 0% (0/6) |
-| **03 Portfolio & Tax Automation** | Carteiras/transações, PM, TWR/MWR, accrual RF, eventos, DARF automation | ⬜ not_started (P2) | 0% (0/9) |
+| **03 Portfolio & Tax Automation** | Carteiras/transações, PM, TWR/MWR, accrual RF, eventos, DARF automation | 🔵 in_progress (P2) | M-P1 concluído; PORT-001/002 em andamento (PR #3) |
 
 Dependências: PHASE-00 → 01 → 02 → 03. Auth→admin→saved backtests→portfolios; holdings→overlap→páginas SEO.
 

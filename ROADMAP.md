@@ -4,7 +4,7 @@
 > **Estado atual:** requisitos documentados, implementação ainda não scaffoldada.
 
 **Atualizado em:** 2026-08-22 · **Estado:** `scaffolded` · **Progresso:** [██████████░░░░░░░░░░] 50% (28/56)
-**Tarefas:** 56 total · 28 concluídas · 0 em andamento · 0 bloqueadas · 28 não iniciadas/deferidas
+**Tarefas:** 56 total · 28 concluídas · 2 em andamento · 0 bloqueadas · 26 não iniciadas/deferidas
 
 ## Estado do projeto
 
@@ -533,8 +533,8 @@ _Registrar transações, posições e múltiplas carteiras com regras fiscais ra
 
 | ID | Tarefa | Prioridade | Dificuldade | Status | Dependências |
 | :--- | :--- | :---: | :---: | :--- | :--- | 
-| `PORT-001` | Implementar carteiras e transações | `P2` | `hard` | ⬜ `not_started` | `FND-014`, `FND-013` |
-| `PORT-002` | Calcular preço médio e posições | `P2` | `complex` | ⬜ `not_started` | `PORT-001`, `MVP-004` |
+| `PORT-001` | Implementar carteiras e transações | `P2` | `hard` | 🔵 `in_progress` | `FND-014`, `FND-013` |
+| `PORT-002` | Calcular preço médio e posições | `P2` | `complex` | 🔵 `in_progress` | `PORT-001`, `MVP-004` |
 | `PORT-003` | Implementar TWR e MWR/TIR | `P2` | `complex` | ⬜ `not_started` | `PORT-002`, `MVP-002`, `MVP-004` |
 
 <details>
@@ -543,11 +543,11 @@ _Registrar transações, posições e múltiplas carteiras com regras fiscais ra
 - **PORT-001 — Implementar carteiras e transações**
   - Critérios: Tipos e sinais de quantidade são validados; Custos e corretora são preservados; Transferências têm origem/destino identificáveis; Permissões por usuário funcionam
   - Entregáveis: Portfolio module; transaction API; transaction tests
-  - Notas: Não aceitar edição destrutiva de transação liquidada.
+  - Notas: M-P1 implementado (PR #3, feat/portfolio-dashboard): CRUD carteiras (limite 3), transações BUY/SELL/INCOME/CORP_ACTION/TRANSFER com edição lógica auditável, PM + projeção de posições, valuation local-first. Pendente: importação retroativa em lote e DDL formal em migration (FND-013). Plano vivo: plans/dashboard-carteiras/.
 - **PORT-002 — Calcular preço médio e posições**
   - Critérios: PM pondera custos conforme regra definida; Sells reduzem posição sem distorcer custo; Splits ajustam quantidade/PM; Snapshot pode ser recalculado do log
   - Entregáveis: position projector; PM calculator; reconciliation tests
-  - Notas: Validar com casos reais anonimizados e revisão fiscal.
+  - Notas: PositionProjector + AveragePriceCalculator implementados e testados (19 unitários); valuation com último close. Pendente: snapshots materializados, splits via feed de corporate actions, reconciliação.
 - **PORT-003 — Implementar TWR e MWR/TIR**
   - Critérios: TWR neutraliza fluxos externos; MWR/TIR pondera datas de fluxo; Benchmarks CDI/IPCA/Ibovespa/S&P são comparáveis; Casos sem fluxo e fluxo no mesmo dia são testados
   - Entregáveis: performance engine; benchmark comparison API; financial math tests

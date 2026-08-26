@@ -9,10 +9,19 @@
     "objective": "Adicionar gestão completa de carteiras, renda fixa, eventos, rentabilidade e automação fiscal após a base local-first estar madura.",
     "status": "not_started",
     "priority": "P2",
-    "depends_on": ["PHASE-01", "PHASE-02"],
+    "depends_on": [
+      "PHASE-01",
+      "PHASE-02"
+    ],
     "source_refs": [
-      { "file": "PRODUCT.md", "section": "Roadmap e Funcionalidades Futuras (Fase 2 & 3)" },
-      { "file": "MODELS.md", "section": "Módulo de Gestão de Carteiras e Transações" }
+      {
+        "file": "PRODUCT.md",
+        "section": "Roadmap e Funcionalidades Futuras (Fase 2 & 3)"
+      },
+      {
+        "file": "MODELS.md",
+        "section": "Módulo de Gestão de Carteiras e Transações"
+      }
     ],
     "epics": [
       {
@@ -21,9 +30,16 @@
         "description": "Registrar transações, posições e múltiplas carteiras com regras fiscais rastreáveis.",
         "status": "not_started",
         "priority": "P2",
-        "depends_on": ["FND-014", "MVP-007", "MVP-009"],
+        "depends_on": [
+          "FND-014",
+          "MVP-007",
+          "MVP-009"
+        ],
         "source_refs": [
-          { "file": "PRODUCT.md", "section": "5.1 Sistema Completo de Gestão de Carteiras" }
+          {
+            "file": "PRODUCT.md",
+            "section": "5.1 Sistema Completo de Gestão de Carteiras"
+          }
         ],
         "acceptance_criteria": [
           "Transações são imutáveis/auditáveis",
@@ -36,16 +52,25 @@
             "id": "PORT-001",
             "title": "Implementar carteiras e transações",
             "description": "Criar portfolios e portfolio_transactions para BUY, SELL, transferências, reinvestimentos e ajustes de split.",
-            "status": "not_started",
+            "status": "in_progress",
             "priority": "P2",
             "difficulty": "hard",
             "kind": "backend",
             "phase_id": "PHASE-03",
             "epic_id": "PORTFOLIO",
-            "depends_on": ["FND-014", "FND-013"],
-            "blocks": ["PORT-002", "PORT-004"],
+            "depends_on": [
+              "FND-014",
+              "FND-013"
+            ],
+            "blocks": [
+              "PORT-002",
+              "PORT-004"
+            ],
             "source_refs": [
-              { "file": "MODELS.md", "section": "portfolios e portfolio_transactions" }
+              {
+                "file": "MODELS.md",
+                "section": "portfolios e portfolio_transactions"
+              }
             ],
             "acceptance_criteria": [
               "Tipos e sinais de quantidade são validados",
@@ -53,11 +78,15 @@
               "Transferências têm origem/destino identificáveis",
               "Permissões por usuário funcionam"
             ],
-            "deliverables": ["Portfolio module", "transaction API", "transaction tests"],
+            "deliverables": [
+              "Portfolio module",
+              "transaction API",
+              "transaction tests"
+            ],
             "risks": [
               "Importações retroativas e transferências exigem modelo de custódia mais detalhado"
             ],
-            "notes": "Não aceitar edição destrutiva de transação liquidada.",
+            "notes": "M-P1 implementado (PR #3, feat/portfolio-dashboard): CRUD carteiras (limite 3), transações BUY/SELL/INCOME/CORP_ACTION/TRANSFER com edição lógica auditável, PM + projeção de posições, valuation local-first. Pendente: importação retroativa em lote e DDL formal em migration (FND-013). Plano vivo: plans/dashboard-carteiras/.",
             "estimated_hours": 32,
             "assignee": null,
             "completed_at": null
@@ -66,17 +95,29 @@
             "id": "PORT-002",
             "title": "Calcular preço médio e posições",
             "description": "Derivar PM, quantidade, investido, valor atual, lucro realizado/não realizado e snapshots.",
-            "status": "not_started",
+            "status": "in_progress",
             "priority": "P2",
             "difficulty": "complex",
             "kind": "analytics",
             "phase_id": "PHASE-03",
             "epic_id": "PORTFOLIO",
-            "depends_on": ["PORT-001", "MVP-004"],
-            "blocks": ["PORT-003", "PORT-004"],
+            "depends_on": [
+              "PORT-001",
+              "MVP-004"
+            ],
+            "blocks": [
+              "PORT-003",
+              "PORT-004"
+            ],
             "source_refs": [
-              { "file": "PRODUCT.md", "section": "Cálculo Fiscal de Preço Médio" },
-              { "file": "MODELS.md", "section": "portfolio_positions_summary" }
+              {
+                "file": "PRODUCT.md",
+                "section": "Cálculo Fiscal de Preço Médio"
+              },
+              {
+                "file": "MODELS.md",
+                "section": "portfolio_positions_summary"
+              }
             ],
             "acceptance_criteria": [
               "PM pondera custos conforme regra definida",
@@ -84,9 +125,15 @@
               "Splits ajustam quantidade/PM",
               "Snapshot pode ser recalculado do log"
             ],
-            "deliverables": ["position projector", "PM calculator", "reconciliation tests"],
-            "risks": ["Regras fiscais podem exigir lotes por data e classe de ativo"],
-            "notes": "Validar com casos reais anonimizados e revisão fiscal.",
+            "deliverables": [
+              "position projector",
+              "PM calculator",
+              "reconciliation tests"
+            ],
+            "risks": [
+              "Regras fiscais podem exigir lotes por data e classe de ativo"
+            ],
+            "notes": "PositionProjector + AveragePriceCalculator implementados e testados (19 unitários); valuation com último close. Pendente: snapshots materializados, splits via feed de corporate actions, reconciliação.",
             "estimated_hours": 36,
             "assignee": null,
             "completed_at": null
@@ -101,10 +148,19 @@
             "kind": "analytics",
             "phase_id": "PHASE-03",
             "epic_id": "PORTFOLIO",
-            "depends_on": ["PORT-002", "MVP-002", "MVP-004"],
-            "blocks": ["PORT-005"],
+            "depends_on": [
+              "PORT-002",
+              "MVP-002",
+              "MVP-004"
+            ],
+            "blocks": [
+              "PORT-005"
+            ],
             "source_refs": [
-              { "file": "PRODUCT.md", "section": "Métricas Avançadas de Rentabilidade" }
+              {
+                "file": "PRODUCT.md",
+                "section": "Métricas Avançadas de Rentabilidade"
+              }
             ],
             "acceptance_criteria": [
               "TWR neutraliza fluxos externos",
@@ -117,7 +173,9 @@
               "benchmark comparison API",
               "financial math tests"
             ],
-            "risks": ["Fuso, dias úteis e fluxos intraday alteram resultados"],
+            "risks": [
+              "Fuso, dias úteis e fluxos intraday alteram resultados"
+            ],
             "notes": "Documentar convenções de valuation e timezone.",
             "estimated_hours": 32,
             "assignee": null,
@@ -131,9 +189,15 @@
         "description": "Atualizar posições de CDB/LCI/LCA/Tesouro e outros indexadores usando séries macro locais.",
         "status": "not_started",
         "priority": "P2",
-        "depends_on": ["MVP-002", "PORT-001"],
+        "depends_on": [
+          "MVP-002",
+          "PORT-001"
+        ],
         "source_refs": [
-          { "file": "PRODUCT.md", "section": "5.2 Motor de Auto-Cálculo de Renda Fixa" }
+          {
+            "file": "PRODUCT.md",
+            "section": "5.2 Motor de Auto-Cálculo de Renda Fixa"
+          }
         ],
         "acceptance_criteria": [
           "Accrual nunca consulta BCB em request",
@@ -151,17 +215,34 @@
             "kind": "analytics",
             "phase_id": "PHASE-03",
             "epic_id": "FIXEDINCOME",
-            "depends_on": ["MVP-002", "PORT-001", "FND-013"],
-            "blocks": ["PORT-005"],
-            "source_refs": [{ "file": "MODELS.md", "section": "portfolio_fixed_income_positions" }],
+            "depends_on": [
+              "MVP-002",
+              "PORT-001",
+              "FND-013"
+            ],
+            "blocks": [
+              "PORT-005"
+            ],
+            "source_refs": [
+              {
+                "file": "MODELS.md",
+                "section": "portfolio_fixed_income_positions"
+              }
+            ],
             "acceptance_criteria": [
               "Suporta CDI_PERCENT, CDI_PLUS, SELIC, IPCA_PLUS e PREFIXED",
               "Capitaliza somente dias úteis aplicáveis",
               "Reexecução do job é idempotente",
               "Valor e data do último accrual são auditáveis"
             ],
-            "deliverables": ["fixed income module", "accrual job", "financial math tests"],
-            "risks": ["CDI diário e taxa anual exigem convenção de conversão precisa"],
+            "deliverables": [
+              "fixed income module",
+              "accrual job",
+              "financial math tests"
+            ],
+            "risks": [
+              "CDI diário e taxa anual exigem convenção de conversão precisa"
+            ],
             "notes": "Validar fórmulas com fonte oficial e revisão financeira.",
             "estimated_hours": 40,
             "assignee": null,
@@ -177,17 +258,32 @@
             "kind": "data",
             "phase_id": "PHASE-03",
             "epic_id": "FIXEDINCOME",
-            "depends_on": ["PORT-004"],
-            "blocks": ["PORT-007"],
-            "source_refs": [{ "file": "PRODUCT.md", "section": "Tributação Regressiva Projetada" }],
+            "depends_on": [
+              "PORT-004"
+            ],
+            "blocks": [
+              "PORT-007"
+            ],
+            "source_refs": [
+              {
+                "file": "PRODUCT.md",
+                "section": "Tributação Regressiva Projetada"
+              }
+            ],
             "acceptance_criteria": [
               "Faixas de prazo são versionadas",
               "Isenção e retenção são explicitadas",
               "Resultado mostra premissas e competência",
               "Testes cobrem fronteiras 180/360/720 dias"
             ],
-            "deliverables": ["tax projection service", "versioned tax rules", "tax tests"],
-            "risks": ["Legislação pode mudar e dados cadastrais podem estar incompletos"],
+            "deliverables": [
+              "tax projection service",
+              "versioned tax rules",
+              "tax tests"
+            ],
+            "risks": [
+              "Legislação pode mudar e dados cadastrais podem estar incompletos"
+            ],
             "notes": "Requer revisão editorial/fiscal antes de uso real.",
             "estimated_hours": 24,
             "assignee": null,
@@ -201,9 +297,17 @@
         "description": "Centralizar eventos de proventos, macro, índices e fatos corporativos, com alertas opcionais.",
         "status": "not_started",
         "priority": "P2",
-        "depends_on": ["MVP-002", "MVP-004", "MVP-005", "GROW-006"],
+        "depends_on": [
+          "MVP-002",
+          "MVP-004",
+          "MVP-005",
+          "GROW-006"
+        ],
         "source_refs": [
-          { "file": "PRODUCT.md", "section": "5.3 Calendário de Eventos do Mercado & Proventos" }
+          {
+            "file": "PRODUCT.md",
+            "section": "5.3 Calendário de Eventos do Mercado & Proventos"
+          }
         ],
         "acceptance_criteria": [
           "Eventos têm origem, data de referência e status",
@@ -221,17 +325,34 @@
             "kind": "data",
             "phase_id": "PHASE-03",
             "epic_id": "EVENTS",
-            "depends_on": ["MVP-002", "MVP-004", "MVP-005"],
-            "blocks": ["PORT-007"],
-            "source_refs": [{ "file": "MODELS.md", "section": "Calendário Unificado de Eventos" }],
+            "depends_on": [
+              "MVP-002",
+              "MVP-004",
+              "MVP-005"
+            ],
+            "blocks": [
+              "PORT-007"
+            ],
+            "source_refs": [
+              {
+                "file": "MODELS.md",
+                "section": "Calendário Unificado de Eventos"
+              }
+            ],
             "acceptance_criteria": [
               "Eventos duplicados são reconciliados",
               "Datas futuras e históricas são distintas",
               "Página pública exibe origem e atualização",
               "Corporate actions ajustam séries/posições quando aplicável"
             ],
-            "deliverables": ["event ingestion", "calendar API", "calendar UI"],
-            "risks": ["Providers podem publicar correções retroativas"],
+            "deliverables": [
+              "event ingestion",
+              "calendar API",
+              "calendar UI"
+            ],
+            "risks": [
+              "Providers podem publicar correções retroativas"
+            ],
             "notes": "Usar audit trail para alterações de eventos.",
             "estimated_hours": 28,
             "assignee": null,
@@ -247,10 +368,18 @@
             "kind": "feature",
             "phase_id": "PHASE-03",
             "epic_id": "EVENTS",
-            "depends_on": ["PORT-006", "GROW-006"],
-            "blocks": ["PORT-008"],
+            "depends_on": [
+              "PORT-006",
+              "GROW-006"
+            ],
+            "blocks": [
+              "PORT-008"
+            ],
             "source_refs": [
-              { "file": "PRODUCT.md", "section": "Rebalanceamento Inteligente e Alertas" }
+              {
+                "file": "PRODUCT.md",
+                "section": "Rebalanceamento Inteligente e Alertas"
+              }
             ],
             "acceptance_criteria": [
               "Usuário configura limiar/canal",
@@ -258,8 +387,15 @@
               "Falhas de delivery são reprocessáveis",
               "Opt-out é imediato"
             ],
-            "deliverables": ["alert rules", "notification worker", "delivery adapters"],
-            "risks": ["Custos/limites de email e WhatsApp", "LGPD e consentimento"],
+            "deliverables": [
+              "alert rules",
+              "notification worker",
+              "delivery adapters"
+            ],
+            "risks": [
+              "Custos/limites de email e WhatsApp",
+              "LGPD e consentimento"
+            ],
             "notes": "Depende de provider e storage/queue decididos na Phase 02.",
             "estimated_hours": 32,
             "assignee": null,
@@ -273,7 +409,11 @@
         "description": "Apoiar aportes, compensação de prejuízos e apuração mensal sem executar ordens automaticamente.",
         "status": "not_started",
         "priority": "P3",
-        "depends_on": ["PORT-002", "PORT-003", "PORT-006"],
+        "depends_on": [
+          "PORT-002",
+          "PORT-003",
+          "PORT-006"
+        ],
         "source_refs": [
           {
             "file": "PRODUCT.md",
@@ -297,17 +437,33 @@
             "kind": "analytics",
             "phase_id": "PHASE-03",
             "epic_id": "TAXAUTO",
-            "depends_on": ["PORT-002", "PORT-003"],
-            "blocks": ["PORT-009"],
-            "source_refs": [{ "file": "PRODUCT.md", "section": "Aportes Inteligentes" }],
+            "depends_on": [
+              "PORT-002",
+              "PORT-003"
+            ],
+            "blocks": [
+              "PORT-009"
+            ],
+            "source_refs": [
+              {
+                "file": "PRODUCT.md",
+                "section": "Aportes Inteligentes"
+              }
+            ],
             "acceptance_criteria": [
               "Considera preços atuais locais e aporte disponível",
               "Explica desvio e arredondamento de cotas",
               "Não recomenda venda por padrão",
               "Resultado é determinístico"
             ],
-            "deliverables": ["rebalance planner", "recommendation API", "scenario tests"],
-            "risks": ["Liquidez e lote mínimo podem tornar sugestão impraticável"],
+            "deliverables": [
+              "rebalance planner",
+              "recommendation API",
+              "scenario tests"
+            ],
+            "risks": [
+              "Liquidez e lote mínimo podem tornar sugestão impraticável"
+            ],
             "notes": "Mostrar que a sugestão não é recomendação de investimento.",
             "estimated_hours": 24,
             "assignee": null,
@@ -323,10 +479,17 @@
             "kind": "analytics",
             "phase_id": "PHASE-03",
             "epic_id": "TAXAUTO",
-            "depends_on": ["PORT-002", "PORT-005", "PORT-008"],
+            "depends_on": [
+              "PORT-002",
+              "PORT-005",
+              "PORT-008"
+            ],
             "blocks": [],
             "source_refs": [
-              { "file": "PRODUCT.md", "section": "Painel de Apuração Mensal de DARF" }
+              {
+                "file": "PRODUCT.md",
+                "section": "Painel de Apuração Mensal de DARF"
+              }
             ],
             "acceptance_criteria": [
               "Segrega classes e day/swing trade",
@@ -334,7 +497,11 @@
               "Mostra código 6015, valor e vencimento",
               "Relatório exige revisão/confirmação do usuário"
             ],
-            "deliverables": ["tax ledger", "DARF report", "export integration"],
+            "deliverables": [
+              "tax ledger",
+              "DARF report",
+              "export integration"
+            ],
             "risks": [
               "Risco regulatório crítico; não automatizar pagamento",
               "Dados de corretora podem estar incompletos"
