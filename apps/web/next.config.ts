@@ -8,6 +8,10 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   reactCompiler: true,
+  // Acesso via túneis efêmeros (Cloudflare quick tunnels): origem do navegador é
+  // *.trycloudflare.com, diferente de localhost — sem isto o dev server responde
+  // 403 nos chunks /_next/*.
+  allowedDevOrigins: ['*.trycloudflare.com'],
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts'],
     turbopackMemoryEviction: 'full',
