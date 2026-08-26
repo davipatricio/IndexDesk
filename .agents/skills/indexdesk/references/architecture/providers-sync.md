@@ -18,14 +18,18 @@ Fluxo: Worker → Postgres → evento RabbitMQ → `Modules.Analytics` invalida 
 | **B3 dados abertos** | Grátis | download programático | Carteiras teóricas IBOV/SMLL/IDIV, ISIN |
 | **ANBIMA** | Grátis | sem limite rígido | Feriados até 2099 (base 252), índices IMA-B/IDA |
 | **Feeds gestoras** (iShares/Investo/Vanguard) | Grátis | CSVs públicos | Holdings diários oficiais |
-| **Brapi.dev** | Free · ciclo **15k req** | dados +30 min · 1 ativo/req | Cotações B3 + proventos (data COM/EX). Guardrails: ≥80% pausa backfill, ≥90% só EOD; contador Redis `providers:brapi:ciclo:{YYYYMM}`; detalhes em `PROVIDERS.md` §2.5 |
-| **Yahoo Finance** (não oficial) | Grátis | ~2000 req/IP/h | Benchmarks `^BVSP ^GSPC ^IXIC`, câmbio `USDBRL=X`, ouro `GC=F`; overflow natural do Brapi em guardrail (tickers `.SA`) |
+| **Brapi.dev** | Free · ciclo **15k req** | dados +30 min · 1 ativo/req | Batch diário + catálogo (`/available`, `/quote/list` com type/subType). **Histórico >3mo e dividendos = paywall Startup (400/403)** — ver `PROVIDERS.md` §2.5 |
+| **Yahoo Finance** (não oficial) | Grátis | ~2000 req/IP/h | **Fonte primária efetiva de histórico e proventos** (ações/BDRs/FIIs ricos; ETFs B3 vazios). Benchmarks `^BVSP ^GSPC ^IXIC`, câmbio `USDBRL=X`, ouro `GC=F`; overflow natural do Brapi em guardrail (tickers `.SA`) |
+| **B3 sistemaswebb3-listados** (sidecar `b3`) | Grátis | Akamai (warm-up cookies) | Catálogos oficiais: ~3500 empresas (CNPJ+codeCVM), FIIs listados (ticker+nome) — metadata cadastral |
+| **Bora Investir** | Grátis | WordPress REST aberto | Universo ETF 519 tickers + gestor/índice/geografia; sem candles/proventos |
+| **COTAHIST** (candidato, não implementado) | Grátis | zip público sem auth | Redundância OHLCV oficial futura; sem adj_close/proventos |
 | **FMP / HG Brasil** | FMP freemium · HG Brasil **pago (não contratado)** | FMP 250–500 req/dia | Contingência (UCITS/cotações). HG Brasil: client mantido, **sem key por ora**, desativado |
 
 ## Agendamentos (Quartz.NET)
 
 BCB **23:00 UTC** diário · CVM informe **~04:00** · Brapi pós-fechamento (nunca pollar <30 min — delay upstream) · IPCA mensal · holdings semanal.
 Implementado (Fase 3 provider-sync): `MarketDataDailySyncJob` **22:00 UTC MON-FRI** (1 batch Brapi + proventos espaçados ≥7 s + gap fill Yahoo/TV sidecar) · `FxRatesDailySyncJob` **22:05 UTC MON-FRI** (AwesomeAPI → `fx_rates`) · `TradingViewDailySyncJob` **22:30 UTC MON-FRI** · `HoldingsWeeklySyncJob` **sáb 08:00 UTC** (`0 0 8 ? * SAT *`). Cadeia OHLCV declarativa: Brapi → YahooSidecar → TVSidecar; InfoMoney fora da cadeia (backfill explícito).
+**Prioridade efetiva por uso (26/08, `PROVIDERS.md` §1.2):** daily close mantém Brapi no slot 1 (batch barato de 1 request); histórico/backfill e proventos = Yahoo direto (CLI `--provider yahoo`); catálogo = Brapi ⊕ Bora Investir ⊕ B3 sidecar `b3 companies|fiis`.
 Cada job: schedule configurável, correlation id, grava em `sync_job_logs`, falha de um provider não derruba os demais.
 
 ## Pipeline CVM streaming (padrão para arquivos grandes)

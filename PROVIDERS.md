@@ -12,15 +12,49 @@ Este documento especifica todas as fontes de dados e APIs externas utilizadas pe
 | **CVM (Informe Diário)**                                   | Regulatório / PL        |        **Gratuito**        |  Sem limite rígido (HTTP/FTP)   | Cota, PL histórico (12M), Cotistas diários e Gestoras.              |
 | **CVM (CDA - Carteira Mensal)**                            | Holdings Nacionais      |        **Gratuito**        | Sem limite rígido (HTTP mensal) | **Composição e ativos dos fundos/ETFs da B3** (Holdings & Overlap). |
 | **B3 (Portal de Dados Abertos)**                           | Mercado Oficial         |        **Gratuito**        |  Download programático diário   | Carteiras teóricas de índices (IBOV, SMLL, IDIV) e códigos ISIN.    |
+| **B3 (sistemaswebb3-listados — sidecar `b3`)**             | Cadastro oficial        |        **Gratuito**        |       Akamai (cookie warm-up)       | Catálogos oficiais: ~3500 empresas (CNPJ, codeCVM, tradingName) e FIIs listados (ticker + razão social). |
+| **Bora Investir (`borainvestir.b3.com.br`)**               | Catálogo ETF (metadata) |        **Gratuito**        |     WordPress REST, sem auth        | Universo ETF completo (519 tickers): gestor, índice, geografia. Sem candles/proventos. |
 | **ANBIMA (Dados Abertos)**                                 | Feriados & Renda Fixa   |        **Gratuito**        |        Sem limite rígido        | Feriados bancários (regra 252 dias úteis) e índices IMA-B / IDA.    |
 | **Feeds Diretos de Gestoras (iShares, SPDR, It Now, Investo)** | Holdings Globais/Locais |        **Gratuito**        |    Download de CSVs/XLSX/HTML públicos    | Holdings diários oficiais dos ETFs (Top 10, pesos, setores). It Now vai pelo sidecar `fetch` (WAF Akamai). |
-| **Brapi.dev**                                              | B3 Market Data (slot 1)   |  **Freemium** (free apertado)  |       ~10 req/min/chave · anônimo = whitelist-only · dados +30 min       | Cotações diárias ajustadas e dividendos de ETFs e BDRs na B3. UMA chamada batch/dia útil + fila de proventos espaçada; nunca bulk history. |
-| **Yahoo Finance (sidecar Python)**                         | OHLCV slot 2 + Benchmarks | **Gratuito (Não oficial)** |       ~2.000 req/IP/hora        | Volume/histórico/backfill (`*.SA`) e benchmarks globais (`^BVSP`, `USDBRL=X`, `GC=F`). Fetch via `curl_cffi` do yfinance. |
-| **TradingView (sidecar tv-scraper)**                       | OHLCV slot 3              | **Gratuito c/ conta (cookie)** |       Por IP · chunking ≥4500 bars flaky       | Histórico adicional/tickers que Brapi e Yahoo não cobrem (`BMFBOVESPA:TICKER`). |
+| **Brapi.dev**                                              | B3 Market Data (slot 1 do daily) |  **Freemium** (free apertado)  |       ~10 req/min/chave · anônimo = whitelist-only · dados +30 min       | Batch diário pós-fechamento (1 req/toda a B3) + catálogo `/available`+`/quote/list`. **Histórico >3mo e dividendos são paywall Startup** — ver §2.5. |
+| **Yahoo Finance (sidecar Python)**                         | OHLCV + Proventos (slot 2) | **Gratuito (Não oficial)** |       ~2.000 req/IP/hora        | **Fonte primária efetiva de histórico e proventos**: backfill `*.SA`, benchmarks globais (`^BVSP`, `USDBRL=X`, `GC=F`). Dividendos ricos p/ ações/BDRs/FIIs; ausente em muitos ETFs. |
+| **TradingView (sidecar tv-scraper)**                       | OHLCV slot 3              | **Gratuito c/ conta (cookie)** |       Por IP · chunking ≥4500 bars flaky       | Histórico adicional que Yahoo não cobre (`BMFBOVESPA:TICKER`) — cobriu IBOV/IFIX na prática. Sem proventos por design. |
 | **AwesomeAPI (economia.awesomeapi.com.br)**                | Câmbio & Cripto           | **Gratuito** (token premium opcional) |       Sem limite rígido documentado       | FX diário bid/ask `USD-BRL`, `EUR-BRL`, `BTC-BRL` na tabela `fx_rates` (bid = proxy de close). |
 | **InfoMoney (XP Inc)**                                     | B3 secundária             | **Gratuito** (key APIM pública do frontend) |       APIM por chave       | Validação cruzada, leaderboard em lote e proventos com vocabulário B3 nativo. **FORA da cadeia** — só backfill explícito; série sem adjclose. |
 | **Financial Modeling Prep (FMP) / EODHD**                  | Dados Globais (Backup)  | **Freemium / $19-$29/mês** |      250 a 10.000 req/dia       | Holdings e setores de ETFs UCITS (Irlanda) e ETFs dos EUA.          |
 | **HG Brasil Finanças**                                     | ~~B3 Backup Data~~        |  **Pago (não contratado)** |       —                            | **REMOVIDO da cadeia ativa** — descoberto ser pago (não freemium). Client mantido no código, desativado; contingência paga só mediante decisão explícita de custo. |
+
+### 1.1 Matriz — o que cada provedor retorna (medido ao vivo)
+
+| Provedor | OHLCV histórico | `adj_close` | Proventos | Catálogo/cadastro | Metadata extra | Benchmarks |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **BCB SGS** | — | — | — | — | CDI/Selic/IPCA/IGP-M (séries 12/11/433/189) | — |
+| **CVM** | — | — | — | Fundos: PL/cotistas/gestoras | CNPJ fundos | — |
+| **B3 sistemaswebb3-listados** (`b3`) | — | — | — | ✅ empresas (CNPJ+codeCVM+marketIndicator) · ✅ FIIs (ticker+nome) | dateListing, segmento via app | — |
+| **Bora Investir** | — | — | — | ✅ universo ETF 519 tickers (tipo nacional vs BDR-ETF) | gestor, índice, geografia, segmento (via `_embed`) | — |
+| **Brapi** | ⚠️ free só `1d/5d/1mo/3mo`; `≥6mo` = 400 | ✅ (`adjustedClose`) | ❌ paywall Startup (403) | ✅ `/available` (~1825) + `/quote/list` com `type/subType` | setor/subsetor, logo | `^BVSP` via quote |
+| **Yahoo (sidecar)** | ✅ janelas arbitrárias | ✅ | ✅ rico p/ ações/BDRs/FIIs · ❌ vazio na maioria dos ETFs B3 | — | moeda, nome curto (via yfinance) | ✅ `^BVSP`, `GC=F`, `USDBRL=X` |
+| **TradingView (sidecar)** | ✅ até ~5000 bars/chunk | ❌ (série crua) | ❌ por design | — | — | ✅ cobriu IBOV/IFIX |
+| **AwesomeAPI** | FX diário (`json/daily/{par}`) | — | — | — | — | FX: USD/EUR/BTC-BRL |
+| **InfoMoney** | ✅ diário cru | ❌ (`adj_close=close`) | ✅ vocabulário B3 nativo (DIVIDENDO/JRSC…) | — | — | — |
+| **Gestoras (holdings)** | — | — | — | — | composição % (iShares/SPDR/ItNow/Investo) | — |
+
+### 1.2 Prioridade por caso de uso (repriorização 26/08/2026)
+
+A cadeia declarativa DI (`Brapi → Yahoo → TV`) vale para o **daily close** (batch barato de
+1 request cobre todo o mercado). Para os demais casos a prioridade efetiva mudou com as
+medições de 26/08:
+
+| Caso de uso | Ordem efetiva | Motivo |
+| :--- | :--- | :--- |
+| Fechamento do dia (todas as classes) | **Brapi batch** → gap fill Yahoo → TV | 1 request/dia; ranges curtos funcionam no free |
+| Histórico/backfill ≥6mo | **Yahoo sidecar** → TV | Brapi free devolve 400 acima de `3mo` (§2.5); CLI usa `--provider yahoo` |
+| Proventos | **Yahoo sidecar** | única fonte viva hoje (Brapi paywall; InfoMoney aguarda chave no `.env`) |
+| Catálogo de ativos (curadoria) | **Brapi catalog** ⊕ **Bora Investir** ⊕ **B3 `b3 companies|fiis`** | Brapi cobre ~90% (type/subType); Bora completa universo ETF (241 ausentes + classificação BDR_ETF); scraper B3 aporta CNPJ/codeCVM oficial |
+| Metadata cadastral (CNPJ/CVM) | **B3 `b3 companies`** | fonte oficial primária; Brapi/Bora têm CNPJ só parcial |
+| FX | AwesomeAPI | inalterado |
+| Redundância OHLCV (futuro) | **COTAHIST** (`bvmf.bmfbovespa.com.br`, zip público sem auth — verificado 26/08) | fecharia os 45 tickers sem cobertura e daria base oficial; sem adj_close/proventos |
+
 
 ---
 
@@ -300,6 +334,10 @@ sidecar fetch --url URL [--method POST] [--data BODY] [--header "K: V"] [--b64] 
   (fora da coleção `IMarketDataClient`), sem `ApiKey` configurada. Reativação só mediante
   decisão explícita de custo; enquanto isso o papel de fallback recai sobre Yahoo (`.SA`) +
   AwesomeAPI (câmbio) + dado local.
+- **COTAHIST (`bvmf.bmfbovespa.com.br/InstDados/SerHist/`):** candidato natural a redundância
+  OHLCV oficial — zips públicos sem auth/WAF (verificado 26/08: anual 21 MB, diário ~610 KB,
+  HTTP 200). Cobre todo o mercado B3 desde os anos 80; limitações: sem `adj_close`, sem
+  proventos, sem benchmarks globais. Job sugerido no padrão CVM (stream zip → parser fixo-width → COPY).
 
 ---
 
@@ -320,6 +358,26 @@ sidecar fetch --url URL [--method POST] [--data BODY] [--header "K: V"] [--b64] 
 - **Não usar para:** cotações históricas, proventos, dados intraday — o site não expõe.
   Candles continuam Yahoo/TV sidecar; proventos de ETF seguem lacuna aberta (recon futuro:
   feeds de gestoras/CVM).
+
+---
+
+### 2.13. Catálogo oficial B3 (`sistemaswebb3-listados`) — sidecar `b3` — recon 26/08/2026
+
+- **Tipo:** proxies JSON dos apps Angular embutidos nas páginas públicas
+  `empresas-listadas.htm` e `fiis-listados` (SPA shells — scraping direto do HTML não rende).
+- **Transporte:** Akamai exige TLS Chrome (curl_cffi) **+ cookie warm-up** de um GET na página
+  do app antes das chamadas (senão: HTTP 200 com corpo vazio). Sem resolução de captcha.
+- **Endpoints medidos ao vivo:**
+  - `GET /listedCompaniesProxy/CompanyCall/GetInitialCompanies/{base64(filter)}`
+    com `{"codeCategoryBVMF":-1,"company":"","language":"pt-br"}` → ~3500 empresas
+    (`codeCVM`, `issuingCompany`, `tradingName`, `cnpj`, `marketIndicator`, `dateListing dd/mm/yyyy`).
+  - `GET /fundsListedProxy/Search/GetListFunds/{base64(filter)}`
+    com `{"cnpj":"","keyword":"","language":"pt-br","typeFund":"FII"}` → 529 FIIs
+    (`acronym`=ticker, `fundName`). Tipos de fundo vêm de `fundsListedPage/assets/funds.json`.
+- **Consumo:** comando sidecar `b3 companies|fiis` (NDJSON kinds `company`/`fund`, contrato v2);
+  detalhes no README da pasta. Consumidor C#/persistência ainda não existe.
+- **Uso recomendado:** metadata cadastral oficial (CNPJ/codeCVM dos 2165 ativos locais) e
+  detecção de listagens novas que Yahoo/TV/Brapi ainda não cobrem.
 
 ---
 
