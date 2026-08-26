@@ -1,6 +1,6 @@
 # Estado Atual do Projeto & Roadmap
 
-> Snapshot do `ROADMAP.md` gerado em **2026-08-23** (pós-MVP-023 + iniciativa provider-sync). Para o estado exato, rode
+> Snapshot do `ROADMAP.md` gerado em **2026-08-26** (pós PR #3 — dashboard de carteiras M-P1..M-P5). Para o estado exato, rode
 > `bun run roadmap:check` ou leia `ROADMAP.md`. Este resumo pode estar defasado.
 
 ## Visão geral
@@ -13,7 +13,15 @@
 | **00 Foundation** | Monorepo Bun+Turbo, Next.js SSR-first, monólito .NET, Docker/env, auth/RBAC, OTel, CI | 🔵 in_progress (P0) | 94% (15/16) |
 | **01 MVP & Core Intelligence** | Ingestão local-first, APIs MarketData/Analytics, catálogo, comparador, backtest, rankings, calculadoras, admin, notícias, PWA/SEO | 🔵 in_progress (P0) | 52% (13/25) |
 | **02 Growth & Programmatic SEO** | Saved backtests, expansão SEO, PDF export, newsletter/alertas | ⬜ not_started (P2) | 0% (0/6) |
-| **03 Portfolio & Tax Automation** | Carteiras/transações, PM, TWR/MWR, accrual RF, eventos, DARF automation | ⬜ not_started (P2) | 0% (0/9) |
+| **03 Portfolio & Tax Automation** | Carteiras/transações, PM, TWR/MWR, accrual RF, eventos, DARF automation | 🔵 in_progress (P2) | 56% — PORT-001/002/003 ✅ · PORT-004/005/009 🔵 · detalhes em `plans/dashboard-carteiras/` |
+
+**PR #3 (`feat/portfolio-dashboard`)** entrega a dashboard de carteiras: módulo Portfolio
+(carteiras c/ limite 3, transações c/ edição lógica, PM, projeção), performance (TWR/MWR/XIRR,
+benchmarks, snapshots hypertable), accrual RF local-first, fiscal educacional (simulador de
+resgate, DARF projetado), compartilhamento público/link/clone, metas multi-metas e export CSV.
+Bloqueios ⛔: cripto provider, Tesouro catálogo, previdência/fundos catalogados, feed fundos
+(MVP-003), XLSX (pacote), revisão editorial fiscal (RISK-003). Fix colateral de auth: signup
+emitia token sem claims de permissão.
 
 Dependências: PHASE-00 → 01 → 02 → 03. Auth→admin→saved backtests→portfolios; holdings→overlap→páginas SEO.
 

@@ -92,6 +92,43 @@ Smoke ao vivo 23/08: BOVV11 = 78 holdings, as-of 2026-08-21, top VALE3 11,2377%.
 - `POST /backtest` — simulação com pesos/aportes.
 - `GET /real-yield?nominalRate&inflationRate` — rendimento real (Fisher).
 
+### `/api/v1/portfolios` (módulo Portfolio — M-P1, PR `feat/portfolio-dashboard`)
+Autenticado (JWT; policies `portfolio:read`/`portfolio:write`). Plano vivo:
+`plans/dashboard-carteiras/` (decisões do grill, marcos M-P1..M-P5).
+- `POST /` · `GET /` · `GET /{id}` (resumo+posições) · `PATCH /{id}` · `DELETE /{id}`
+  — limite de **3 carteiras** por usuário (`Portfolio.LimitReached` → 409); ownership check
+  retorna 404 em cross-user.
+- `POST /{id}/transactions` · `GET /{id}/transactions` (paginado) ·
+  `PUT /{id}/transactions/{txId}` (**edição lógica**: nova linha com `AmendedTransactionId`,
+  original recebe `ReversedByTransactionId`; projetor ignora linhas superseded).
+  Tipos: BUY/SELL/INCOME/CORP_ACTION/TRANSFER_IN|OUT; retroativo ilimitado;
+  PM ponderado incluindo fees no BUY; corp actions split/grupamento/inpc/bonificacao/subscricao.
+- `GET /lookup/{ticker}` — resolve ativo do catálogo p/ o wizard (id, ticker, nome, tipo, moeda).
+- Calculadores puros: `AveragePriceCalculator`, `PositionProjector` (19 testes unitários);
+  valuation local-first via último close de `asset_quotes` + `fx_rates` ("{CUR}-BRL");
+  posição sem cotação usa custo (`hasMarketPrice=false`). Caixa sintético CDI/Selic valorizado
+  ao custo até o accrual (M-P3).
+- DDL manual: `docker/init-db/02-auth-and-fx.sql` (auth + seed RBAC + `fx_rates` — banco dev
+  tinha sido recriado sem eles) e `03-portfolio.sql` (`portfolios`,
+  `portfolio_transactions`, `portfolio_positions_summary`; colunas **PascalCase**, convenção EF).
+- **M-P3 (RF/accrual):** `/fixed-income` attach/list/detach + `/timeline`; `PortfolioAccrualDailyJob`
+  (23:10 UTC) e `PortfolioSnapshotDailyJob` (23:30 UTC) no Worker; `FixedIncomeAccrualCalculator`
+  puro (CDI%/CDI+/Selic/IPCA+/Prefixado, base 252, dias úteis aprox. weekdays); caixa sintético
+  e posições RF por ativo valorizados via accrual das séries SGS locais. Wizard com caixa
+  sintético CDI/Selic + parâmetros RF + corp actions; timeline na carteira.
+- **M-P4 (fiscal educacional):** `TaxCalculators` puros (regressiva 180/360/720, IOF, come-cotas,
+  isenções PF — 34 testes); `/tax/redemption-simulation` e `/tax/darf/{year}/{month}` com premissas
+  + disclaimer; aba Fiscal no frontend (simulador de resgate parcial/total + DARF mensal).
+  ⛔ Exposição pública dos textos depende de revisão editorial (RISK-003).
+- **M-P5 (compartilhar/metas/export):** `PATCH /visibility`, `/share-link/regenerate` (token SHA256
+  retornado 1×), `/share-link` DELETE, público anônimo `/public/{slug}` respeitando percent_only +
+  identidade ("Investidor X"), clone 1 clique normalizando pesos; goals CRUD + projeção
+  (`portfolio_goals`, DDL 06); export CSV pt-BR em `/export/*.csv`. Pendente: página pública
+  /c/[slug], UI metas/alocação-alvo, XLSX (⛔ pacote), social.
+- Frontend: grupo `(dashboard)` autenticado client-side — `/dashboard` (consolidado),
+  `/dashboard/carteiras/nova`, `/dashboard/c/[id]`, `/dashboard/c/[id]/transacoes/nova`
+  (wizard 3 etapas + revisão). Fetchers em `lib/api-client.ts`.
+
 ### `/api/v1/providers` (MarketData)
 - `GET /health` — saúde por provider agregada de `sync_job_logs`.
 
@@ -144,7 +181,11 @@ Serviços de ingestão persistem auditoria em `sync_job_logs`.
 
 | Rota | Descrição |
 | :--- | :--- |
-| `/` (home) | mini-dashboard de mercado: strip CDI/Selic/IPCA, movers 12m (altas/quedas via rankings), lista compacta de ferramentas — sem cards/KPI vazios |
+| `(dashboard)/dashboard` | home autenticada do usuário: patrimônio consolidado + cards por carteira + empty state (M-P1; gráficos/abas em M-P2) |
+| `(dashboard)/dashboard/carteiras/nova` | criação de carteira (título/descrição/perfil etiqueta) |
+| `(dashboard)/dashboard/c/[id]` | resumo da carteira: patrimônio/investido/não realizado + posições por custódia |
+| `(dashboard)/dashboard/c/[id]/transacoes/nova` | wizard 3 etapas + revisão (BUY/SELL/INCOME com lookup de ticker, retroativo ilimitado) |
+| `/` (home pública) | mini-dashboard de mercado: strip CDI/Selic/IPCA, movers 12m (altas/quedas via rankings), lista compacta de ferramentas — sem cards/KPI vazios |
 | `(public)/ativos` + `/ativos/[ticker]` | catálogo denso e página de ativo redesenhada (fase C): header cotação + KPIs inline com tooltips + hero chart + simulação + fiscal por classe + cross-links |
 | `(public)/etf/[ticker]`, `(public)/bdr/[ticker]`, `(public)/fii/[ticker]` | páginas por classe reexportam a página genérica; painel fiscal escolhido pela classe (`FiiTaxCard` p/ FII, `FiscalTaxCard` caso contrário) |
 | `(public)/rankings` | ranking público por métrica/tipo com estado nuqs (`tipo`, `metrica`, `direcao`) |

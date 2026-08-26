@@ -18,5 +18,6 @@
     <ProjectReference Include="..\BuildingBlocks\BuildingBlocks.Messaging\BuildingBlocks.Messaging.csproj" />
     <ProjectReference Include="..\BuildingBlocks\BuildingBlocks.Observability\BuildingBlocks.Observability.csproj" />
     <ProjectReference Include="..\Modules\IndexDesk.Modules.MarketData\IndexDesk.Modules.MarketData.csproj" />
+    <ProjectReference Include="..\Modules\IndexDesk.Modules.Portfolio\IndexDesk.Modules.Portfolio.csproj" />
   </ItemGroup>
 </Project>

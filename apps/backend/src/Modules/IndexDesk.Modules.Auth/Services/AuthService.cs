@@ -102,6 +102,12 @@ public sealed class AuthService : IAuthService
             }
         );
 
+        // Persist BEFORE issuing tokens: IssueTokensAsync falls back to a database
+        // reload for roles/permissions when navigations are empty — without a prior
+        // save the fresh user is not there yet and the token leaves without any
+        // permission claims (breaking every protected endpoint until sign-in).
+        await _db.SaveChangesAsync(ct);
+
         var (accessToken, refreshToken, expiresIn) = await IssueTokensAsync(user, ct);
 
         _db.RefreshTokens.Add(

@@ -19,5 +19,6 @@
     <ProjectReference Include="..\Modules\IndexDesk.Modules.Auth\IndexDesk.Modules.Auth.csproj" />
     <ProjectReference Include="..\Modules\IndexDesk.Modules.MarketData\IndexDesk.Modules.MarketData.csproj" />
     <ProjectReference Include="..\Modules\IndexDesk.Modules.Analytics\IndexDesk.Modules.Analytics.csproj" />
+    <ProjectReference Include="..\Modules\IndexDesk.Modules.Portfolio\IndexDesk.Modules.Portfolio.csproj" />
   </ItemGroup>
 </Project>

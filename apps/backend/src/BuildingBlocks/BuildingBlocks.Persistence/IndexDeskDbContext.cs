@@ -23,11 +23,22 @@ public class IndexDeskDbContext : DbContext
     public DbSet<RolePermissionEntity> RolePermissions => Set<RolePermissionEntity>();
     public DbSet<RefreshTokenEntity> RefreshTokens => Set<RefreshTokenEntity>();
 
+    public DbSet<PortfolioEntity> Portfolios => Set<PortfolioEntity>();
+    public DbSet<PortfolioTransactionEntity> PortfolioTransactions =>
+        Set<PortfolioTransactionEntity>();
+    public DbSet<PortfolioDailySnapshotEntity> PortfolioDailySnapshots =>
+        Set<PortfolioDailySnapshotEntity>();
+    public DbSet<PortfolioFixedIncomePositionEntity> PortfolioFixedIncomePositions =>
+        Set<PortfolioFixedIncomePositionEntity>();
+    public DbSet<PortfolioGoalEntity> PortfolioGoals => Set<PortfolioGoalEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.HasPostgresExtension("uuid-ossp");
         modelBuilder.HasPostgresExtension("pgcrypto");
+
+        ConfigurePortfolio(modelBuilder);
 
         modelBuilder.Entity<AssetEntity>(entity =>
         {
@@ -231,6 +242,102 @@ public class IndexDeskDbContext : DbContext
 
         // RBAC is static application configuration; market data is populated only by ingestion jobs.
         SeedRbac(modelBuilder);
+    }
+
+    private static void ConfigurePortfolio(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<PortfolioEntity>(entity =>
+        {
+            entity.ToTable("portfolios");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).HasMaxLength(120).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.RiskProfile).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Visibility).HasMaxLength(10).IsRequired();
+            entity.Property(e => e.PublicValuesMode).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.DisplayIdentity).HasMaxLength(80);
+            entity.Property(e => e.Slug).HasMaxLength(80);
+            entity.Property(e => e.ShareTokenHash).HasMaxLength(128);
+            entity.Property(e => e.TargetAllocationJson).HasMaxLength(2000);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.Slug).IsUnique().HasFilter("\"Slug\" IS NOT NULL");
+
+            entity
+                .HasMany(e => e.Transactions)
+                .WithOne(t => t.Portfolio)
+                .HasForeignKey(t => t.PortfolioId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PortfolioTransactionEntity>(entity =>
+        {
+            entity.ToTable("portfolio_transactions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SyntheticIndexCode).HasMaxLength(10);
+            entity.Property(e => e.Type).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Broker).HasMaxLength(80).IsRequired();
+            entity.Property(e => e.Quantity).HasPrecision(20, 8);
+            entity.Property(e => e.UnitPrice).HasPrecision(20, 8);
+            entity.Property(e => e.GrossAmount).HasPrecision(20, 8);
+            entity.Property(e => e.Fees).HasPrecision(20, 8);
+            entity.Property(e => e.FxRate).HasPrecision(20, 10);
+            entity.Property(e => e.Currency).HasMaxLength(3).IsRequired();
+            entity.Property(e => e.CorpActionJson).HasMaxLength(500);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+
+            entity.HasIndex(e => new { e.PortfolioId, e.TradeDate });
+            entity.HasIndex(e => e.AssetId);
+            entity.HasIndex(e => e.AmendedTransactionId);
+            // Uma única versão vigente por transação original (race de amends concorrentes).
+            entity
+                .HasIndex(e => e.ReversedByTransactionId)
+                .IsUnique()
+                .HasFilter("\"ReversedByTransactionId\" IS NOT NULL");
+        });
+
+        modelBuilder.Entity<PortfolioDailySnapshotEntity>(entity =>
+        {
+            entity.ToTable("portfolio_daily_snapshots");
+            entity.HasKey(e => new { e.PortfolioId, e.SnapshotDate });
+            entity.Property(e => e.TotalValue).HasPrecision(20, 8);
+            entity.Property(e => e.InvestedAmount).HasPrecision(20, 8);
+            entity.Property(e => e.TwrSinceInception).HasPrecision(14, 8);
+        });
+
+        modelBuilder.Entity<PortfolioGoalEntity>(entity =>
+        {
+            entity.ToTable("portfolio_goals");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Kind).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.TargetValue).HasPrecision(20, 8);
+            entity.Property(e => e.TargetPct).HasPrecision(10, 4);
+            entity.Property(e => e.MonthlyContribution).HasPrecision(20, 8);
+            entity.Property(e => e.AssumedAnnualRate).HasPrecision(10, 4);
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired();
+
+            entity
+                .HasOne(e => e.Portfolio)
+                .WithMany()
+                .HasForeignKey(e => e.PortfolioId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => new { e.PortfolioId, e.Status });
+        });
+
+        modelBuilder.Entity<PortfolioFixedIncomePositionEntity>(entity =>
+        {
+            entity.ToTable("portfolio_fixed_income_positions");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SyntheticIndexCode).HasMaxLength(10);
+            entity.Property(e => e.Indexer).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.IndexerRate).HasPrecision(12, 6);
+            entity.Property(e => e.Principal).HasPrecision(20, 8);
+            entity.Property(e => e.Liquidity).HasMaxLength(30);
+            entity.Property(e => e.TaxRegime).HasMaxLength(20);
+            entity.Property(e => e.AccruedValue).HasPrecision(20, 8);
+
+            entity.HasIndex(e => new { e.PortfolioId, e.AssetId });
+        });
     }
 
     private static void SeedRbac(ModelBuilder modelBuilder)

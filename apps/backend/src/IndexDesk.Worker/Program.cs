@@ -3,6 +3,7 @@ using IndexDesk.BuildingBlocks.Observability;
 using IndexDesk.BuildingBlocks.Persistence;
 using IndexDesk.Modules.MarketData;
 using IndexDesk.Modules.MarketData.Ingestion;
+using IndexDesk.Modules.Portfolio;
 using IndexDesk.Worker.Jobs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -44,6 +45,7 @@ catch
 
 // 4. Modules
 builder.Services.AddMarketDataModule(builder.Configuration);
+builder.Services.AddPortfolioModule();
 
 // 5. Quartz.NET Schedulers
 builder.Services.AddQuartz(q =>
@@ -99,6 +101,24 @@ builder.Services.AddQuartz(q =>
     // Pilot Backfill Job (Manual/On-Demand execution)
     var backfillJobKey = new JobKey("PilotAssetBackfillJob", "Maintenance");
     q.AddJob<PilotAssetBackfillJob>(opts => opts.WithIdentity(backfillJobKey).StoreDurably());
+
+    // Portfolio daily snapshots — Mon-Fri at 23:30 UTC (20:30 BRT), after market/FX syncs.
+    var portfolioSnapshotJobKey = new JobKey("PortfolioSnapshotDailyJob", "Portfolio");
+    q.AddJob<PortfolioSnapshotDailyJob>(opts => opts.WithIdentity(portfolioSnapshotJobKey));
+    q.AddTrigger(opts =>
+        opts.ForJob(portfolioSnapshotJobKey)
+            .WithIdentity("PortfolioSnapshotDailyTrigger", "Portfolio")
+            .WithCronSchedule("0 30 23 ? * MON-FRI *")
+    );
+
+    // Fixed-income accrual — Mon-Fri at 23:10 UTC, before the snapshot job.
+    var accrualJobKey = new JobKey("PortfolioAccrualDailyJob", "Portfolio");
+    q.AddJob<PortfolioAccrualDailyJob>(opts => opts.WithIdentity(accrualJobKey));
+    q.AddTrigger(opts =>
+        opts.ForJob(accrualJobKey)
+            .WithIdentity("PortfolioAccrualDailyTrigger", "Portfolio")
+            .WithCronSchedule("0 10 23 ? * MON-FRI *")
+    );
 });
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);

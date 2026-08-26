@@ -1,7 +1,5 @@
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
-import { getQueryClient } from '@/lib/query-client';
 import {
   fetchAssetRankings,
   fetchMarketIndicators,
@@ -67,31 +65,14 @@ function signed(value: number | null | undefined): string {
   return `${value > 0 ? '+' : ''}${formatPercent(value)}`;
 }
 
+// Nota: fetch direto em vez de queryClient.fetchQuery — o cache do React Query chama
+// Date.now() internamente e bloqueia o prerender sob cacheComponents. O revalidate
+// equivalente já vive nos próprios fetchers.
 export default async function HomePage() {
-  const queryClient = getQueryClient();
-
   const [indicators, gainers, losers] = await Promise.all([
-    safeFetch(() =>
-      queryClient.fetchQuery({
-        queryKey: ['market-indicators'],
-        queryFn: fetchMarketIndicators,
-        staleTime: 3_600_000,
-      }),
-    ),
-    safeFetch(() =>
-      queryClient.fetchQuery({
-        queryKey: ['rankings', 'gainers-home'],
-        queryFn: () => fetchAssetRankings({ metric: 'retorno12m', orderDirection: 'desc' }),
-        staleTime: 300_000,
-      }),
-    ),
-    safeFetch(() =>
-      queryClient.fetchQuery({
-        queryKey: ['rankings', 'losers-home'],
-        queryFn: () => fetchAssetRankings({ metric: 'retorno12m', orderDirection: 'asc' }),
-        staleTime: 300_000,
-      }),
-    ),
+    safeFetch(fetchMarketIndicators),
+    safeFetch(() => fetchAssetRankings({ metric: 'retorno12m', orderDirection: 'desc' })),
+    safeFetch(() => fetchAssetRankings({ metric: 'retorno12m', orderDirection: 'asc' })),
   ]);
 
   const topGainers = (gainers ?? [])
@@ -103,17 +84,10 @@ export default async function HomePage() {
   const moverTickers = [...topGainers, ...topLosers].map((row) => row.ticker.toUpperCase());
   const sparks =
     moverTickers.length > 0
-      ? await safeFetch(() =>
-          queryClient.fetchQuery({
-            queryKey: ['quotes-batch', 'home-movers', moverTickers.join(',')],
-            queryFn: () => fetchQuoteSparks(moverTickers),
-            staleTime: 300_000,
-          }),
-        )
+      ? await safeFetch(() => fetchQuoteSparks(moverTickers))
       : undefined;
 
   return (
-    <HydrationBoundary state={dehydrate(queryClient)}>
       <div className="container mx-auto flex flex-col gap-10 px-4 py-8">
         <section className="flex flex-col gap-1">
           <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
@@ -182,7 +156,6 @@ export default async function HomePage() {
           </ul>
         </section>
       </div>
-    </HydrationBoundary>
   );
 }
 
