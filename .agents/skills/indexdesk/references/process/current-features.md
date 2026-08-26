@@ -111,6 +111,20 @@ Autenticado (JWT; policies `portfolio:read`/`portfolio:write`). Plano vivo:
 - DDL manual: `docker/init-db/02-auth-and-fx.sql` (auth + seed RBAC + `fx_rates` — banco dev
   tinha sido recriado sem eles) e `03-portfolio.sql` (`portfolios`,
   `portfolio_transactions`, `portfolio_positions_summary`; colunas **PascalCase**, convenção EF).
+- **M-P3 (RF/accrual):** `/fixed-income` attach/list/detach + `/timeline`; `PortfolioAccrualDailyJob`
+  (23:10 UTC) e `PortfolioSnapshotDailyJob` (23:30 UTC) no Worker; `FixedIncomeAccrualCalculator`
+  puro (CDI%/CDI+/Selic/IPCA+/Prefixado, base 252, dias úteis aprox. weekdays); caixa sintético
+  e posições RF por ativo valorizados via accrual das séries SGS locais. Wizard com caixa
+  sintético CDI/Selic + parâmetros RF + corp actions; timeline na carteira.
+- **M-P4 (fiscal educacional):** `TaxCalculators` puros (regressiva 180/360/720, IOF, come-cotas,
+  isenções PF — 34 testes); `/tax/redemption-simulation` e `/tax/darf/{year}/{month}` com premissas
+  + disclaimer; aba Fiscal no frontend (simulador de resgate parcial/total + DARF mensal).
+  ⛔ Exposição pública dos textos depende de revisão editorial (RISK-003).
+- **M-P5 (compartilhar/metas/export):** `PATCH /visibility`, `/share-link/regenerate` (token SHA256
+  retornado 1×), `/share-link` DELETE, público anônimo `/public/{slug}` respeitando percent_only +
+  identidade ("Investidor X"), clone 1 clique normalizando pesos; goals CRUD + projeção
+  (`portfolio_goals`, DDL 06); export CSV pt-BR em `/export/*.csv`. Pendente: página pública
+  /c/[slug], UI metas/alocação-alvo, XLSX (⛔ pacote), social.
 - Frontend: grupo `(dashboard)` autenticado client-side — `/dashboard` (consolidado),
   `/dashboard/carteiras/nova`, `/dashboard/c/[id]`, `/dashboard/c/[id]/transacoes/nova`
   (wizard 3 etapas + revisão). Fetchers em `lib/api-client.ts`.
