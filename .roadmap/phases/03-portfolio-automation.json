@@ -52,7 +52,7 @@
             "id": "PORT-001",
             "title": "Implementar carteiras e transações",
             "description": "Criar portfolios e portfolio_transactions para BUY, SELL, transferências, reinvestimentos e ajustes de split.",
-            "status": "in_progress",
+            "status": "complete",
             "priority": "P2",
             "difficulty": "hard",
             "kind": "backend",
@@ -86,16 +86,16 @@
             "risks": [
               "Importações retroativas e transferências exigem modelo de custódia mais detalhado"
             ],
-            "notes": "M-P1 implementado (PR #3, feat/portfolio-dashboard): CRUD carteiras (limite 3), transações BUY/SELL/INCOME/CORP_ACTION/TRANSFER com edição lógica auditável, PM + projeção de posições, valuation local-first. Pendente: importação retroativa em lote e DDL formal em migration (FND-013). Plano vivo: plans/dashboard-carteiras/.",
+            "notes": "M-P1 implementado (PR #3, feat/portfolio-dashboard): CRUD carteiras (limite 3), transações BUY/SELL/INCOME/CORP_ACTION/TRANSFER com edição lógica auditável, PM + projeção de posições, valuation local-first. Pendente: importação retroativa em lote e DDL formal em migration (FND-013). Plano vivo: plans/dashboard-carteiras/. | Entregue no PR #3 (feat/portfolio-dashboard): CRUD carteiras (limite 3), transações BUY/SELL/INCOME/CORP_ACTION/TRANSFER com edição lógica auditável + índice único anti-race, PM com fees, projeção reconstrutível testada. Wizard frontend c/ caixa sintético RF e corp actions.",
             "estimated_hours": 32,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-26"
           },
           {
             "id": "PORT-002",
             "title": "Calcular preço médio e posições",
             "description": "Derivar PM, quantidade, investido, valor atual, lucro realizado/não realizado e snapshots.",
-            "status": "in_progress",
+            "status": "complete",
             "priority": "P2",
             "difficulty": "complex",
             "kind": "analytics",
@@ -133,16 +133,16 @@
             "risks": [
               "Regras fiscais podem exigir lotes por data e classe de ativo"
             ],
-            "notes": "PositionProjector + AveragePriceCalculator implementados e testados (19 unitários); valuation com último close. Pendente: snapshots materializados, splits via feed de corporate actions, reconciliação.",
+            "notes": "PositionProjector + AveragePriceCalculator implementados e testados (19 unitários); valuation com último close. Pendente: snapshots materializados, splits via feed de corporate actions, reconciliação. | PositionProjector + AveragePriceCalculator (261 unitários), summary on-demand, snapshots diários (hypertable + job idempotente). Contribuição por posição implementada.",
             "estimated_hours": 36,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-26"
           },
           {
             "id": "PORT-003",
             "title": "Implementar TWR e MWR/TIR",
             "description": "Calcular performance da estratégia e do capital investido com aportes/saques e benchmarks.",
-            "status": "not_started",
+            "status": "complete",
             "priority": "P2",
             "difficulty": "complex",
             "kind": "analytics",
@@ -176,10 +176,10 @@
             "risks": [
               "Fuso, dias úteis e fluxos intraday alteram resultados"
             ],
-            "notes": "Documentar convenções de valuation e timezone.",
+            "notes": "Documentar convenções de valuation e timezone. | PerformanceEngine: TWR diário, XIRR MWR, vol/Sharpe/maxDD; endpoint /performance com benchmarks CDI/IBOV; painel frontend c/ presets+datas livres (nuqs) e aba Análise.",
             "estimated_hours": 32,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-08-26"
           }
         ]
       },
@@ -209,7 +209,7 @@
             "id": "PORT-004",
             "title": "Implementar posições de renda fixa e accrual CDI/Selic/IPCA",
             "description": "Criar posições parametrizadas e job diário para capitalização local por CDI, Selic, IPCA+ ou prefixado.",
-            "status": "not_started",
+            "status": "in_progress",
             "priority": "P2",
             "difficulty": "complex",
             "kind": "analytics",
@@ -243,7 +243,7 @@
             "risks": [
               "CDI diário e taxa anual exigem convenção de conversão precisa"
             ],
-            "notes": "Validar fórmulas com fonte oficial e revisão financeira.",
+            "notes": "Validar fórmulas com fonte oficial e revisão financeira. | FixedIncomeAccrualCalculator puro (CDI%/CDI+/Selic/IPCA+/Prefixado) + PortfolioAccrualDailyJob idempotente + valuation de sintético/RF por ativo. Pendente: wizard de produtos RF por ativo, Tesouro ⛔ catálogo, vetores c/ séries reais.",
             "estimated_hours": 40,
             "assignee": null,
             "completed_at": null
@@ -252,7 +252,7 @@
             "id": "PORT-005",
             "title": "Implementar tributação regressiva e isenções",
             "description": "Projetar IR por prazo, isenções de LCI/LCA e regras específicas do produto sem substituir orientação profissional.",
-            "status": "not_started",
+            "status": "in_progress",
             "priority": "P2",
             "difficulty": "hard",
             "kind": "data",
@@ -284,7 +284,7 @@
             "risks": [
               "Legislação pode mudar e dados cadastrais podem estar incompletos"
             ],
-            "notes": "Requer revisão editorial/fiscal antes de uso real.",
+            "notes": "Requer revisão editorial/fiscal antes de uso real. | TaxCalculators puros c/ 34 testes (fronteiras exatas, IOF, come-cotas, isenções PF) expostos em /tax/*; pendente versionamento das faixas e revisão editorial (RISK-003).",
             "estimated_hours": 24,
             "assignee": null,
             "completed_at": null
@@ -473,7 +473,7 @@
             "id": "PORT-009",
             "title": "Implementar apuração mensal de DARF",
             "description": "Consolidar lucros, perdas e compensações de ETFs/BDRs/Ações e gerar relatório revisável com código e vencimento.",
-            "status": "not_started",
+            "status": "in_progress",
             "priority": "P3",
             "difficulty": "complex",
             "kind": "analytics",
@@ -506,7 +506,7 @@
               "Risco regulatório crítico; não automatizar pagamento",
               "Dados de corretora podem estar incompletos"
             ],
-            "notes": "Revisão fiscal obrigatória antes de produção.",
+            "notes": "Revisão fiscal obrigatória antes de produção. | Projeção DARF mensal por classe c/ isenções entregue (/tax/darf); apuração completa c/ compensação de prejuízos permanece pendente (ledger derivado on-demand).",
             "estimated_hours": 40,
             "assignee": null,
             "completed_at": null

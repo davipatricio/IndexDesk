@@ -3,8 +3,8 @@
 > **Arquivo gerado:** não edite `ROADMAP.md` diretamente. Atualize `.roadmap/**/*.json` e execute `bun run roadmap:generate`.
 > **Estado atual:** requisitos documentados, implementação ainda não scaffoldada.
 
-**Atualizado em:** 2026-08-22 · **Estado:** `scaffolded` · **Progresso:** [██████████░░░░░░░░░░] 50% (28/56)
-**Tarefas:** 56 total · 28 concluídas · 2 em andamento · 0 bloqueadas · 26 não iniciadas/deferidas
+**Atualizado em:** 2026-08-22 · **Estado:** `scaffolded` · **Progresso:** [███████████░░░░░░░░░] 55% (31/56)
+**Tarefas:** 56 total · 31 concluídas · 3 em andamento · 0 bloqueadas · 22 não iniciadas/deferidas
 
 ## Estado do projeto
 
@@ -22,7 +22,7 @@
 | **00 — Foundation & Platform Scaffold** | 🔵 `in_progress` | `P0` | 94% (15/16) | — |
 | **01 — MVP & Core Market Intelligence** | 🔵 `in_progress` | `P0` | 52% (13/25) | `PHASE-00` |
 | **02 — Growth, Programmatic SEO & Retention** | ⬜ `not_started` | `P2` | 0% (0/6) | `PHASE-01` |
-| **03 — Portfolio, Fixed Income & Tax Automation** | ⬜ `not_started` | `P2` | 0% (0/9) | `PHASE-01`, `PHASE-02` |
+| **03 — Portfolio, Fixed Income & Tax Automation** | ⬜ `not_started` | `P2` | 33% (3/9) | `PHASE-01`, `PHASE-02` |
 
 ## Dependências críticas
 
@@ -521,7 +521,7 @@ _Adicionar ações de alto valor que justificam cadastro, mantendo calculadoras 
 
 ## Fase 03 — Portfolio, Fixed Income & Tax Automation
 
-**Status:** ⬜ `not_started` · **Prioridade:** `P2` · **Progresso:** [░░░░░░░░░░░░░░░░░░░░] 0% (0/9)
+**Status:** ⬜ `not_started` · **Prioridade:** `P2` · **Progresso:** [███████░░░░░░░░░░░░░] 33% (3/9)
 **Objetivo:** Adicionar gestão completa de carteiras, renda fixa, eventos, rentabilidade e automação fiscal após a base local-first estar madura.
 **Depende de:** `PHASE-01`, `PHASE-02`
 
@@ -529,13 +529,13 @@ _Adicionar ações de alto valor que justificam cadastro, mantendo calculadoras 
 
 _Registrar transações, posições e múltiplas carteiras com regras fiscais rastreáveis._
 
-**Status:** ⬜ `not_started` · **Prioridade:** `P2` · **Progresso:** [░░░░░░░░░░░░] 0% (0/3)
+**Status:** ⬜ `not_started` · **Prioridade:** `P2` · **Progresso:** [████████████] 100% (3/3)
 
 | ID | Tarefa | Prioridade | Dificuldade | Status | Dependências |
 | :--- | :--- | :---: | :---: | :--- | :--- | 
-| `PORT-001` | Implementar carteiras e transações | `P2` | `hard` | 🔵 `in_progress` | `FND-014`, `FND-013` |
-| `PORT-002` | Calcular preço médio e posições | `P2` | `complex` | 🔵 `in_progress` | `PORT-001`, `MVP-004` |
-| `PORT-003` | Implementar TWR e MWR/TIR | `P2` | `complex` | ⬜ `not_started` | `PORT-002`, `MVP-002`, `MVP-004` |
+| `PORT-001` | Implementar carteiras e transações | `P2` | `hard` | ✅ `complete` | `FND-014`, `FND-013` |
+| `PORT-002` | Calcular preço médio e posições | `P2` | `complex` | ✅ `complete` | `PORT-001`, `MVP-004` |
+| `PORT-003` | Implementar TWR e MWR/TIR | `P2` | `complex` | ✅ `complete` | `PORT-002`, `MVP-002`, `MVP-004` |
 
 <details>
 <summary>Critérios e entregáveis</summary>
@@ -543,15 +543,15 @@ _Registrar transações, posições e múltiplas carteiras com regras fiscais ra
 - **PORT-001 — Implementar carteiras e transações**
   - Critérios: Tipos e sinais de quantidade são validados; Custos e corretora são preservados; Transferências têm origem/destino identificáveis; Permissões por usuário funcionam
   - Entregáveis: Portfolio module; transaction API; transaction tests
-  - Notas: M-P1 implementado (PR #3, feat/portfolio-dashboard): CRUD carteiras (limite 3), transações BUY/SELL/INCOME/CORP_ACTION/TRANSFER com edição lógica auditável, PM + projeção de posições, valuation local-first. Pendente: importação retroativa em lote e DDL formal em migration (FND-013). Plano vivo: plans/dashboard-carteiras/.
+  - Notas: M-P1 implementado (PR #3, feat/portfolio-dashboard): CRUD carteiras (limite 3), transações BUY/SELL/INCOME/CORP_ACTION/TRANSFER com edição lógica auditável, PM + projeção de posições, valuation local-first. Pendente: importação retroativa em lote e DDL formal em migration (FND-013). Plano vivo: plans/dashboard-carteiras/. | Entregue no PR #3 (feat/portfolio-dashboard): CRUD carteiras (limite 3), transações BUY/SELL/INCOME/CORP_ACTION/TRANSFER com edição lógica auditável + índice único anti-race, PM com fees, projeção reconstrutível testada. Wizard frontend c/ caixa sintético RF e corp actions.
 - **PORT-002 — Calcular preço médio e posições**
   - Critérios: PM pondera custos conforme regra definida; Sells reduzem posição sem distorcer custo; Splits ajustam quantidade/PM; Snapshot pode ser recalculado do log
   - Entregáveis: position projector; PM calculator; reconciliation tests
-  - Notas: PositionProjector + AveragePriceCalculator implementados e testados (19 unitários); valuation com último close. Pendente: snapshots materializados, splits via feed de corporate actions, reconciliação.
+  - Notas: PositionProjector + AveragePriceCalculator implementados e testados (19 unitários); valuation com último close. Pendente: snapshots materializados, splits via feed de corporate actions, reconciliação. | PositionProjector + AveragePriceCalculator (261 unitários), summary on-demand, snapshots diários (hypertable + job idempotente). Contribuição por posição implementada.
 - **PORT-003 — Implementar TWR e MWR/TIR**
   - Critérios: TWR neutraliza fluxos externos; MWR/TIR pondera datas de fluxo; Benchmarks CDI/IPCA/Ibovespa/S&P são comparáveis; Casos sem fluxo e fluxo no mesmo dia são testados
   - Entregáveis: performance engine; benchmark comparison API; financial math tests
-  - Notas: Documentar convenções de valuation e timezone.
+  - Notas: Documentar convenções de valuation e timezone. | PerformanceEngine: TWR diário, XIRR MWR, vol/Sharpe/maxDD; endpoint /performance com benchmarks CDI/IBOV; painel frontend c/ presets+datas livres (nuqs) e aba Análise.
 
 </details>
 
@@ -563,8 +563,8 @@ _Atualizar posições de CDB/LCI/LCA/Tesouro e outros indexadores usando séries
 
 | ID | Tarefa | Prioridade | Dificuldade | Status | Dependências |
 | :--- | :--- | :---: | :---: | :--- | :--- | 
-| `PORT-004` | Implementar posições de renda fixa e accrual CDI/Selic/IPCA | `P2` | `complex` | ⬜ `not_started` | `MVP-002`, `PORT-001`, `FND-013` |
-| `PORT-005` | Implementar tributação regressiva e isenções | `P2` | `hard` | ⬜ `not_started` | `PORT-004` |
+| `PORT-004` | Implementar posições de renda fixa e accrual CDI/Selic/IPCA | `P2` | `complex` | 🔵 `in_progress` | `MVP-002`, `PORT-001`, `FND-013` |
+| `PORT-005` | Implementar tributação regressiva e isenções | `P2` | `hard` | 🔵 `in_progress` | `PORT-004` |
 
 <details>
 <summary>Critérios e entregáveis</summary>
@@ -572,11 +572,11 @@ _Atualizar posições de CDB/LCI/LCA/Tesouro e outros indexadores usando séries
 - **PORT-004 — Implementar posições de renda fixa e accrual CDI/Selic/IPCA**
   - Critérios: Suporta CDI_PERCENT, CDI_PLUS, SELIC, IPCA_PLUS e PREFIXED; Capitaliza somente dias úteis aplicáveis; Reexecução do job é idempotente; Valor e data do último accrual são auditáveis
   - Entregáveis: fixed income module; accrual job; financial math tests
-  - Notas: Validar fórmulas com fonte oficial e revisão financeira.
+  - Notas: Validar fórmulas com fonte oficial e revisão financeira. | FixedIncomeAccrualCalculator puro (CDI%/CDI+/Selic/IPCA+/Prefixado) + PortfolioAccrualDailyJob idempotente + valuation de sintético/RF por ativo. Pendente: wizard de produtos RF por ativo, Tesouro ⛔ catálogo, vetores c/ séries reais.
 - **PORT-005 — Implementar tributação regressiva e isenções**
   - Critérios: Faixas de prazo são versionadas; Isenção e retenção são explicitadas; Resultado mostra premissas e competência; Testes cobrem fronteiras 180/360/720 dias
   - Entregáveis: tax projection service; versioned tax rules; tax tests
-  - Notas: Requer revisão editorial/fiscal antes de uso real.
+  - Notas: Requer revisão editorial/fiscal antes de uso real. | TaxCalculators puros c/ 34 testes (fronteiras exatas, IOF, come-cotas, isenções PF) expostos em /tax/*; pendente versionamento das faixas e revisão editorial (RISK-003).
 
 </details>
 
@@ -614,7 +614,7 @@ _Apoiar aportes, compensação de prejuízos e apuração mensal sem executar or
 | ID | Tarefa | Prioridade | Dificuldade | Status | Dependências |
 | :--- | :--- | :---: | :---: | :--- | :--- | 
 | `PORT-008` | Criar rebalanceamento por aportes | `P3` | `hard` | ⬜ `not_started` | `PORT-002`, `PORT-003` |
-| `PORT-009` | Implementar apuração mensal de DARF | `P3` | `complex` | ⬜ `not_started` | `PORT-002`, `PORT-005`, `PORT-008` |
+| `PORT-009` | Implementar apuração mensal de DARF | `P3` | `complex` | 🔵 `in_progress` | `PORT-002`, `PORT-005`, `PORT-008` |
 
 <details>
 <summary>Critérios e entregáveis</summary>
@@ -626,7 +626,7 @@ _Apoiar aportes, compensação de prejuízos e apuração mensal sem executar or
 - **PORT-009 — Implementar apuração mensal de DARF**
   - Critérios: Segrega classes e day/swing trade; Mantém saldo de prejuízos por classe; Mostra código 6015, valor e vencimento; Relatório exige revisão/confirmação do usuário
   - Entregáveis: tax ledger; DARF report; export integration
-  - Notas: Revisão fiscal obrigatória antes de produção.
+  - Notas: Revisão fiscal obrigatória antes de produção. | Projeção DARF mensal por classe c/ isenções entregue (/tax/darf); apuração completa c/ compensação de prejuízos permanece pendente (ledger derivado on-demand).
 
 </details>
 
