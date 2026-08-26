@@ -41,10 +41,13 @@ Roda **antes** dos schedulers (não sobe Quartz) e encerra o processo ao termina
 ```bash
 dotnet run --project src/IndexDesk.Worker -- --backfill WRLD11        # ou -b (cadeia Brapi → Yahoo → TV)
 dotnet run --project src/IndexDesk.Worker -- -b IVVB11 --provider yahoo
+dotnet run --project src/IndexDesk.Worker -- -b MXRF11,IBOV --days 365  # janela móvel de N dias
 ```
 
 - `--backfill` / `-b TICKER` — aceita lista separada por vírgula (`MXRF11,GOLD11`). Sem ticker = `WRLD11`.
 - `--provider` / `-p` — força fonte única: `brapi|yahoo|tv|infomoney` (aliases aceitos, ex.: `yf`, `tradingview`).
+- `--days N` — janela móvel (`hoje − N → hoje`) para todos os tickers da lista, sobrescrevendo as
+  datas iniciais do switch por ticker (ex.: refresh de 1 ano do catálogo sem refazer histórico cheio).
 - Upsert idempotente: seguro reexecutar/derrubar no meio.
 
 ## Configuração

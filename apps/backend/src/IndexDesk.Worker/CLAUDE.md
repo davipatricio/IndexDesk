@@ -32,12 +32,14 @@ Cadeia declarativa OHLCV (`IMarketDataClient`, ordenada por Priority): **Brapi (
 dotnet run --project src/IndexDesk.Worker -- --backfill WRLD11     # ou -b (cadeia completa)
 dotnet run --project src/IndexDesk.Worker -- --backfill MXRF11,GOLD11
 dotnet run --project src/IndexDesk.Worker -- -b IVVB11 --provider yahoo   # yahoo|tv|infomoney|brapi
+dotnet run --project src/IndexDesk.Worker -- -b MXRF11,IBOV --days 365    # janela móvel de N dias
 ```
 
 - Roda antes de `host.Run()` e **encerra o processo** ao terminar (não sobe schedulers).
 - `--provider` (`-p`) força uma fonte única via `SidecarProviderDirectory`; upsert idempotente = seguro reiniciar.
 - Datas iniciais por ticker num switch em Program.cs (MXRF11 2015; VWRA11/WRLD11 2021; GOLD11 2020;
-  default 2021) — atualizar o switch ao adicionar piloto novo.
+  default 2021) — atualizar o switch ao adicionar piloto novo. `--days N` sobrescreve o switch com
+  janela móvel `hoje − N → hoje` p/ todos os tickers da lista.
 
 ## Padrão para adicionar um job (seguir exatamente)
 

@@ -2,6 +2,8 @@
 
 > Snapshot do `ROADMAP.md` gerado em **2026-08-26** (pós PR #3 — dashboard de carteiras M-P1..M-P5). Para o estado exato, rode
 > `bun run roadmap:check` ou leia `ROADMAP.md`. Este resumo pode estar defasado.
+> **26/08/2026:** catálogo expandido para 2165 ativos + backfill 1y em massa (98% de cobertura) —
+> ver [`current-features.md`](current-features.md#catálogo--ingestão-em-massa-26082026).
 
 ## Visão geral
 

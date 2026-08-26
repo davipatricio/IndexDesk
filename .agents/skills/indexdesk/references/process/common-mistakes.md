@@ -111,6 +111,16 @@ Regras completas por tema nos arquivos de [`../..`](../../SKILL.md) (mapa no SKI
     curl_cffi impersonate=chrome); It Now default `Transport=sidecar`.
 43. ❌ Usar o apex `itnow.com.br`
     → ✅ apex tem NXDOMAIN — host real é **`www.itnow.com.br`** (BaseUrl default já aponta pra lá).
+44. ❌ Confiar em `rate` de dividendo do Yahoo sem teto de magnitude
+    → ✅ Yahoo às vezes reporta **total distribuído** em vez de valor por ação em eventos antigos
+    (PDGR3 2008-09: R$163 mi/R$190 mi "por cota") — estoura o `asset_dividends.rate
+    decimal(14,6)` e o `DbUpdateException` envenena o audit-log no mesmo DbContext (falha some
+    do `sync_job_logs`). Guard no validador (`Rate < 9_999_999`; idem preços `< 9_999_999`)
+    rejeita a linha lixo e salva o resto do lote.
+45. ❌ Assumir que Brapi cobre todas as listagens B3
+    → ✅ `/available` deixou de fora **241 tickers** do universo ETF (listagens novas/iliquidas,
+    sobretudo BDR-ETF x39). Completar com o catálogo WordPress do Bora Investir (ver
+    PROVIDERS.md §2.12) — fonte oficial B3, sem auth.
 
 ## Processo
 

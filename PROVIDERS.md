@@ -117,7 +117,7 @@ SPDR cobre SPY-likes p/ ETF BDR.
 - **Autenticação:** `token=` na query (pool de chaves; anônimo funciona só numa whitelist mínima)
 - **Documentação:** [Brapi Docs](https://brapi.dev/docs)
 
-#### Realidade observada ao vivo (23/08/2026)
+#### Realidade observada ao vivo (23/08/2026 · atualizado 26/08/2026)
 
 - **Anônimo é whitelist-only:** `/quote/PETR4` responde 200 (`ratelimit-limit: 20`), mas os
   demais tickers devolvem **401 `MISSING_TOKEN`** (whitelist estável observada: PETR4/VALE3).
@@ -126,6 +126,19 @@ SPDR cobre SPY-likes p/ ETF BDR.
   mercado inteiro (~2000 ativos, ~471 KB) → filtrar client-side (`GetDailyBatchQuotesAsync`).
 - **Plano free apertado:** ~10 req/min/chave. O pool de chaves (`Providers__Brapi__ApiKeys__0..N`)
   multiplica o throughput (N chaves ≈ N×10 req/min agregados) via round-robin + token bucket.
+- **Histórico por range é paywall no free** (26/08): `/quote/{ticker}?range=…` aceita só
+  `1d,5d,1mo,3mo`; pedidos maiores = **400 `INVALID_RANGE`** ("upgrade para Startup") — exceto
+  tickers em cache/quente tipo PETR4, que respondem `1y` mesmo no free. `CalculateRange`
+  devolve `1y` para janelas de 365 dias → é esse o BadRequest visto no backfill. Reforça a regra:
+  **bulk history é papel do Yahoo sidecar**.
+- **Proventos são paywall total no free** (26/08): `/quote/{ticker}?dividends=true` responde
+  403 `FEATURE_NOT_AVAILABLE` (`canAccessDividendsData`, plano requerido: Startup R$119/mês).
+  Esse 403 marca a chave como `Invalid` no pool (disable até reinício) — inofensivo no CLI
+  one-shot, mas o daily close degradaria essa etapa todos os dias.
+- **Catálogo completo com token:** `/available` (~1825 tickers) + `/quote/list` (agora traz
+  `type`/`subType` por ativo: stock/bdr/fund × etf/fii/unit…) — usado em 26/08/2026 para curar
+  1922 tickers de uma vez (`ON CONFLICT DO NOTHING`). Cobertura falha justamente nas listagens
+  novas/iliquidas do universo ETF (241 tickers que só o Bora Investir tinha — ver §2.12).
 
 #### Orçamento de consumo (jobs do Worker)
 
@@ -287,6 +300,26 @@ sidecar fetch --url URL [--method POST] [--data BODY] [--header "K: V"] [--b64] 
   (fora da coleção `IMarketDataClient`), sem `ApiKey` configurada. Reativação só mediante
   decisão explícita de custo; enquanto isso o papel de fallback recai sobre Yahoo (`.SA`) +
   AwesomeAPI (câmbio) + dado local.
+
+---
+
+### 2.12. Bora Investir (B3) — catálogo/metadata do universo ETF — recon 26/08/2026
+
+- **Tipo:** WordPress REST (`?rest_route=/wp/v2/asset&per_page=100&page=N&_embed=wp:term`) +
+  HTML SSR por ticker (`/cotacoes/etfs/{TICKER}/`). Cloudflare na frente, mas curl com
+  User-Agent de browser responde 200 sem cookie/JS challenge. Sem API de candles/proventos.
+- **Cobertura real: só universo ETF** — 519 tickers (218 ETFs nacionais x11 + 301 BDRs de
+  ETF x39, dual-tagged `bdrs`+`etfs`). Ações/FIIs/BDR-ação = 404; taxonomias `fiis`/`acoes`
+  existem com count 0.
+- **Metadata útil via `_embed`:** índice de referência (grupo 2 dos termos), gestor (grupo 5),
+  geografia/segmento; PL e nº de investidores só no HTML SSR (baixo valor, evitar scraping
+  de 520 páginas).
+- **Uso no projeto (26/08/2026):** curou os **241 tickers ausentes do Brapi** (listagens novas/
+  iliquidas, ex.: Hashdex/AR x39) + reclassificou 135 `BDR`→`BDR_ETF` que o Brapi marca como
+  bdr genérico. Nome do ativo = nome do índice quando disponível.
+- **Não usar para:** cotações históricas, proventos, dados intraday — o site não expõe.
+  Candles continuam Yahoo/TV sidecar; proventos de ETF seguem lacuna aberta (recon futuro:
+  feeds de gestoras/CVM).
 
 ---
 

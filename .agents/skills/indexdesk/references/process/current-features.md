@@ -88,7 +88,35 @@ Smoke ao vivo 23/08: BOVV11 = 78 holdings, as-of 2026-08-21, top VALE3 11,2377%.
   4/4 contra o Postgres dev; WRLD11 upsertou 10 linhas idempotentes; backfill CLI
   `--backfill IVVB11 --provider yahoo` = 1405 quotes idempotentes (2021→2026).
 
+### Catálogo & ingestão em massa (26/08/2026)
+
+**Catálogo:** 2165 ativos ativos (`assets`) — STOCK 754 · BDR 508 · FII 350 · BDR_ETF 302 ·
+ETF 249 · INDEX 2 (IBOV/IFIX). Curadoria operacional por duas fontes reais (sem metadado fabricado):
+Brapi `/available` + `/quote/list` com token (`type`/`subType` → AssetType; nomes de fundo = ticker,
+pobre mas verbatim da fonte) e **Bora Investir** WordPress REST (`?rest_route=/wp/v2/asset&_embed`,
+519 tickers do universo ETF; nome = índice de referência; reclassificou 135 `BDR→BDR_ETF` e aportou
+241 listagens ausentes do Brapi). Detalhes das fontes: `PROVIDERS.md` §2.5 e §2.12.
+Upsert idempotente `ON CONFLICT ("Ticker") DO NOTHING`; os 7 originais preservados.
+
+**Backfill 1y (CLI `--backfill <csv> --provider yahoo --days 365`, 4 processos paralelos):**
+334.170 barras na janela 1y; cobertura **2118/2163 negociáveis (98%)** — STOCK 752/754 ·
+FII 350/350 · BDR 508/508 · BDR_ETF 275/302 · ETF 233/249. Os **45 sem cobertura** são listagens
+novíssimas ausentes de Yahoo **e** TradingView (só existem no site B3/Bora); ficarão cobertas
+forward-only pelo batch diário Brapi `/quote/list`. Proventos: **31.919 eventos em 1.053 ativos**
+(Yahoo tem histórico rico p/ ações/BDRs/FIIs; ETFs seguem lacuna da fonte).
+
+**Fixes de ingestão que entraram junto (testes unitários no `MarketDataValidatorTests`):**
+- `MarketDataValidator`: guard de magnitude — preços e rates ≥ 9_999_999 são lixo de provider
+  (Yahoo mandou "dividendo" de R$190 mi/cota em PDGR3 2008-09) e estouravam o `decimal(14,6)`
+  envenenando o audit-log no mesmo DbContext.
+- `IngestionUpserts.DividendsAsync`: arredonda `Rate` para a escala da coluna
+  (`AwayFromZero`, igual ao PG) + comparação com epsilon antes do insert — ruído de float do
+  Yahoo (`2.0307215` vs armazenado `2.030722`) colidia no índice único `(AssetId, ComDate, Rate)`
+  a partir do 2º run (23505). Idempotência real de re-runs restaurada.
+
 ### `/api/v1/analytics` (módulo Analytics)
+
+
 - `POST /backtest` — simulação com pesos/aportes.
 - `GET /real-yield?nominalRate&inflationRate` — rendimento real (Fisher).
 
@@ -145,8 +173,11 @@ Autenticado (JWT; policies `portfolio:read`/`portfolio:write`). Plano vivo:
 | `HoldingsWeeklySyncJob` | sáb 08:00 | `IEtfHoldingsSyncService.SyncWeeklyAsync` (iShares/SPDR/It Now/Investo → `etf_holdings`) |
 | `PilotAssetBackfillJob` | sem agenda (manual/CLI) | `IAssetBackfillService.BackfillPilotAssetsAsync` |
 
-CLI on-demand: `dotnet run --project src/IndexDesk.Worker -- --backfill TICKER[,TICKER2] [--provider yahoo|tv|infomoney|brapi]`
-(`SidecarProviderDirectory`; InfoMoney só por aqui). Aceita os pilotos e benchmarks
+CLI on-demand: `dotnet run --project src/IndexDesk.Worker -- --backfill TICKER[,TICKER2] [--provider yahoo|tv|infomoney|brapi] [--days N]`
+(`SidecarProviderDirectory`; InfoMoney só por aqui; `--days N` = janela móvel hoje−N→hoje que
+sobrescreve o switch de datas — usado p/ refresh 1y do catálogo inteiro em 2026-08-25: 7/7 SUCCESS,
+IBOV/IFIX cobertos via TV até o dia, proventos sem novidade — Yahoo não publica dividends dos ETFs
+B3 e Brapi cobra plano Startup pela rota). Aceita os pilotos e benchmarks
 (IBOV start 2015, IFIX start hoje-7d). Backfill executado: IBOV 2890 cotações (2015→hoje,
 YahooFinance); IFIX 1 ponto (forward-only); **IVVB11/yahoo 1405 quotes idempotentes**
 (2021-01-04→2026-08-21, 2ª execução estável).

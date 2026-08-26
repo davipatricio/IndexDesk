@@ -46,6 +46,23 @@ public class MarketDataValidator
             return false;
         }
 
+        // Magnitude guard: asset_quotes stores prices as decimal(14,4) and no B3
+        // asset legitimately trades at 8+ digits per share. Yahoo occasionally
+        // emits glitch bars far beyond that; rejecting keeps the upsert alive.
+        const decimal maxPrice = 9_999_999m;
+        if (
+            quote.Open >= maxPrice
+            || quote.High >= maxPrice
+            || quote.Low >= maxPrice
+            || quote.Close >= maxPrice
+            || quote.AdjClose >= maxPrice
+        )
+        {
+            reason =
+                $"One or more prices exceed the plausible maximum {maxPrice} (Open: {quote.Open}, High: {quote.High}, Low: {quote.Low}, Close: {quote.Close}, AdjClose: {quote.AdjClose})";
+            return false;
+        }
+
         // Allow tiny delta margin (0.0001) for numeric inaccuracies
         const decimal epsilon = 0.0001m;
         if (quote.High < quote.Low - epsilon)
@@ -75,6 +92,17 @@ public class MarketDataValidator
         if (dividend.Rate <= 0)
         {
             reason = $"Dividend rate is <= 0 ({dividend.Rate})";
+            return false;
+        }
+
+        // Magnitude guard: asset_dividends stores rate as decimal(14,6) (max 8 integer
+        // digits). Yahoo sometimes reports total distribution values instead of
+        // per-share rates for old events (e.g. PDGR3 2008-2009 in the tens of millions),
+        // which would overflow the column and poison the whole save batch.
+        if (dividend.Rate >= 9_999_999m)
+        {
+            reason =
+                $"Dividend rate {dividend.Rate} exceeds the plausible per-share maximum 9999999";
             return false;
         }
 

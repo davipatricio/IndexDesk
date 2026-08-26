@@ -128,6 +128,7 @@ var host = builder.Build();
 // CLI Backfill execution handling:
 //   dotnet run -- --backfill WRLD11            (fallback chain Brapi → Yahoo → TV)
 //   dotnet run -- -b IVVB11 --provider yahoo   (explicit provider: yahoo|tv|infomoney)
+//   dotnet run -- -b TICK1,TICK2 --days 365    (rolling window override, else per-ticker start dates)
 var backfillIndex = Array.FindIndex(
     args,
     a =>
@@ -158,6 +159,23 @@ if (backfillIndex >= 0)
         providerArg = args[providerIndex + 1];
     }
 
+    // Optional rolling window (--days N): overrides the per-ticker start-date switch,
+    // e.g. a 1-year refresh of the whole catalog without re-fetching full history.
+    int? daysWindow = null;
+    var daysIndex = Array.FindIndex(
+        args,
+        a => a.Equals("--days", StringComparison.OrdinalIgnoreCase)
+    );
+    if (
+        daysIndex >= 0
+        && daysIndex + 1 < args.Length
+        && int.TryParse(args[daysIndex + 1], out var parsedDays)
+        && parsedDays > 0
+    )
+    {
+        daysWindow = parsedDays;
+    }
+
     using var scope = host.Services.CreateScope();
     var backfillService = scope.ServiceProvider.GetRequiredService<IAssetBackfillService>();
 
@@ -171,7 +189,9 @@ if (backfillIndex >= 0)
 
     Console.WriteLine(
         $"[IndexDesk.Worker:CLI] Running on-demand historical backfill for '{targetArg}'"
-            + (providerArg is null ? "..." : $" via {providerArg}...")
+            + (providerArg is null ? "" : $" via {providerArg}")
+            + (daysWindow is { } window ? $", rolling {window}d window" : "")
+            + "..."
     );
 
     var tickers = targetArg.Split(
@@ -180,19 +200,21 @@ if (backfillIndex >= 0)
     );
     foreach (var ticker in tickers)
     {
-        var startDate = ticker.ToUpperInvariant() switch
-        {
-            "MXRF11" => new DateOnly(2015, 1, 1),
-            "VWRA11" => new DateOnly(2021, 1, 1),
-            "GOLD11" => new DateOnly(2020, 1, 1),
-            "WRLD11" => new DateOnly(2021, 1, 1),
-            // Benchmark indices: full depth for IBOV; IFIX is forward-only (Yahoo
-            // exposes no history) so the window starts around "now".
-            "IBOV" => new DateOnly(2015, 1, 1),
-            "IFIX" => DateOnly.FromDateTime(DateTime.UtcNow).AddDays(-7),
-            _ => new DateOnly(2021, 1, 1),
-        };
         var endDate = DateOnly.FromDateTime(DateTime.UtcNow);
+        var startDate = daysWindow is { } days
+            ? endDate.AddDays(-days)
+            : ticker.ToUpperInvariant() switch
+            {
+                "MXRF11" => new DateOnly(2015, 1, 1),
+                "VWRA11" => new DateOnly(2021, 1, 1),
+                "GOLD11" => new DateOnly(2020, 1, 1),
+                "WRLD11" => new DateOnly(2021, 1, 1),
+                // Benchmark indices: full depth for IBOV; IFIX is forward-only (Yahoo
+                // exposes no history) so the window starts around "now".
+                "IBOV" => new DateOnly(2015, 1, 1),
+                "IFIX" => endDate.AddDays(-7),
+                _ => new DateOnly(2021, 1, 1),
+            };
 
         var result = await backfillService.BackfillAssetAsync(
             ticker,

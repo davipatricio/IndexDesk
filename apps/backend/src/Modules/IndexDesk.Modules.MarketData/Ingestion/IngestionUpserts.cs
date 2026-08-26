@@ -87,8 +87,15 @@ public static class IngestionUpserts
 
         foreach (var div in dividends)
         {
+            // Round to the column scale (numeric(14,6)) BEFORE comparing: providers
+            // emit float noise (2.0307215000…) that differs from the stored rounded
+            // value (2.030722) under exact decimal equality, yet collides on the
+            // (AssetId, ComDate, Rate) unique index once PostgreSQL rounds on insert.
+            // AwayFromZero matches PostgreSQL's numeric round; the epsilon compare
+            // covers any residual representation drift in either direction.
+            var rate = decimal.Round(div.Rate, 6, MidpointRounding.AwayFromZero);
             var alreadyExists = existingDividends.Any(e =>
-                e.ComDate == div.ComDate && e.Rate == div.Rate
+                e.ComDate == div.ComDate && Math.Abs(e.Rate - rate) < 0.0000005m
             );
             if (!alreadyExists)
             {
@@ -98,7 +105,7 @@ public static class IngestionUpserts
                         AssetId = assetId,
                         ComDate = div.ComDate,
                         PaymentDate = div.PaymentDate,
-                        Rate = div.Rate,
+                        Rate = rate,
                         DividendType = div.DividendType,
                         Currency = div.Currency,
                         SourceProvider = div.SourceProvider,
