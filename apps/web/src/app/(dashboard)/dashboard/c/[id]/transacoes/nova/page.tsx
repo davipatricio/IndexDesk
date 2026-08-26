@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   attachFixedIncome,
   createTransaction,
@@ -31,6 +31,7 @@ const corpActionKinds = [
   { value: 'split', label: 'Desdobramento (split)', factorLabel: 'Fator (ex.: 2 dobra)' },
   { value: 'grupamento', label: 'Grupamento (inpc)', factorLabel: 'Fator (ex.: 2 agrupa)' },
   { value: 'bonificacao', label: 'Bonificação', factorLabel: '' },
+  { value: 'subscricao', label: 'Subscrição', factorLabel: '' },
 ] as const;
 
 const syntheticOptions = [
@@ -62,23 +63,41 @@ interface WizardState {
   rfMaturity: string;
 }
 
-const initialState: WizardState = {
-  type: 'BUY',
-  ticker: '',
-  asset: null,
-  syntheticCode: null,
-  broker: '',
-  tradeDate: new Date().toISOString().slice(0, 10),
-  quantity: '',
-  unitPrice: '',
-  fees: '0',
-  corpKind: 'split',
-  corpFactor: '2',
-  corpPercent: '',
-  rfIndexer: 'CDI_PERCENT',
-  rfRate: '100',
-  rfMaturity: '',
-};
+function makeInitialState(): WizardState {
+  return {
+    type: 'BUY',
+    ticker: '',
+    asset: null,
+    syntheticCode: null,
+    broker: '',
+    tradeDate: new Date().toISOString().slice(0, 10),
+    quantity: '',
+    unitPrice: '',
+    fees: '0',
+    corpKind: 'split',
+    corpFactor: '2',
+    corpPercent: '',
+    rfIndexer: 'CDI_PERCENT',
+    rfRate: '100',
+    rfMaturity: '',
+  };
+}
+
+/** Total em R$ que a operação movimenta; `null` = evento sem fluxo de caixa. */
+function previewTotal(state: WizardState): number | null {
+  const qty = Number(state.quantity.replace(',', '.')) || 0;
+  const price = Number(state.unitPrice.replace(',', '.')) || 0;
+  if (state.type === 'INCOME') return qty;
+  if (state.type === 'CORP_ACTION') return state.corpKind === 'subscricao' ? qty * price : null;
+  return state.syntheticCode ? qty : qty * price;
+}
+
+function corpActionLabel(state: WizardState): string {
+  if (state.corpKind === 'bonificacao') return `Bonificação de ${state.corpPercent}%`;
+  if (state.corpKind === 'subscricao') return 'Subscrição';
+  const label = corpActionKinds.find((k) => k.value === state.corpKind)?.label ?? state.corpKind;
+  return `${label} ×${state.corpFactor}`;
+}
 
 function buildCorpActionJson(state: WizardState): string | null {
   if (state.type !== 'CORP_ACTION') return null;
@@ -94,11 +113,13 @@ function buildCorpActionJson(state: WizardState): string | null {
 export default function NovaTransacaoPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
   const { isAuthenticated, isReady } = useSession();
 
   const [step, setStep] = React.useState(1);
-  const [state, setState] = React.useState<WizardState>(initialState);
+  const [state, setState] = React.useState<WizardState>(makeInitialState);
   const [tickerError, setTickerError] = React.useState<string | null>(null);
+  const [lookingUp, setLookingUp] = React.useState(false);
 
   React.useEffect(() => {
     if (isReady && !isAuthenticated) router.replace('/entrar');
@@ -109,32 +130,41 @@ export default function NovaTransacaoPage() {
   const lookupTicker = async () => {
     const ticker = state.ticker.trim().toUpperCase();
     if (!ticker) return;
-    const asset = await fetchAssetLookup(ticker);
-    if (asset) {
-      patch({ asset });
-      setTickerError(null);
-      setStep(2);
-    } else {
-      patch({ asset: null });
-      setTickerError(`Não encontramos "${ticker}" no catálogo. Verifique o código do ativo.`);
+    setLookingUp(true);
+    try {
+      const asset = await fetchAssetLookup(ticker);
+      if (asset) {
+        patch({ asset });
+        setTickerError(null);
+        setStep(2);
+      } else {
+        patch({ asset: null });
+        setTickerError(`Não encontramos "${ticker}" no catálogo. Verifique o código do ativo.`);
+      }
+    } catch {
+      // Falha de rede/HTTP no lookup não pode virar rejeição silenciosa.
+      setTickerError('Não foi possível verificar o ativo agora. Tente novamente.');
+    } finally {
+      setLookingUp(false);
     }
   };
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const qty = Number(state.quantity.replace(',', '.'));
-      const price = Number(state.unitPrice.replace(',', '.'));
+      const qty = Number(state.quantity.replace(',', '.')) || 0;
+      const price = Number(state.unitPrice.replace(',', '.')) || 0;
       const fees = Number(state.fees.replace(',', '.')) || 0;
       const targetAssetId = state.syntheticCode ? null : (state.asset?.id ?? null);
 
       let created;
       if (state.type === 'INCOME') {
+        // O campo "Valor total bruto" É o rendimento; preço por cota é opcional e informativo.
         created = await createTransaction(id, {
           type: 'INCOME',
           assetId: targetAssetId,
           syntheticIndexCode: state.syntheticCode,
           broker: state.broker,
-          grossAmount: qty * price,
+          grossAmount: qty,
         });
       } else if (state.type === 'CORP_ACTION') {
         created = await createTransaction(id, {
@@ -162,43 +192,50 @@ export default function NovaTransacaoPage() {
         });
       }
 
-      // Parâmetros de rendimento para caixa sintético (accrual local-first)
+      // Parâmetros de rendimento para caixa sintético (accrual local-first).
+      // Falha aqui NÃO deve rejeitar a mutation: a transação já foi criada —
+      // retentar o fluxo inteiro duplicaria o lançamento.
       if (created && state.type === 'BUY' && state.syntheticCode && state.rfMaturity) {
-        await attachFixedIncome(id, {
-          syntheticIndexCode: state.syntheticCode,
-          indexer: state.rfIndexer as FixedIncomeParamDto['indexer'],
-          indexerRate: Number(state.rfRate.replace(',', '.')) || 100,
-          principal: qty,
-          startDate: state.tradeDate,
-          maturityDate: state.rfMaturity,
-        });
+        try {
+          await attachFixedIncome(id, {
+            syntheticIndexCode: state.syntheticCode,
+            indexer: state.rfIndexer as FixedIncomeParamDto['indexer'],
+            indexerRate: Number(state.rfRate.replace(',', '.')) || 100,
+            principal: qty,
+            startDate: state.tradeDate,
+            maturityDate: state.rfMaturity,
+          });
+        } catch {
+          toast.error('Transação lançada, mas não foi possível salvar o rendimento do caixa.');
+        }
       }
       return created;
     },
     onSuccess: () => {
       toast.success('Transação lançada!');
+      void queryClient.invalidateQueries({ queryKey: ['portfolio', id] });
+      void queryClient.invalidateQueries({ queryKey: ['portfolios'] });
       router.push(`/dashboard/c/${id}`);
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
-  const total =
-    Number(state.quantity.replace(',', '.') || 0) * Number(state.unitPrice.replace(',', '.') || 0);
+  const total = previewTotal(state);
 
   const canAdvanceFrom2 =
     state.type === 'INCOME'
-      ? Number(state.quantity) >= 0 && Number(state.unitPrice) > 0
-      : state.type === 'CORP_ACTION' && state.corpKind !== 'bonificacao'
+      ? Number(state.quantity.replace(',', '.')) > 0
+      : state.type === 'CORP_ACTION'
         ? state.corpKind === 'subscricao'
           ? Number(state.quantity.replace(',', '.')) > 0 &&
             Number(state.unitPrice.replace(',', '.')) > 0
-          : Number(state.corpFactor.replace(',', '.')) > 1
-        : state.type === 'CORP_ACTION'
-          ? Number(state.corpPercent.replace(',', '.')) > 0
-          : state.syntheticCode
-            ? Number(state.quantity.replace(',', '.')) > 0
-            : Number(state.quantity.replace(',', '.')) > 0 &&
-              Number(state.unitPrice.replace(',', '.')) > 0;
+          : state.corpKind === 'bonificacao'
+            ? Number(state.corpPercent.replace(',', '.')) > 0
+            : Number(state.corpFactor.replace(',', '.')) > 1
+        : state.syntheticCode
+          ? Number(state.quantity.replace(',', '.')) > 0
+          : Number(state.quantity.replace(',', '.')) > 0 &&
+            Number(state.unitPrice.replace(',', '.')) > 0;
 
   return (
     <div className="mx-auto w-full max-w-xl space-y-6 px-4 py-8">
@@ -322,7 +359,7 @@ export default function NovaTransacaoPage() {
                     value={state.corpPercent}
                     onChange={(e) => patch({ corpPercent: e.target.value })}
                   />
-                ) : (
+                ) : state.corpKind === 'subscricao' ? null : (
                   <Input
                     inputMode="decimal"
                     placeholder={
@@ -332,7 +369,11 @@ export default function NovaTransacaoPage() {
                     onChange={(e) => patch({ corpFactor: e.target.value })}
                   />
                 )}
-                {state.corpKind === 'subscricao' ? null : (
+                {state.corpKind === 'subscricao' ? (
+                  <p className="text-xs text-muted-foreground">
+                    Informe quantidade e preço unitário na próxima etapa.
+                  </p>
+                ) : (
                   <p className="text-xs text-muted-foreground">
                     A quantidade do evento é ajustada automaticamente sobre a posição existente.
                   </p>
@@ -372,14 +413,18 @@ export default function NovaTransacaoPage() {
                 Cancelar
               </Button>
               <Button
-                disabled={(!state.ticker.trim() && !state.syntheticCode) || !state.broker.trim()}
+                disabled={
+                  lookingUp ||
+                  (!state.ticker.trim() && !state.syntheticCode) ||
+                  !state.broker.trim()
+                }
                 onClick={() =>
                   state.syntheticCode
                     ? (patch({ asset: null }), setTickerError(null), setStep(2))
                     : void lookupTicker()
                 }
               >
-                Continuar
+                {lookingUp ? 'Verificando…' : 'Continuar'}
               </Button>
             </div>
           </CardContent>
@@ -415,13 +460,22 @@ export default function NovaTransacaoPage() {
                     <label className="text-sm font-medium" htmlFor="preco">
                       Valor unitário
                     </label>
-                    <Input
-                      id="preco"
-                      inputMode="decimal"
-                      placeholder="0,00"
-                      value={state.unitPrice}
-                      onChange={(e) => patch({ unitPrice: e.target.value })}
-                    />
+                    {state.syntheticCode ? (
+                      <>
+                        <Input id="preco" value="R$ 1,00 (cota do caixa)" readOnly disabled />
+                        <p className="text-xs text-muted-foreground">
+                          Cada cota do caixa sintético vale R$ 1,00.
+                        </p>
+                      </>
+                    ) : (
+                      <Input
+                        id="preco"
+                        inputMode="decimal"
+                        placeholder="0,00"
+                        value={state.unitPrice}
+                        onChange={(e) => patch({ unitPrice: e.target.value })}
+                      />
+                    )}
                   </div>
                 </div>
                 {state.type === 'BUY' ? (
@@ -490,12 +544,11 @@ export default function NovaTransacaoPage() {
                     </p>
                   </fieldset>
                 ) : null}
-                <p className="text-sm tabular-nums text-muted-foreground">
-                  Total:{' '}
-                  {brl.format(
-                    state.syntheticCode ? Number(state.quantity.replace(',', '.') || 0) : total,
-                  )}
-                </p>
+                {total !== null ? (
+                  <p className="text-sm tabular-nums text-muted-foreground">
+                    Total: {brl.format(total)}
+                  </p>
+                ) : null}
               </>
             ) : (
               <>
@@ -551,7 +604,13 @@ export default function NovaTransacaoPage() {
             />
             <ReviewRow
               label="Ativo"
-              value={`${state.ticker}${state.asset ? ` — ${state.asset.name}` : ''}`}
+              value={
+                state.ticker
+                  ? `${state.ticker}${state.asset ? ` — ${state.asset.name}` : ''}`
+                  : state.syntheticCode
+                    ? `Caixa ${state.syntheticCode}`
+                    : '—'
+              }
             />
             <ReviewRow label="Corretora" value={state.broker} />
             <ReviewRow
@@ -559,21 +618,34 @@ export default function NovaTransacaoPage() {
               value={new Date(`${state.tradeDate}T12:00:00`).toLocaleDateString('pt-BR')}
             />
             {state.type === 'CORP_ACTION' ? (
-              <ReviewRow
-                label="Evento"
-                value={
-                  state.corpKind === 'bonificacao'
-                    ? `Bonificação de ${state.corpPercent}%`
-                    : `${corpActionKinds.find((k) => k.value === state.corpKind)?.label} ×${state.corpFactor}`
-                }
-              />
+              <>
+                <ReviewRow label="Evento" value={corpActionLabel(state)} />
+                {state.corpKind === 'subscricao' ? (
+                  <>
+                    <ReviewRow label="Quantidade" value={state.quantity} />
+                    <ReviewRow
+                      label="Preço unitário"
+                      value={brl.format(Number(state.unitPrice.replace(',', '.') || 0))}
+                    />
+                  </>
+                ) : null}
+              </>
             ) : null}
-            {state.type !== 'INCOME' && state.type !== 'CORP_ACTION' ? (
+            {state.type === 'INCOME' ? (
+              <ReviewRow
+                label="Bruto recebido"
+                value={brl.format(Number(state.quantity.replace(',', '.') || 0))}
+              />
+            ) : state.type !== 'CORP_ACTION' ? (
               <>
                 <ReviewRow label="Quantidade" value={state.quantity} />
                 <ReviewRow
                   label="Preço unitário"
-                  value={brl.format(Number(state.unitPrice.replace(',', '.') || 0))}
+                  value={
+                    state.syntheticCode
+                      ? 'R$ 1,00'
+                      : brl.format(Number(state.unitPrice.replace(',', '.') || 0))
+                  }
                 />
                 {state.type === 'BUY' ? (
                   <ReviewRow
@@ -582,18 +654,8 @@ export default function NovaTransacaoPage() {
                   />
                 ) : null}
               </>
-            ) : (
-              <ReviewRow label="Bruto recebido" value={brl.format(Number(state.quantity || 0))} />
-            )}
-            <ReviewRow
-              label="Total"
-              value={brl.format(
-                state.syntheticCode && state.type === 'BUY'
-                  ? Number(state.quantity.replace(',', '.') || 0)
-                  : total,
-              )}
-              strong
-            />
+            ) : null}
+            {total !== null ? <ReviewRow label="Total" value={brl.format(total)} strong /> : null}
 
             <div className="flex justify-between pt-2">
               <Button variant="ghost" onClick={() => setStep(2)}>

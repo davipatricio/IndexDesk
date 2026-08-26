@@ -6,7 +6,6 @@ import {
   simulateRedemption,
   fetchTaxProjection,
   type PositionDto,
-  type RedemptionResultDto,
   type TaxProjectionDto,
 } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,7 +55,7 @@ function RedemptionSimulator({
         broker: selected!.broker,
         quantity: quantity.trim() ? Number(quantity.replace(',', '.')) : undefined,
       }),
-    onSuccess: (r: RedemptionResultDto) => toast.success('Simulação concluída.'),
+    onSuccess: () => toast.success('Simulação concluída.'),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -186,7 +185,12 @@ function DarfCard({ portfolioId }: { portfolioId: string }) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">Projeção DARF</CardTitle>
           <div className="flex items-center gap-1 text-xs">
-            <Button variant="outline" size="xs" onClick={() => setMonthOffset((m) => m - 1)}>
+            <Button
+              variant="outline"
+              size="xs"
+              aria-label="Mês anterior"
+              onClick={() => setMonthOffset((m) => m - 1)}
+            >
               ←
             </Button>
             <span className="tabular-nums">
@@ -195,6 +199,7 @@ function DarfCard({ portfolioId }: { portfolioId: string }) {
             <Button
               variant="outline"
               size="xs"
+              aria-label="Próximo mês"
               disabled={monthOffset >= 0}
               onClick={() => setMonthOffset((m) => Math.min(0, m + 1))}
             >

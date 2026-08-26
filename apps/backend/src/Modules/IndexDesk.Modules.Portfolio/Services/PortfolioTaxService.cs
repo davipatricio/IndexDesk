@@ -16,7 +16,8 @@ internal sealed record TaxTxRow(
     decimal? UnitPrice,
     decimal Fees,
     decimal GrossAmount,
-    DateOnly TradeDate
+    DateOnly TradeDate,
+    string? CorpActionJson = null
 );
 
 /// <summary>
@@ -216,6 +217,8 @@ public sealed class PortfolioTaxService(IndexDeskDbContext db) : IPortfolioTaxSe
         var lastDay = firstDay.AddMonths(1).AddDays(-1);
 
         // Log ativo (linhas superseded nunca projetam) até o fim do mês-alvo, em ordem de pregão.
+        // CORP_ACTION entra porque split/grupamento/bonificação alteram quantidade e preço médio
+        // das vendas seguintes — sem eles a projeção DARF pula ou erra o resultado do mês.
         var rows = await db
             .PortfolioTransactions.Where(t =>
                 t.PortfolioId == portfolioId
@@ -226,6 +229,7 @@ public sealed class PortfolioTaxService(IndexDeskDbContext db) : IPortfolioTaxSe
                     || t.Type == "SELL"
                     || t.Type == "TRANSFER_IN"
                     || t.Type == "TRANSFER_OUT"
+                    || t.Type == "CORP_ACTION"
                 )
             )
             .OrderBy(t => t.TradeDate)
@@ -240,7 +244,8 @@ public sealed class PortfolioTaxService(IndexDeskDbContext db) : IPortfolioTaxSe
                 t.UnitPrice,
                 t.Fees,
                 t.GrossAmount,
-                t.TradeDate
+                t.TradeDate,
+                t.CorpActionJson
             ))
             .ToListAsync(ct);
 
@@ -286,6 +291,17 @@ public sealed class PortfolioTaxService(IndexDeskDbContext db) : IPortfolioTaxSe
 
                     case "TRANSFER_OUT":
                         quantity -= Math.Min(EffectiveQuantity(row), quantity);
+                        break;
+
+                    case "CORP_ACTION":
+                        PositionProjector.ApplyCorpAction(
+                            row.CorpActionJson,
+                            row.Quantity ?? 0m,
+                            row.UnitPrice ?? 0m,
+                            row.Fees,
+                            ref quantity,
+                            ref averagePrice
+                        );
                         break;
 
                     case "SELL":
@@ -426,8 +442,19 @@ public sealed class PortfolioTaxService(IndexDeskDbContext db) : IPortfolioTaxSe
                     quantity -= Math.Min(tx.Quantity ?? 0m, quantity);
                     break;
 
+                case "CORP_ACTION":
+                    PositionProjector.ApplyCorpAction(
+                        tx.CorpActionJson,
+                        tx.Quantity ?? 0m,
+                        tx.UnitPrice ?? 0m,
+                        tx.Fees,
+                        ref quantity,
+                        ref averagePrice
+                    );
+                    break;
+
                 default:
-                    break; // INCOME/CORP_ACTION não alteram preço médio nesta camada fiscal
+                    break; // INCOME não altera preço médio nesta camada fiscal
             }
         }
 

@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { fetchPublicPortfolio, type PublicPortfolioDto } from '@/lib/api-client';
 
-export const revalidate = 300;
+// Cache de dados fica no fetch (next.revalidate em fetchPublicPortfolio) —
+// segment config "revalidate" não é compatível com nextConfig.cacheComponents.
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -22,7 +23,8 @@ async function load(slug: string, shareToken?: string): Promise<PublicPortfolioD
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const portfolio = await load(slug);
-  if (!portfolio) return { title: 'Carteira não encontrada' };
+  if (!portfolio)
+    return { title: 'Carteira não encontrada', robots: { index: false, follow: false } };
   return {
     title: `Carteira ${portfolio.title} — ${portfolio.identityLabel}`,
     description:

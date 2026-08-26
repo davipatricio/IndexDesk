@@ -15,7 +15,11 @@ namespace IndexDesk.Modules.Portfolio.Services;
 public sealed class PortfolioGoalsService(IndexDeskDbContext db) : IPortfolioGoalsService
 {
     private static readonly string[] ValidKinds =
-        ["TARGET_AMOUNT", "TARGET_RETURN_PCT", "TARGET_DATE"];
+    [
+        "TARGET_AMOUNT",
+        "TARGET_RETURN_PCT",
+        "TARGET_DATE",
+    ];
 
     private static readonly string[] ValidStatuses = ["active", "achieved", "cancelled"];
 
@@ -192,20 +196,19 @@ public sealed class PortfolioGoalsService(IndexDeskDbContext db) : IPortfolioGoa
         int? months = goal.Kind switch
         {
             // Com aporte/juros assumidos → simulação mês a mês.
-            "TARGET_AMOUNT" when goal.MonthlyContribution is > 0 || goal.AssumedAnnualRate is > 0
-                => GoalProjectionCalculator.CompoundMonths(
+            "TARGET_AMOUNT" when goal.MonthlyContribution is > 0 || goal.AssumedAnnualRate is > 0 =>
+                GoalProjectionCalculator.CompoundMonths(
                     currentValue,
                     goal.MonthlyContribution ?? 0m,
                     goal.AssumedAnnualRate ?? 0m,
                     goal.TargetValue!.Value
                 ),
             // Sem premissas → run-rate do retorno recente informado pelo caller.
-            "TARGET_AMOUNT"
-                => GoalProjectionCalculator.RunRateMonths(
-                    currentValue,
-                    goal.TargetValue!.Value,
-                    recentMonthlyReturnPct ?? 0m
-                ),
+            "TARGET_AMOUNT" => GoalProjectionCalculator.RunRateMonths(
+                currentValue,
+                goal.TargetValue!.Value,
+                recentMonthlyReturnPct ?? 0m
+            ),
             _ => null, // RETURN_PCT/DATE não projetam meses hoje
         };
 
@@ -238,12 +241,18 @@ public sealed class PortfolioGoalsService(IndexDeskDbContext db) : IPortfolioGoa
     ) =>
         kind switch
         {
-            "TARGET_AMOUNT" when targetValue is not > 0
-                => Error.Validation("GoalTargetRequired", "Meta de valor requer TargetValue positivo."),
-            "TARGET_RETURN_PCT" when targetPct is not > 0
-                => Error.Validation("GoalTargetRequired", "Meta de rentabilidade requer TargetPct positivo."),
-            "TARGET_DATE" when targetDate is null
-                => Error.Validation("GoalTargetRequired", "Meta de data requer TargetDate."),
+            "TARGET_AMOUNT" when targetValue is not > 0 => Error.Validation(
+                "GoalTargetRequired",
+                "Meta de valor requer TargetValue positivo."
+            ),
+            "TARGET_RETURN_PCT" when targetPct is not > 0 => Error.Validation(
+                "GoalTargetRequired",
+                "Meta de rentabilidade requer TargetPct positivo."
+            ),
+            "TARGET_DATE" when targetDate is null => Error.Validation(
+                "GoalTargetRequired",
+                "Meta de data requer TargetDate."
+            ),
             _ when !ValidKinds.Contains(kind) => InvalidKind(),
             _ => null,
         };
@@ -265,13 +274,14 @@ public sealed class PortfolioGoalsService(IndexDeskDbContext db) : IPortfolioGoa
 
         return goal.Kind switch
         {
-            "TARGET_AMOUNT" when goal.TargetValue is > 0
-                => Math.Min(100m, decimal.Round(currentValue / goal.TargetValue.Value * 100m, 2)),
-            "TARGET_RETURN_PCT" when goal.TargetPct is > 0 && currentReturnPct.HasValue
-                => Math.Min(
-                    100m,
-                    decimal.Round(currentReturnPct.Value / goal.TargetPct.Value * 100m, 2)
-                ),
+            "TARGET_AMOUNT" when goal.TargetValue is > 0 => Math.Min(
+                100m,
+                decimal.Round(currentValue / goal.TargetValue.Value * 100m, 2)
+            ),
+            "TARGET_RETURN_PCT" when goal.TargetPct is > 0 && currentReturnPct.HasValue => Math.Min(
+                100m,
+                decimal.Round(currentReturnPct.Value / goal.TargetPct.Value * 100m, 2)
+            ),
             "TARGET_DATE" when goal.TargetDate.HasValue => DateProgress(goal),
             _ => null,
         };

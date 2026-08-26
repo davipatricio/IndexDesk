@@ -104,8 +104,21 @@ public static class PositionProjector
                     break;
 
                 case "CORP_ACTION":
-                    ApplyCorpAction(position, tx);
+                {
+                    var qty = position.Quantity;
+                    var avg = position.AveragePrice;
+                    ApplyCorpAction(
+                        tx.CorpActionJson,
+                        tx.Quantity ?? 0,
+                        tx.UnitPrice ?? 0,
+                        tx.Fees,
+                        ref qty,
+                        ref avg
+                    );
+                    position.Quantity = qty;
+                    position.AveragePrice = avg;
                     break;
+                }
 
                 case "TRANSFER_OUT":
                     // Cost basis leaves the portfolio without creating realized PnL.
@@ -153,14 +166,21 @@ public static class PositionProjector
     /// factor semantics (plan §2): split f:n → quantity × (n/f), average ÷ (n/f);
     /// grupamento/inpc → inverse; bonificacao pct → quantity × (1+pct); subscricao is a buy.
     /// </summary>
-    private static void ApplyCorpAction(MutablePosition position, PortfolioTransactionEntity tx)
+    public static void ApplyCorpAction(
+        string? corpActionJson,
+        decimal subscriptionQuantity,
+        decimal subscriptionUnitPrice,
+        decimal subscriptionFees,
+        ref decimal quantity,
+        ref decimal averagePrice
+    )
     {
         CorpAction? action;
         try
         {
-            action = string.IsNullOrWhiteSpace(tx.CorpActionJson)
+            action = string.IsNullOrWhiteSpace(corpActionJson)
                 ? null
-                : JsonSerializer.Deserialize<CorpAction>(tx.CorpActionJson, JsonOptions);
+                : JsonSerializer.Deserialize<CorpAction>(corpActionJson, JsonOptions);
         }
         catch (JsonException)
         {
@@ -175,35 +195,36 @@ public static class PositionProjector
             case "split":
                 if (action.Factor > 0 && action.Factor != 1)
                 {
-                    position.Quantity *= action.Factor;
-                    position.AveragePrice /= action.Factor;
+                    quantity *= action.Factor;
+                    averagePrice /= action.Factor;
                 }
                 break;
             case "grupamento":
             case "inpc":
                 if (action.Factor > 0 && action.Factor != 1)
                 {
-                    position.Quantity /= action.Factor;
-                    position.AveragePrice *= action.Factor;
+                    quantity /= action.Factor;
+                    averagePrice *= action.Factor;
                 }
                 break;
             case "bonificacao":
                 var bonus = 1 + (action.Percent ?? 0);
                 if (bonus > 0)
                 {
-                    position.Quantity *= bonus;
-                    position.AveragePrice /= bonus;
+                    quantity *= bonus;
+                    averagePrice /= bonus;
                 }
                 break;
             case "subscricao":
-                position.Quantity += tx.Quantity ?? 0;
-                position.AveragePrice = AveragePriceCalculator.NewBuyAverage(
-                    position.Quantity - (tx.Quantity ?? 0),
-                    position.AveragePrice,
-                    tx.Quantity ?? 0,
-                    tx.UnitPrice ?? 0,
-                    tx.Fees
+                var newQuantity = quantity + subscriptionQuantity;
+                averagePrice = AveragePriceCalculator.NewBuyAverage(
+                    quantity,
+                    averagePrice,
+                    subscriptionQuantity,
+                    subscriptionUnitPrice,
+                    subscriptionFees
                 );
+                quantity = newQuantity;
                 break;
         }
     }

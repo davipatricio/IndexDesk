@@ -20,14 +20,16 @@ public sealed class PortfolioExportService(IndexDeskDbContext db) : IPortfolioEx
         CancellationToken ct
     )
     {
-        var owned = await db.Portfolios.AnyAsync(p => p.Id == portfolioId && p.UserId == userId, ct);
+        var owned = await db.Portfolios.AnyAsync(
+            p => p.Id == portfolioId && p.UserId == userId,
+            ct
+        );
         if (!owned)
             return Result<(byte[], string)>.Failure(
                 Error.NotFound("Portfolio", portfolioId.ToString())
             );
 
-        var summaryResult = await new PortfolioService(db)
-            .GetSummaryInternalAsync(portfolioId, ct);
+        var summaryResult = await new PortfolioService(db).GetSummaryInternalAsync(portfolioId, ct);
         if (summaryResult.IsFailure)
             return Result<(byte[], string)>.Failure(summaryResult.Error);
 
@@ -69,7 +71,10 @@ public sealed class PortfolioExportService(IndexDeskDbContext db) : IPortfolioEx
         CancellationToken ct
     )
     {
-        var owned = await db.Portfolios.AnyAsync(p => p.Id == portfolioId && p.UserId == userId, ct);
+        var owned = await db.Portfolios.AnyAsync(
+            p => p.Id == portfolioId && p.UserId == userId,
+            ct
+        );
         if (!owned)
             return Result<(byte[], string)>.Failure(
                 Error.NotFound("Portfolio", portfolioId.ToString())
@@ -96,7 +101,9 @@ public sealed class PortfolioExportService(IndexDeskDbContext db) : IPortfolioEx
         ).ToListAsync(ct);
 
         var sb = new StringBuilder();
-        sb.AppendLine("Data;Tipo;Ativo;Corretora;Quantidade;Valor unitário;Total;Despesas;Moeda;Notas");
+        sb.AppendLine(
+            "Data;Tipo;Ativo;Corretora;Quantidade;Valor unitário;Total;Despesas;Moeda;Notas"
+        );
         foreach (var t in rows)
         {
             sb.AppendLine(

@@ -61,6 +61,9 @@ create index "IX_portfolio_transactions_PortfolioId_TradeDate"
 create index "IX_portfolio_transactions_AssetId" on portfolio_transactions("AssetId");
 create index "IX_portfolio_transactions_AmendedTransactionId"
   on portfolio_transactions("AmendedTransactionId");
+create unique index "UX_portfolio_transactions_ReversedBy"
+  on portfolio_transactions("ReversedByTransactionId")
+  where "ReversedByTransactionId" is not null;
 
 -- Projetada pelo PositionProjector; M-P1 calcula on-demand (tabela pronta p/ materializar).
 create table portfolio_positions_summary (

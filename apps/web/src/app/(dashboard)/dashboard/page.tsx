@@ -28,8 +28,19 @@ const riskLabel: Record<string, string> = {
 /**
  * Home do dashboard: visão consolidada de todas as carteiras (M-P1 mínimo —
  * patrimônio, investido e resultado agregados + cards por carteira).
+ *
+ * `useSearchParams` (clone ?clonar=) exige boundary de Suspense para o prerender
+ * estático do shell não quebrar o build.
  */
 export default function DashboardPage() {
+  return (
+    <React.Suspense fallback={<DashboardSkeleton />}>
+      <DashboardHome />
+    </React.Suspense>
+  );
+}
+
+function DashboardHome() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -87,6 +98,17 @@ export default function DashboardPage() {
 
       {summariesQuery.isLoading ? (
         <DashboardSkeleton />
+      ) : summariesQuery.isError ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
+            <p className="max-w-md text-sm text-muted-foreground">
+              Não foi possível carregar suas carteiras agora. Tente novamente em instantes.
+            </p>
+            <Button variant="outline" onClick={() => void summariesQuery.refetch()}>
+              Tentar novamente
+            </Button>
+          </CardContent>
+        </Card>
       ) : !summaries || summaries.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center gap-4 py-14 text-center">
@@ -128,7 +150,10 @@ export default function DashboardPage() {
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {totalInvested > 0
-                    ? `${((unrealized / totalInvested) * 100).toFixed(2)}% sobre o investido`
+                    ? `${((unrealized / totalInvested) * 100).toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}% sobre o investido`
                     : '—'}
                 </p>
               </CardContent>

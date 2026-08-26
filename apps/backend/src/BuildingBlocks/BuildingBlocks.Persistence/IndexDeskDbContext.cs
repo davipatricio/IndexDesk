@@ -288,6 +288,11 @@ public class IndexDeskDbContext : DbContext
             entity.HasIndex(e => new { e.PortfolioId, e.TradeDate });
             entity.HasIndex(e => e.AssetId);
             entity.HasIndex(e => e.AmendedTransactionId);
+            // Uma única versão vigente por transação original (race de amends concorrentes).
+            entity
+                .HasIndex(e => e.ReversedByTransactionId)
+                .IsUnique()
+                .HasFilter("\"ReversedByTransactionId\" IS NOT NULL");
         });
 
         modelBuilder.Entity<PortfolioDailySnapshotEntity>(entity =>

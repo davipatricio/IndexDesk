@@ -85,7 +85,7 @@ export function AnalysisPanel({ portfolioId }: { portfolioId: string }) {
             <CardDescription>Dias sem aportes ou resgates</CardDescription>
           </CardHeader>
           <CardContent>
-            <MoveList moves={best} tone="positive" />
+            <MoveList moves={best} />
           </CardContent>
         </Card>
         <Card>
@@ -94,7 +94,7 @@ export function AnalysisPanel({ portfolioId }: { portfolioId: string }) {
             <CardDescription>Dias sem aportes ou resgates</CardDescription>
           </CardHeader>
           <CardContent>
-            <MoveList moves={worst} tone="negative" />
+            <MoveList moves={worst} />
           </CardContent>
         </Card>
       </div>
@@ -121,7 +121,7 @@ function RiskCard({ label, value, hint }: { label: string; value: string; hint: 
   );
 }
 
-function MoveList({ moves, tone }: { moves: DailyMove[]; tone: 'positive' | 'negative' }) {
+function MoveList({ moves }: { moves: DailyMove[] }) {
   if (moves.length === 0)
     return <p className="text-xs text-muted-foreground">Sem variações registradas.</p>;
   return (

@@ -108,13 +108,12 @@ export function PerformancePanel({ portfolioId }: { portfolioId: string }) {
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardTitle className="text-base">Rentabilidade</CardTitle>
-          <div className="flex flex-wrap gap-1" role="tablist" aria-label="Período">
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Período">
             {PERIODS.map((p) => (
               <button
                 key={p.value}
                 type="button"
-                role="tab"
-                aria-selected={periodParams.p === p.value && !periodParams.de && !periodParams.ate}
+                aria-pressed={periodParams.p === p.value && !periodParams.de && !periodParams.ate}
                 onClick={() => setPeriodParams({ p: p.value, de: null, ate: null })}
                 className={`rounded-md px-2 py-1 text-xs transition-colors ${
                   periodParams.p === p.value && !periodParams.de && !periodParams.ate

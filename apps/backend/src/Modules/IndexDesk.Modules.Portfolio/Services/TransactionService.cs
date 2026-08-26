@@ -154,9 +154,18 @@ public sealed class TransactionService(IndexDeskDbContext db) : ITransactionServ
             case "TRANSFER_IN":
             case "TRANSFER_OUT":
                 if ((request.Quantity ?? 0) <= 0)
-                    return Result.Failure(
-                        Error.Validation("QuantityRequired", "Quantidade deve ser positiva.")
-                    );
+                {
+                    // Depósito/transferência de caixa sintético pode vir só pelo valor bruto
+                    // (convenção do PositionProjector: quantidade = bruto @ unitário 1).
+                    var syntheticDeposit =
+                        request.AssetId is null
+                        && request.Type is "BUY" or "TRANSFER_IN"
+                        && request.GrossAmount > 0;
+                    if (!syntheticDeposit)
+                        return Result.Failure(
+                            Error.Validation("QuantityRequired", "Quantidade deve ser positiva.")
+                        );
+                }
                 if ((request.UnitPrice ?? 0) <= 0 && request.Type != "TRANSFER_IN")
                     return Result.Failure(
                         Error.Validation("UnitPriceRequired", "Valor unitário deve ser positivo.")
@@ -213,8 +222,9 @@ public sealed class TransactionService(IndexDeskDbContext db) : ITransactionServ
     {
         decimal gross = r.Type switch
         {
-            // Buy/transfer cost basis derives from quantity × unit + fees when gross omitted.
-            "BUY" or "TRANSFER_IN" => r.GrossAmount > 0
+            // Fluxos com quantidade derivam o bruto de quantity × unit quando não informado
+            // (série usa GrossAmount como fluxo externo — SELL/TRANSFER_OUT zerado distorceria TWR/MWR).
+            "BUY" or "SELL" or "TRANSFER_IN" or "TRANSFER_OUT" => r.GrossAmount > 0
                 ? r.GrossAmount
                 : (r.Quantity ?? 0) * (r.UnitPrice ?? 0),
             _ => r.GrossAmount,

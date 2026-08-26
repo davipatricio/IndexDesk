@@ -219,4 +219,71 @@ public class PositionProjectorTests
         Assert.Equal("CDI", position.SyntheticIndexCode);
         Assert.Equal(5000m, position.InvestedAmount);
     }
+
+    [Fact]
+    public void Synthetic_cash_with_fees_keeps_gross_quantity_and_fees_in_cost()
+    {
+        // Convenção qty=gross@unit=1: taxa entra no custo (médio sobe), quantidade continua o bruto.
+        var result = PositionProjector.Project([
+            Tx("BUY", null, synthetic: "CDI", grossAmount: 5000m, fees: 10m),
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var position = Assert.Single(result.Value!.Positions);
+        Assert.Equal(5000m, position.Quantity);
+        Assert.Equal(1.002m, position.AveragePrice); // (5000 + 10) / 5000
+        Assert.Equal(5010m, position.InvestedAmount);
+    }
+
+    [Fact]
+    public void Sell_after_split_uses_diluted_average()
+    {
+        var result = PositionProjector.Project([
+            Tx("BUY", AssetA, 100, 10m),
+            Tx(
+                "CORP_ACTION",
+                AssetA,
+                corpActionJson: "{\"kind\":\"split\",\"factor\":2}",
+                date: new DateOnly(2026, 2, 1)
+            ),
+            Tx("SELL", AssetA, 50, 12m, date: new DateOnly(2026, 3, 1)),
+        ]);
+
+        Assert.True(result.IsSuccess);
+        var position = Assert.Single(result.Value!.Positions);
+        Assert.Equal(150m, position.Quantity); // 200 após o split − 50 vendidas
+        Assert.Equal(5m, position.AveragePrice); // médio diluído pelo desdobramento
+        Assert.Equal((12m - 5m) * 50m, position.RealizedPnl);
+    }
+
+    [Fact]
+    public void ApplyCorpAction_InvalidJson_IsNoop()
+    {
+        decimal qty = 100,
+            avg = 10m;
+
+        PositionProjector.ApplyCorpAction("{not json", 0, 0, 0, ref qty, ref avg);
+
+        Assert.Equal(100m, qty);
+        Assert.Equal(10m, avg);
+    }
+
+    [Fact]
+    public void ApplyCorpAction_Subscription_MixesCostLikeBuy()
+    {
+        decimal qty = 100,
+            avg = 10m;
+
+        PositionProjector.ApplyCorpAction(
+            "{\"kind\":\"subscricao\"}",
+            50,
+            4m,
+            0m,
+            ref qty,
+            ref avg
+        );
+
+        Assert.Equal(150m, qty);
+        Assert.Equal((1000m + 200m) / 150m, avg);
+    }
 }

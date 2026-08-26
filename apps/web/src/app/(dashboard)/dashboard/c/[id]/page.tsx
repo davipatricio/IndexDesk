@@ -29,6 +29,13 @@ import { toast } from 'sonner';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
+/**
+ * Data de hoje (UTC) para filtrar vencimentos futuros. Avaliada 1× por carregamento
+ * da página — chamar `Date.now()` durante o render é impuro (react/purity), e o card
+ * só aparece depois da sessão pronta, então nunca participa do prerender estático.
+ */
+const TODAY_ISO = new Date().toISOString().slice(0, 10);
+
 /** Detalhe da carteira (M-P1): patrimônio + tabela de posições por custódia. */
 export default function CarteiraPage() {
   const router = useRouter();
@@ -255,8 +262,7 @@ function formatQty(q: number): string {
 }
 
 function TimelineCard({ items }: { items: TimelineItemDto[] }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = items.filter((i) => i.date >= today).slice(0, 5);
+  const upcoming = items.filter((i) => i.date >= TODAY_ISO).slice(0, 5);
   if (upcoming.length === 0) return null;
 
   return (
@@ -269,7 +275,9 @@ function TimelineCard({ items }: { items: TimelineItemDto[] }) {
         <ul className="space-y-1.5">
           {upcoming.map((item) => {
             const days = Math.round(
-              (new Date(`${item.date}T12:00:00`).getTime() - Date.now()) / 86_400_000,
+              (new Date(`${item.date}T12:00:00`).getTime() -
+                new Date(`${TODAY_ISO}T12:00:00`).getTime()) /
+                86_400_000,
             );
             return (
               <li

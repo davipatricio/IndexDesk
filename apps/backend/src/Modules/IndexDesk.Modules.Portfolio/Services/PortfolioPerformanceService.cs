@@ -272,7 +272,8 @@ public sealed class PortfolioPerformanceService(IndexDeskDbContext db)
         var count = 0;
         foreach (var row in rows)
         {
-            var result = await GetAsync(row.UserId, row.Id, null, null, null, ct);
+            // benchmarks vazios: snapshot só precisa do último ponto, não das séries comparativas
+            var result = await GetAsync(row.UserId, row.Id, null, null, string.Empty, ct);
             if (result.IsFailure)
                 continue;
             var last = result.Value.Series[^1];
@@ -319,7 +320,11 @@ public sealed class PortfolioPerformanceService(IndexDeskDbContext db)
             {
                 var injected = tx.GrossAmount + tx.Fees;
                 if (tx.AssetId is null)
-                    cashQuantity += Math.Max(0m, (tx.Quantity ?? tx.GrossAmount) - tx.Fees);
+                {
+                    // Caixa sintético: o bruto entra como principal; a taxa é consumida na
+                    // entrada (o fluxo externo já a embute) — não subtrair de novo.
+                    cashQuantity += Math.Max(0m, tx.Quantity ?? tx.GrossAmount);
+                }
                 else
                     quantities[tx.AssetId.Value] =
                         quantities.GetValueOrDefault(tx.AssetId.Value) + (tx.Quantity ?? 0);
@@ -332,6 +337,11 @@ public sealed class PortfolioPerformanceService(IndexDeskDbContext db)
                         0m,
                         quantities.GetValueOrDefault(tx.AssetId.Value) - (tx.Quantity ?? 0)
                     );
+                else
+                    cashQuantity -= Math.Min(
+                        cashQuantity,
+                        Math.Max(0m, tx.Quantity ?? tx.GrossAmount)
+                    );
                 return -(tx.GrossAmount - tx.Fees);
             }
             case "TRANSFER_IN":
@@ -339,6 +349,8 @@ public sealed class PortfolioPerformanceService(IndexDeskDbContext db)
                 if (tx.AssetId is not null)
                     quantities[tx.AssetId.Value] =
                         quantities.GetValueOrDefault(tx.AssetId.Value) + (tx.Quantity ?? 0);
+                else
+                    cashQuantity += Math.Max(0m, tx.Quantity ?? tx.GrossAmount);
                 return tx.GrossAmount;
             }
             case "TRANSFER_OUT":
@@ -347,6 +359,11 @@ public sealed class PortfolioPerformanceService(IndexDeskDbContext db)
                     quantities[tx.AssetId.Value] = Math.Max(
                         0m,
                         quantities.GetValueOrDefault(tx.AssetId.Value) - (tx.Quantity ?? 0)
+                    );
+                else
+                    cashQuantity -= Math.Min(
+                        cashQuantity,
+                        Math.Max(0m, tx.Quantity ?? tx.GrossAmount)
                     );
                 return -tx.GrossAmount;
             }
@@ -382,13 +399,15 @@ public sealed class PortfolioPerformanceService(IndexDeskDbContext db)
             var current = quantities.GetValueOrDefault(tx.AssetId.Value);
             switch (kind)
             {
-                case "split" when factor > 1:
+                // Mesmos guardas do PositionProjector (factor > 0 && != 1) para a série de
+                // performance não divergir das posições do resumo.
+                case "split" when factor > 0 && factor != 1:
                     quantities[tx.AssetId.Value] = current * factor;
                     break;
-                case "grupamento" or "inpc" when factor > 1:
+                case "grupamento" or "inpc" when factor > 0 && factor != 1:
                     quantities[tx.AssetId.Value] = current / factor;
                     break;
-                case "bonificacao" when percent is not null:
+                case "bonificacao" when percent is not null && 1 + percent.Value > 0:
                     quantities[tx.AssetId.Value] = current * (1 + percent.Value);
                     break;
             }

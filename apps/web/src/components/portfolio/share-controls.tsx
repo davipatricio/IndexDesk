@@ -31,7 +31,9 @@ export function ShareControls({
   const [visibility, setVisibility] = React.useState(initial.visibility);
   const [slug, setSlug] = React.useState<string | null>(null);
   const [shareUrl, setShareUrl] = React.useState<string | null>(null);
-  const [hasActiveLink, setHasActiveLink] = React.useState(false);
+  // Quem chega num modo "só com link" normalmente já tem token ativo; as ações
+  // abaixo corrigem o estado com a resposta real do backend.
+  const [hasActiveLink, setHasActiveLink] = React.useState(initial.visibility === 'link');
   const [busy, setBusy] = React.useState(false);
 
   const change = async (value: (typeof options)[number]['value']) => {
@@ -62,7 +64,8 @@ export function ShareControls({
       const result = await regenerateShareLink(portfolioId, 30);
       setVisibility(result.visibility);
       setSlug(result.slug);
-      setShareUrl(result.shareUrl);
+      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+      setShareUrl(`${origin}/c/${result.slug}?t=${result.shareToken}`);
       setHasActiveLink(true);
       toast.success('Link gerado — copie agora, ele não será exibido de novo.');
     } catch (error) {
@@ -77,12 +80,24 @@ export function ShareControls({
     try {
       await revokeShareLink(portfolioId);
       setShareUrl(null);
+      setHasActiveLink(false);
       toast.success('Link revogado.');
       router.refresh();
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const copyLink = async () => {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Copiado.');
+    } catch {
+      // clipboard indisponível fora de contexto seguro — não deixa o clique morrer.
+      toast.error('Não foi possível copiar automaticamente. Selecione o link e copie manualmente.');
     }
   };
 
@@ -126,26 +141,19 @@ export function ShareControls({
           <Button variant="outline" size="sm" disabled={busy} onClick={() => void generateLink()}>
             Gerar novo link
           </Button>
-          {!hasActiveLink ? (
-            <p className="text-[11px] text-muted-foreground">
-              Já existe um link ativo. Gerar um novo invalida o anterior.
-            </p>
-          ) : null}
+          <p className="text-[11px] text-muted-foreground">
+            Se já existir um link ativo, gerar um novo invalida o anterior.
+          </p>
           {shareUrl ? (
             <div className="space-y-1">
               <input
                 readOnly
+                aria-label="Link restrito da carteira"
                 value={shareUrl}
                 className="w-full rounded-md border bg-muted/40 px-2 py-1 text-[11px]"
                 onFocus={(e) => e.currentTarget.select()}
               />
-              <Button
-                size="xs"
-                onClick={() => {
-                  void navigator.clipboard.writeText(shareUrl);
-                  toast.success('Copiado.');
-                }}
-              >
+              <Button size="xs" onClick={() => void copyLink()}>
                 Copiar
               </Button>
               <p className="text-[10px] text-red-600">Este token não será mostrado novamente.</p>

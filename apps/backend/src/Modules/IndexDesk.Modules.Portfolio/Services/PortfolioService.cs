@@ -199,7 +199,10 @@ public sealed class PortfolioService(IndexDeskDbContext db) : IPortfolioService
         return Result.Success();
     }
 
-    private readonly Dictionary<(string Code, DateOnly End), decimal> _accrualCache = [];
+    private readonly Dictionary<
+        (string Code, string Indexer, decimal IndexerRate, DateOnly StartDate, DateOnly End),
+        decimal
+    > _accrualCache = [];
 
     /// <summary>Accrual local-first do caixa sintético com séries SGS já persistidas.</summary>
     private decimal AccrueSynthetic(
@@ -213,7 +216,16 @@ public sealed class PortfolioService(IndexDeskDbContext db) : IPortfolioService
                 ? param.MaturityDate
                 : today;
 
-        var cacheKey = (param.SyntheticIndexCode ?? string.Empty, end);
+        // Chave inclui TODOS os parâmetros que determinam o fator (indexador define a série SGS e
+        // a fórmula; taxa e início definem a janela). O serviço é scoped: sem isso, dois parâmetros
+        // RF diferentes do mesmo código sintético reutilizariam o fator errado dentro do request.
+        var cacheKey = (
+            param.SyntheticIndexCode ?? string.Empty,
+            param.Indexer.ToUpperInvariant(),
+            param.IndexerRate,
+            param.StartDate,
+            end
+        );
         if (_accrualCache.TryGetValue(cacheKey, out var cachedFactor))
             return decimal.Round(quantity * cachedFactor, 2);
 

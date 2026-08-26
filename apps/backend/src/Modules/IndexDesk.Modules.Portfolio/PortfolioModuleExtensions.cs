@@ -646,17 +646,24 @@ public static class PortfolioModuleExtensions
 
         // ---------- público (página /c/[slug] + clone por visitante logado) ----------
 
-        app
-            .MapGet(
+        app.MapGet(
                 "/api/v1/portfolios/public/{slug}",
                 async (
                     string slug,
                     IPortfolioSharingService service,
+                    HttpContext http,
                     string? shareToken,
                     CancellationToken ct
                 ) =>
                 {
-                    var result = await service.GetPublicBySlugAsync(slug, shareToken, ct);
+                    // Preferir header: token não vaza em logs de proxy/histórico.
+                    // Query mantida como fallback para compatibilidade.
+                    var headerToken = http.Request.Headers["X-Share-Token"].FirstOrDefault();
+                    var result = await service.GetPublicBySlugAsync(
+                        slug,
+                        headerToken ?? shareToken,
+                        ct
+                    );
                     return result.IsSuccess ? Results.Ok(result.Value) : MapError(result.Error);
                 }
             )
@@ -664,8 +671,7 @@ public static class PortfolioModuleExtensions
             .WithName("GetPublicPortfolio")
             .WithSummary("Carteira pública por slug (link restrito exige shareToken)");
 
-        app
-            .MapPost(
+        app.MapPost(
                 "/api/v1/portfolios/public/{slug}/clone",
                 async (
                     string slug,
@@ -678,7 +684,10 @@ public static class PortfolioModuleExtensions
                         return Results.Unauthorized();
                     var result = await service.ClonePublicAsync(slug, userId, ct);
                     return result.IsSuccess
-                        ? Results.Created($"/api/v1/portfolios/{result.Value}", new { id = result.Value })
+                        ? Results.Created(
+                            $"/api/v1/portfolios/{result.Value}",
+                            new { id = result.Value }
+                        )
                         : MapError(result.Error);
                 }
             )
@@ -690,6 +699,7 @@ public static class PortfolioModuleExtensions
     }
 
     public sealed record UpdateVisibilityRequest(string Visibility, int? ExpiresInDays = null);
+
     public sealed record RegenerateShareLinkRequest(int ExpiresInDays);
 
     private sealed record AssetLookupDto(
@@ -712,11 +722,11 @@ public static class PortfolioModuleExtensions
         error.Code switch
         {
             "Portfolio.NotFound"
-                or "Transaction.NotFound"
-                or "Asset.NotFound"
-                or "Position.NotFound"
-                or "Goal.NotFound"
-                or "FixedIncome.NotFound" => Results.NotFound(
+            or "Transaction.NotFound"
+            or "Asset.NotFound"
+            or "Position.NotFound"
+            or "Goal.NotFound"
+            or "FixedIncome.NotFound" => Results.NotFound(
                 new { code = error.Code, message = error.Message }
             ),
             "Portfolio.LimitReached" => Results.Conflict(

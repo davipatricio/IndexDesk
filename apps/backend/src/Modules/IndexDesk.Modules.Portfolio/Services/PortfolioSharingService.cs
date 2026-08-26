@@ -73,7 +73,10 @@ public sealed class PortfolioSharingService(IndexDeskDbContext db) : IPortfolioS
                 if (portfolio.ShareTokenHash is null)
                     AssignShareToken(portfolio); // claro descartado; Regenerate devolve o valor
                 if (expiresInDays.HasValue)
-                    portfolio.ShareExpiresAt = DateTime.UtcNow.AddDays(expiresInDays.Value);
+                {
+                    var clamped1 = Math.Clamp(expiresInDays.Value, 1, 3650);
+                    portfolio.ShareExpiresAt = DateTime.UtcNow.AddDays(clamped1);
+                }
                 break;
         }
 
@@ -112,7 +115,8 @@ public sealed class PortfolioSharingService(IndexDeskDbContext db) : IPortfolioS
         portfolio.Visibility = "link";
         portfolio.Slug ??= BuildSlug(portfolio.Title, portfolio.Id);
         var clearToken = AssignShareToken(portfolio); // invalida qualquer link anterior
-        portfolio.ShareExpiresAt = DateTime.UtcNow.AddDays(expiresInDays);
+        var clamped2 = Math.Clamp(expiresInDays, 1, 3650);
+        portfolio.ShareExpiresAt = DateTime.UtcNow.AddDays(clamped2);
         portfolio.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
 
@@ -121,7 +125,11 @@ public sealed class PortfolioSharingService(IndexDeskDbContext db) : IPortfolioS
         );
     }
 
-    public async Task<Result> RevokeShareLinkAsync(Guid userId, Guid portfolioId, CancellationToken ct)
+    public async Task<Result> RevokeShareLinkAsync(
+        Guid userId,
+        Guid portfolioId,
+        CancellationToken ct
+    )
     {
         var portfolio = await OwnsAsync(userId, portfolioId, ct);
         if (portfolio is null)
@@ -276,7 +284,9 @@ public sealed class PortfolioSharingService(IndexDeskDbContext db) : IPortfolioS
             .GroupBy(v => v.AssetClass)
             .Select(g => new PublicAllocationClassDto(
                 g.Key,
-                totalValue > 0 ? decimal.Round(g.Sum(x => x.CurrentValue) / totalValue * 100m, 2) : 0m
+                totalValue > 0
+                    ? decimal.Round(g.Sum(x => x.CurrentValue) / totalValue * 100m, 2)
+                    : 0m
             ))
             .OrderByDescending(a => a.Percent)
             .ToList();
@@ -379,7 +389,8 @@ public sealed class PortfolioSharingService(IndexDeskDbContext db) : IPortfolioS
 
             if (p.AssetId is not null && assets.TryGetValue(p.AssetId.Value, out var asset))
             {
-                var factor = asset.Currency == "BRL" ? 1m : fx.GetValueOrDefault(asset.Currency, 0m);
+                var factor =
+                    asset.Currency == "BRL" ? 1m : fx.GetValueOrDefault(asset.Currency, 0m);
                 current =
                     factor > 0 && closes.TryGetValue(asset.Id, out var close)
                         ? p.Quantity * close * factor
@@ -414,11 +425,13 @@ public sealed class PortfolioSharingService(IndexDeskDbContext db) : IPortfolioS
         }
 
         var total = rows.Sum(r => r.CurrentValue);
-        return rows
-            .Select(r => r with
-            {
-                WeightPercent = total > 0 ? decimal.Round(r.CurrentValue / total * 100m, 4) : 0m,
-            })
+        return rows.Select(r =>
+                r with
+                {
+                    WeightPercent =
+                        total > 0 ? decimal.Round(r.CurrentValue / total * 100m, 4) : 0m,
+                }
+            )
             .ToList();
     }
 
@@ -427,7 +440,9 @@ public sealed class PortfolioSharingService(IndexDeskDbContext db) : IPortfolioS
     {
         var cutoff = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30));
         var snapshots = await db
-            .PortfolioDailySnapshots.Where(s => s.PortfolioId == portfolioId && s.SnapshotDate >= cutoff)
+            .PortfolioDailySnapshots.Where(s =>
+                s.PortfolioId == portfolioId && s.SnapshotDate >= cutoff
+            )
             .OrderBy(s => s.SnapshotDate)
             .Select(s => new ValueTuple<DateOnly, decimal>(s.SnapshotDate, s.TotalValue))
             .ToListAsync(ct);
