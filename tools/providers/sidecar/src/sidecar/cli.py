@@ -8,6 +8,9 @@ Layout::
                          [--cookie COOKIE] [--fixture FILE]
     sidecar im quotes    --symbol MGLU3 [--bars N] [--fixture FILE]
     sidecar im dividends --symbol MGLU3 [--fixture FILE]
+    sidecar b3 companies [--page-size N] [--max-records N] [--fixture FILE]
+    sidecar b3 fiis      [--type FII] [--page-size N] [--max-records N]
+                         [--fixture FILE]
     sidecar fetch        --url URL [--method GET|POST] [--data BODY]
                          [--header "K: V" ...] [--timeout-s N] [--b64]
 
@@ -21,7 +24,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-from sidecar import fetch_cmd, im_cmd, ndjson, tv_cmd, yf_cmd
+from sidecar import b3_cmd, fetch_cmd, im_cmd, ndjson, tv_cmd, yf_cmd
 from sidecar.errors import EXIT_OK, EXIT_PARSE, SidecarError
 
 
@@ -68,6 +71,23 @@ def build_parser() -> argparse.ArgumentParser:
     p_im_div = im_commands.add_parser("dividends", help="cash dividends/events history")
     p_im_div.add_argument("--symbol", required=True)
     p_im_div.add_argument("--fixture", metavar="FILE")
+
+    b3 = commands.add_parser(
+        "b3",
+        help="B3 listed-company/FII catalog (sistemaswebb3-listados, curl_cffi chrome)",
+    )
+    b3_commands = b3.add_subparsers(dest="b3_command", required=True)
+
+    p_b3_comp = b3_commands.add_parser("companies", help="listed companies (CNPJ, CVM code)")
+    p_b3_comp.add_argument("--page-size", dest="page_size", type=int, default=b3_cmd.DEFAULT_PAGE_SIZE)
+    p_b3_comp.add_argument("--max-records", dest="max_records", type=int, default=None)
+    p_b3_comp.add_argument("--fixture", metavar="FILE")
+
+    p_b3_fiis = b3_commands.add_parser("fiis", help="listed funds by type (ticker + name)")
+    p_b3_fiis.add_argument("--type", default="FII", help="fundType filter, e.g. FII, FIDC (default FII)")
+    p_b3_fiis.add_argument("--page-size", dest="page_size", type=int, default=b3_cmd.DEFAULT_PAGE_SIZE)
+    p_b3_fiis.add_argument("--max-records", dest="max_records", type=int, default=None)
+    p_b3_fiis.add_argument("--fixture", metavar="FILE")
 
     p_fetch = commands.add_parser(
         "fetch",
@@ -129,6 +149,19 @@ def run(args: argparse.Namespace, out) -> int:
         pairs = im_cmd.quotes(args.symbol, args.bars, args.fixture)
     elif args.command == "im" and args.im_command == "dividends":
         pairs = im_cmd.dividends(args.symbol, args.fixture)
+    elif args.command == "b3" and args.b3_command == "companies":
+        pairs = b3_cmd.companies(
+            args.fixture,
+            page_size=args.page_size,
+            max_records=args.max_records,
+        )
+    elif args.command == "b3" and args.b3_command == "fiis":
+        pairs = b3_cmd.fiis(
+            args.fixture,
+            fund_type=args.type,
+            page_size=args.page_size,
+            max_records=args.max_records,
+        )
     else:  # pragma: no cover - argparse enforces the combinations
         raise SidecarError("Usage.Invalid", f"unknown command {args.command}", 2)
     count = _write_pairs(pairs, out)

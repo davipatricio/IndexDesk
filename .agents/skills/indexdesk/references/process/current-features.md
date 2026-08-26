@@ -59,8 +59,23 @@ Config: `Providers__Sidecar__UvPath` (default `uv`), `Providers__Sidecar__Projec
 `Providers__Sidecar__TimeoutSeconds` (default 120). Smoke manual permanente:
 `SIDECAR_SMOKE=1 dotnet test --filter FullyQualifiedName~SidecarSmokeTests`.
 
-### Transporte HTTP genérico anti-WAF (`sidecar fetch` + `ISidecarHttp`, Fase 3 adendo)
-Hosts com fingerprinting TLS Akamai (ex.: `www.itnow.com.br`: curl/HttpClient nativo = 403
+### Catálogo oficial B3 no sidecar (`sidecar b3 ...`, 26/08/2026)
+
+Novo módulo `b3_cmd.py`: consome os proxies JSON dos apps Angular que alimentam as páginas
+públicas `empresas-listadas.htm` e `fiis-listados` (host `sistemaswebb3-listados.b3.com.br`,
+Akamai + cookie warm-up, TLS chrome via curl_cffi). Comandos:
+
+- `sidecar b3 companies [--page-size N] [--max-records N]` → NDJSON kind `company`
+  (`cnpj`, `code_cvm`, `issuing_company`, `trading_name`, `market_indicator`, `date_listing`) —
+  ~3500 registros ao vivo.
+- `sidecar b3 fiis [--type FII] [...]` → kind `fund` (`ticker`, `name`, `fund_type`) —
+  529 FIIs ao vivo; outros tipos via `assets/funds.json` do app (FIDC, FIP...).
+
+Sem resolução de captcha: challenge duro = `Fetch.Failed`/403. Contrato v2 documentado no
+README do sidecar; testes offline em `tests/test_b3_cmd.py`. Consumidor C#/persistência ainda
+não existe — próximo passo natural é um client `B3CatalogSidecarClient` + job de curadoria.
+
+### Transporte HTTP genérico anti-WAF (`sidecar fetch` + `ISidecarHttp`, Fase 3 adendo)Hosts com fingerprinting TLS Akamai (ex.: `www.itnow.com.br`: curl/HttpClient nativo = 403
 "Access Denied" mesmo com headers de browser; `curl_cffi impersonate="chrome"` = 200) são
 servidos por um comando genérico do sidecar: `sidecar fetch --url URL [--method GET|POST]
 [--data BODY] [--header "K: V"...] [--timeout-s N] [--b64]` — **corpo cru no stdout**

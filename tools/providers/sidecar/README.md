@@ -30,10 +30,22 @@ Dividend line (yfinance and im):
 {"ticker":"PETR4.SA","date":"2026-08-01","rate":0.52,"type":"DIVIDEND"}
 ```
 
+Catalog lines (v2, `sidecar b3 ...` only):
+
+```json
+{"cnpj":"33000167000101","code_cvm":"12345","issuing_company":"PETROBRAS S.A.","trading_name":"PETROBRAS","market_indicator":"99","date_listing":"31/12/9999"}
+```
+
+```json
+{"ticker":"HGLG","name":"CSHG LOGÍSTICA FII","fund_type":"FII"}
+```
+
 Rules:
 
 - `date` is ISO-8601 `YYYY-MM-DD`; numeric fields are JSON numbers (never
   strings/bools/NaN).
+- Catalog records (`company`/`fund`) carry only strings; `date_listing`
+  stays verbatim B3 format (`dd/mm/yyyy`) — it is metadata, not a quote date.
 - **Empty output is valid** (zero lines, exit 0) - e.g. BOVA11 has no
   dividends on Yahoo; that is data absence, not an error.
 - Exit codes: `0` ok · `2` spawn/usage error · `3` fetch failure · `4` parse
@@ -52,6 +64,8 @@ sidecar yf dividends --symbol PETR4.SA [--fixture FILE]
 sidecar tv history   --symbol BMFBOVESPA:BOVA11 [--interval 1d] [--bars N] [--cookie COOKIE] [--fixture FILE]
 sidecar im quotes    --symbol MGLU3 [--bars N] [--fixture FILE]
 sidecar im dividends --symbol MGLU3 [--fixture FILE]
+sidecar b3 companies [--page-size N] [--max-records N] [--fixture FILE]
+sidecar b3 fiis      [--type FII] [--page-size N] [--max-records N] [--fixture FILE]
 sidecar fetch        --url URL [--method GET|POST] [--data BODY] [--header "K: V" ...] [--timeout-s N] [--b64]
 ```
 
@@ -80,6 +94,25 @@ Symbol normalization (built in):
   `lastDatePriorToEx` becomes `date`, `rate` passes through (BRL per share)
   and `type` keeps the native B3 vocabulary (`DIVIDENDO`,
   `JRSCAPPROPRIO`, ... - relevant for IR withholding rules).
+
+### B3 catalog (`b3`) specifics
+
+Scrapes the official listed-company and FII catalogs behind
+`www.b3.com.br/.../empresas-listadas.htm` and `.../fiis-listados/`. Those pages
+are SPA shells embedding Angular apps at `sistemaswebb3-listados.b3.com.br`;
+the scraper talks to their JSON proxies directly:
+
+- `GET /listedCompaniesProxy/CompanyCall/GetInitialCompanies/{base64(filter)}`
+  → ~3.5k companies (CNPJ, CVM code, trading name).
+- `GET /fundsListedProxy/Search/GetListFunds/{base64(filter)}` with
+  `typeFund: FII` → ~530 funds (ticker + full name). Other `typeFund`
+  values come from the app's own `assets/funds.json` (FIDC, FIP, ...).
+
+Akamai front-door requirements baked into the command: TLS must impersonate
+Chrome **and** a warm-up GET of the app page must run first — without those
+session cookies the proxy answers HTTP 200 with an empty body. No captcha
+solving is attempted; a hard challenge surfaces as `Fetch.Failed`/403
+`Scrape.WafBlocked`.
 
 ### Generic fetch (`fetch`) — WAF-safe raw HTTP
 

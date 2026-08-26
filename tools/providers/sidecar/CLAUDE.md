@@ -12,8 +12,9 @@
 ## 1. O que é
 
 Processo Python auxiliar (gerenciado por **uv**, Python ≥ 3.12) spawnado pelo `IndexDesk.Worker` (.NET)
-para buscar dados de **Yahoo Finance** (`yfinance`), **TradingView** (`tv-scraper`) e **InfoMoney**
-(`curl_cffi`), além de um transporte HTTP genérico WAF-safe (`fetch`). Existe porque essas libs carregam
+para buscar dados de **Yahoo Finance** (`yfinance`), **TradingView** (`tv-scraper`), **InfoMoney**
+(`curl_cffi`) e do **catálogo oficial da B3** (`sistemaswebb3-listados`, empresas/FIIs), além de um
+transporte HTTP genérico WAF-safe (`fetch`). Existe porque essas libs carregam
 stacks anti-bloqueio (TLS impersonation, sessão websocket) impraticáveis de replicar em C#. A fronteira
 entre os dois processos é o NDJSON versionado do stdout — nada de estado compartilhado.
 
@@ -29,6 +30,7 @@ src/sidecar/
 ├── yf_cmd.py   wrappers yfinance (quotes, dividends)
 ├── tv_cmd.py   tv-scraper + caminhada chunked/retry/dedupe do histórico
 ├── im_cmd.py   API InfoMoney (curl_cffi chrome, paginação daily/dividends)
+├── b3_cmd.py   catálogo oficial B3 (empresas/FIIs, curl_cffi chrome + warm-up de sessão)
 └── fetch_cmd.py fetch genérico curl_cffi (body cru no stdout; transporte WAF-safe)
 tests/          suíte pytest offline (fixtures, schema, símbolos, chunks, CLI)
 ```
