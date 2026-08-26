@@ -8,8 +8,8 @@ Objetivo: carteira pública/link, clonagem, metas com projeção e exportação 
 
 [x] `POST /share-link/regenerate` · `DELETE /share-link` · `PATCH /visibility` (token claro retornado 1×, hash SHA256 no banco)
 [x] Slug gerado (`titulo-abc123`) + endpoint público anônimo `/public/{slug}`
-- [ ] Página frontend `/c/[slug]` SSR+ISR (endpoint pronto) — pendente
-- [ ] JSON-LD + OG dinâmico da página pública (aguarda a página)
+[x] Página pública `/c/[slug]` (SSR, revalidate 300, metadata + JSON-LD, CTA clonar p/ logados)
+[x] Metadata + JSON-LD na página pública (OG dinâmico de imagem fica p/ fase SEO)
 [x] `percent_only` respeitado no DTO público — smoke E2E (allocation % sem R$, positions sem valores)
 [x] Identidade: display name ou anônimo "Investidor X" — smoke ✓
 - [ ] noindex automático para carteiras link-restritas
@@ -21,7 +21,8 @@ Objetivo: carteira pública/link, clonagem, metas com projeção e exportação 
 - [x] Multi-metas: valor R$, % crescimento, prazo (smoke: criação + progresso ✓)
 - [x] Projeção run-rate ("atinge em mar/2028") — `GoalProjectionCalculator` (10 testes)
 - [x] Simulação juros compostos (VP+PMT+i) na meta
-- [ ] UI de metas/alocação-alvo no frontend (endpoints prontos)
+- [x] Controles de compartilhamento na carteira (visibilidade + gerar/copiar/revogar link)
+- [ ] UI de metas/alocação-alvo (endpoints prontos)
 
 ### Export
 

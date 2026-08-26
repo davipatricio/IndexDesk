@@ -922,3 +922,109 @@ export async function fetchTaxProjection(
   if (!res.ok) throw await portfolioApiError(res, 'Falha ao projetar o DARF.');
   return (await res.json()) as TaxProjectionDto;
 }
+
+// ---------------------------------------------------------------------------
+// Carteira pública / compartilhamento (M-P5)
+// ---------------------------------------------------------------------------
+
+export interface PublicAllocationClassDto {
+  assetClass: string;
+  percent: number;
+}
+
+export interface PublicPositionDto {
+  ticker: string;
+  name: string;
+  weightPercent: number;
+  returnPercent: number;
+  currentValue: number | null;
+  investedAmount: number | null;
+}
+
+export interface PublicPortfolioDto {
+  title: string;
+  description: string | null;
+  riskProfile: string;
+  identityLabel: string;
+  valuesMode: 'percent_only' | 'full_values';
+  allocationPercent: PublicAllocationClassDto[];
+  totalReturnPercent: number;
+  periodReturnPercent: number | null;
+  positions: PublicPositionDto[];
+  createdAt: string;
+}
+
+export async function fetchPublicPortfolio(
+  slug: string,
+  shareToken?: string,
+): Promise<PublicPortfolioDto | null> {
+  const params = new URLSearchParams();
+  if (shareToken) params.set('shareToken', shareToken);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const url = `${API_BASE_URL}/api/v1/portfolios/public/${encodeURIComponent(slug)}${query}`;
+  const res = await fetch(url, { next: { revalidate: 300 } });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Falha ao carregar a carteira pública.');
+  return (await res.json()) as PublicPortfolioDto;
+}
+
+export async function clonePublicPortfolio(slug: string): Promise<string> {
+  const res = await fetchWithAuth(
+    `${API_BASE_URL}/api/v1/portfolios/public/${encodeURIComponent(slug)}/clone`,
+    { method: 'POST' },
+  );
+  if (!res.ok) throw await portfolioApiError(res, 'Falha ao importar a carteira.');
+  const body = (await res.json()) as { id: string };
+  return body.id;
+}
+
+export interface VisibilityResultDto {
+  portfolioId: string;
+  visibility: 'private' | 'public' | 'link';
+  slug: string | null;
+  hasShareToken: boolean;
+  shareExpiresAt: string | null;
+}
+
+export async function updateVisibility(
+  portfolioId: string,
+  visibility: 'private' | 'public' | 'link',
+  expiresInDays?: number,
+): Promise<VisibilityResultDto> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/portfolios/${portfolioId}/visibility`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ visibility, expiresInDays }),
+  });
+  if (!res.ok) throw await portfolioApiError(res, 'Falha ao alterar visibilidade.');
+  return (await res.json()) as VisibilityResultDto;
+}
+
+/** Token claro retornado UMA única vez pelo backend. */
+export interface ShareLinkResultDto extends VisibilityResultDto {
+  shareToken: string;
+  shareUrl: string;
+}
+
+export async function regenerateShareLink(
+  portfolioId: string,
+  expiresInDays = 30,
+): Promise<ShareLinkResultDto> {
+  const res = await fetchWithAuth(
+    `${API_BASE_URL}/api/v1/portfolios/${portfolioId}/share-link/regenerate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expiresInDays }),
+    },
+  );
+  if (!res.ok) throw await portfolioApiError(res, 'Falha ao gerar o link.');
+  return (await res.json()) as ShareLinkResultDto;
+}
+
+export async function revokeShareLink(portfolioId: string): Promise<void> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/portfolios/${portfolioId}/share-link`, {
+    method: 'DELETE',
+  });
+  if (!res.ok && res.status !== 204) throw await portfolioApiError(res, 'Falha ao revogar o link.');
+}

@@ -1,11 +1,17 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useSession } from '@/hooks/use-session';
-import { fetchPortfolios, fetchPortfolioSummary, type PortfolioSummaryDto } from '@/lib/api-client';
+import {
+  clonePublicPortfolio,
+  fetchPortfolios,
+  fetchPortfolioSummary,
+  type PortfolioSummaryDto,
+} from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,11 +31,31 @@ const riskLabel: Record<string, string> = {
  */
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { isAuthenticated, isReady } = useSession();
 
   React.useEffect(() => {
     if (isReady && !isAuthenticated) router.replace('/entrar');
   }, [isReady, isAuthenticated, router]);
+
+  // Clone de carteira pública vindo do CTA da página /c/[slug]
+  const cloneSlug = searchParams.get('clonar');
+  const cloneStarted = React.useRef(false);
+  React.useEffect(() => {
+    if (!isReady || !isAuthenticated || !cloneSlug || cloneStarted.current) return;
+    cloneStarted.current = true;
+    clonePublicPortfolio(cloneSlug)
+      .then((newId) => {
+        toast.success('Carteira importada!');
+        queryClient.invalidateQueries({ queryKey: ['portfolios'] });
+        router.replace(`/dashboard/c/${newId}`);
+      })
+      .catch((error: Error) => {
+        toast.error(error.message);
+        router.replace('/dashboard');
+      });
+  }, [isReady, isAuthenticated, cloneSlug, queryClient, router]);
 
   const summariesQuery = useQuery({
     queryKey: ['portfolios', 'consolidated'],

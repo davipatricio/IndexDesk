@@ -9,6 +9,7 @@ import { useSession } from '@/hooks/use-session';
 import { PerformancePanel } from '@/components/portfolio/performance-panel';
 import { AnalysisPanel } from '@/components/portfolio/analysis-panel';
 import { FiscalPanel } from '@/components/portfolio/fiscal-panel';
+import { ShareControls } from '@/components/portfolio/share-controls';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { fetchPortfolioTimeline, type TimelineItemDto } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -103,6 +104,8 @@ export default function CarteiraPage() {
           </Button>
         </div>
       </header>
+
+      <ShareControls portfolioId={id} initial={{ visibility: s.portfolio.visibility }} />
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
