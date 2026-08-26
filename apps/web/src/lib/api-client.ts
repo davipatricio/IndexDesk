@@ -626,6 +626,8 @@ export interface PositionDto {
   unrealizedPnl: number;
   realizedPnl: number;
   incomeReceived: number;
+  /** Fatia do lucro total (não realizado + realizado + renda) gerada pela posição. */
+  contributionPercent: number | null;
 }
 
 /** Resumo completo de GET /api/v1/portfolios/{id}. */

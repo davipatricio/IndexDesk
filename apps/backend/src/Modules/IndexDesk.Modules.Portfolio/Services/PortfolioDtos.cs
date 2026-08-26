@@ -25,7 +25,8 @@ public sealed record PositionDto(
     bool HasMarketPrice,
     decimal UnrealizedPnl,
     decimal RealizedPnl,
-    decimal IncomeReceived
+    decimal IncomeReceived,
+    decimal? ContributionPercent
 );
 
 public sealed record PortfolioSummaryDto(

@@ -257,7 +257,7 @@ public class IndexDeskDbContext : DbContext
             entity.Property(e => e.ShareTokenHash).HasMaxLength(128);
             entity.Property(e => e.TargetAllocationJson).HasMaxLength(2000);
             entity.HasIndex(e => e.UserId);
-            entity.HasIndex(e => e.Slug).IsUnique().HasFilter("slug is not null");
+            entity.HasIndex(e => e.Slug).IsUnique().HasFilter("\"Slug\" IS NOT NULL");
 
             entity
                 .HasMany(e => e.Transactions)

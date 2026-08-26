@@ -37,7 +37,7 @@ na home consolidada mínima.
 - [x] Unitários `PositionProjectorTests` (BUY→posição, SELL parcial, INCOME soma caixa, split,
       bonificação, subscrição, transferência entre carteiras sem ganho falso, FX congelado)
 - [x] Smoke manual cobre limite de 3 carteiras (409) e isolamento por usuário (ownership check)
-- [ ] Integração automatizada (WebApplicationFactory) + isolamento cross-user (403/404)
+- [x] Integração automatizada (WebApplicationFactory + indexdesk_test): limite 3 → 409, cross-user 404, BUY+INCOME→resumo com fees no PM, edição lógica + isolamento cross-user (403/404)
 
 ## Frontend mínimo
 
@@ -48,6 +48,12 @@ na home consolidada mínima.
 - [x] `/dashboard/c/[id]/transacoes/nova`: wizard 3 etapas + revisão (BUY/SELL/INCOME) com lookup de ticker
 - [x] Empty state guiado quando zero carteiras
 - [x] Fetchers/DTOs em `lib/api-client.ts`
+
+## Correções colaterais descobertas nos testes
+
+- **Auth bug fix:** token de signup saía sem claims `permission`/`role`
+  (SaveChanges acontecia depois de IssueTokensAsync) → 403 em todo endpoint
+  protegido para usuário recém-criado. Fix em AuthService.SignUpAsync.
 
 ## Fora deste marco
 

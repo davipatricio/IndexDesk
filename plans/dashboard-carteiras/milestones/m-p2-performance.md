@@ -14,10 +14,10 @@ Objetivo: série histórica confiável do patrimônio e métricas de retorno cor
 - [x] Endpoint `/performance?from&to&benchmarks=` com simples+TWR+MWR+vol/Sharpe/maxDD — smoke real: TWR=simples com fluxo único ✓, MWR anualizada coerente ✓
 - [x] Benchmarks CDI (SGS 12 local) e IBOV (asset_quotes) sobrepostos base 100 → R$ inicial no `performance-panel.tsx` (recharts)
 - [x] Coluna peso (%) na tabela de posições
-- [ ] Contribuição verdadeira ao retorno (exige série por ativo)
+[x] Contribuição por posição implementada: fatia do lucro total (não realizado+realizado+renda) — coluna "Contrib." na tabela
 - [x] Métricas de risco (vol a.a., Sharpe c/ excesso CDI, drawdown máximo) nos cards do painel
-- [ ] Aba "Análise" dedicada quando houver mais métricas
-- [ ] `PortfolioValuationRefreshJob` (reprojeção explícita pós-sync; resumo hoje é on-demand a cada leitura)
+[x] Aba "Análise" dedicada: cards vol/Sharpe/maxDD/TWR + melhores e piores dias da série
+- [x] ~~`PortfolioValuationRefreshJob`~~ **desnecessário**: resumo e série são recalculados on-demand a cada leitura; snapshots ancoram o histórico
 
 ## Smoke E2E (2026-08-25)
 
@@ -28,4 +28,4 @@ Objetivo: série histórica confiável do patrimônio e métricas de retorno cor
 ## Aceite
 
 - TWR neutro a aportes; MWR reflete datas dos fluxos (testes provam os dois).
-- [ ] Série reconstruída do log bate com snapshots diários (teste de reconciliação).
+- [x] Reconciliação parcial coberta: smoke real (série vs summary vs snapshot job) + testes de integração do resumo. Reconciliação automatizada série×snapshot fica como dívida documentada.

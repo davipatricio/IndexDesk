@@ -243,7 +243,7 @@ public sealed class PortfolioService(IndexDeskDbContext db) : IPortfolioService
                 fx[pair] = rate.Value;
         }
 
-        var result = new List<PositionDto>(projected.Count);
+        var rows = new List<(ProjectedPosition Source, PositionDto Dto)>(projected.Count);
         foreach (var p in projected)
         {
             decimal currentPrice = 0;
@@ -272,25 +272,43 @@ public sealed class PortfolioService(IndexDeskDbContext db) : IPortfolioService
                 : p.SyntheticIndexCode;
             var name = p.AssetId is not null ? assets[p.AssetId.Value].Name : "Caixa sintético";
 
-            result.Add(
-                new PositionDto(
-                    p.AssetId,
-                    ticker,
-                    name,
-                    p.Broker,
-                    p.Quantity,
-                    p.AveragePrice,
-                    p.InvestedAmount,
-                    currentPrice,
-                    currentValue,
-                    hasMarketPrice,
-                    hasMarketPrice ? currentValue - p.InvestedAmount : 0,
-                    p.RealizedPnl,
-                    p.IncomeReceived
-                )
+            var dto = new PositionDto(
+                p.AssetId,
+                ticker,
+                name,
+                p.Broker,
+                p.Quantity,
+                p.AveragePrice,
+                p.InvestedAmount,
+                currentPrice,
+                currentValue,
+                hasMarketPrice,
+                hasMarketPrice ? currentValue - p.InvestedAmount : 0,
+                p.RealizedPnl,
+                p.IncomeReceived,
+                null
             );
+            rows.Add((p, dto));
         }
 
-        return result.OrderByDescending(p => p.CurrentValue).ToList();
+        // Contribuição: fatia do lucro total gerado pela posição
+        // (não realizado + realizado + renda). Null quando não há lucro a dividir.
+        var totalProfit = rows.Sum(r =>
+            r.Dto.UnrealizedPnl + r.Dto.RealizedPnl + r.Dto.IncomeReceived
+        );
+
+        var result = rows
+            .Select(r =>
+            {
+                var profit =
+                    r.Dto.UnrealizedPnl + r.Dto.RealizedPnl + r.Dto.IncomeReceived;
+                decimal? contribution =
+                    totalProfit > 0 ? decimal.Round(profit / totalProfit * 100m, 2) : null;
+                return r.Dto with { ContributionPercent = contribution };
+            })
+            .OrderByDescending(p => p.CurrentValue)
+            .ToList();
+
+        return result;
     }
 }

@@ -7,6 +7,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchPortfolioSummary, deletePortfolio, type PositionDto } from '@/lib/api-client';
 import { useSession } from '@/hooks/use-session';
 import { PerformancePanel } from '@/components/portfolio/performance-panel';
+import { AnalysisPanel } from '@/components/portfolio/analysis-panel';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -126,25 +128,41 @@ export default function CarteiraPage() {
         </Card>
       </section>
 
-      <PerformancePanel portfolioId={id} />
+      <Tabs defaultValue="posicoes" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="posicoes">Posições</TabsTrigger>
+          <TabsTrigger value="rentabilidade">Rentabilidade</TabsTrigger>
+          <TabsTrigger value="analise">Análise</TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Posições</CardTitle>
-          <CardDescription>
-            Agrupadas por corretora. Preços do último fechamento local.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {s.positions.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Nenhuma posição ainda. Lance a primeira transação.
-            </p>
-          ) : (
-            <PositionsTable positions={s.positions} />
-          )}
-        </CardContent>
-      </Card>
+        <TabsContent value="posicoes" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Posições</CardTitle>
+              <CardDescription>
+                Agrupadas por corretora. Preços do último fechamento local.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {s.positions.length === 0 ? (
+                <p className="py-8 text-center text-sm text-muted-foreground">
+                  Nenhuma posição ainda. Lance a primeira transação.
+                </p>
+              ) : (
+                <PositionsTable positions={s.positions} />
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="rentabilidade">
+          <PerformancePanel portfolioId={id} />
+        </TabsContent>
+
+        <TabsContent value="analise">
+          <AnalysisPanel portfolioId={id} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -162,6 +180,9 @@ function PositionsTable({ positions }: { positions: PositionDto[] }) {
           <TableHead className="text-right">Atual</TableHead>
           <TableHead className="text-right">Valor</TableHead>
           <TableHead className="text-right">Peso</TableHead>
+          <TableHead className="text-right" title="Fatia do lucro total gerado pela posição">
+            Contrib.
+          </TableHead>
           <TableHead className="text-right">Resultado</TableHead>
         </TableRow>
       </TableHeader>
@@ -181,6 +202,11 @@ function PositionsTable({ positions }: { positions: PositionDto[] }) {
             <TableCell className="text-right tabular-nums">{brl.format(p.currentValue)}</TableCell>
             <TableCell className="text-right tabular-nums text-muted-foreground">
               {totalValue > 0 ? `${((p.currentValue / totalValue) * 100).toFixed(1)}%` : '—'}
+            </TableCell>
+            <TableCell className="text-right tabular-nums text-muted-foreground">
+              {p.contributionPercent !== null && p.contributionPercent !== undefined
+                ? `${p.contributionPercent.toFixed(1)}%`
+                : '—'}
             </TableCell>
             <TableCell
               className={`text-right tabular-nums ${
