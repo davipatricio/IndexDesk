@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchPortfolioSummary, deletePortfolio, type PositionDto } from '@/lib/api-client';
 import { useSession } from '@/hooks/use-session';
+import { PerformancePanel } from '@/components/portfolio/performance-panel';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -125,6 +126,8 @@ export default function CarteiraPage() {
         </Card>
       </section>
 
+      <PerformancePanel portfolioId={id} />
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Posições</CardTitle>
@@ -147,6 +150,7 @@ export default function CarteiraPage() {
 }
 
 function PositionsTable({ positions }: { positions: PositionDto[] }) {
+  const totalValue = positions.reduce((acc, p) => acc + p.currentValue, 0);
   return (
     <Table>
       <TableHeader>
@@ -157,6 +161,7 @@ function PositionsTable({ positions }: { positions: PositionDto[] }) {
           <TableHead className="text-right">Preço médio</TableHead>
           <TableHead className="text-right">Atual</TableHead>
           <TableHead className="text-right">Valor</TableHead>
+          <TableHead className="text-right">Peso</TableHead>
           <TableHead className="text-right">Resultado</TableHead>
         </TableRow>
       </TableHeader>
@@ -174,6 +179,9 @@ function PositionsTable({ positions }: { positions: PositionDto[] }) {
               {p.hasMarketPrice ? brl.format(p.currentPrice) : '—'}
             </TableCell>
             <TableCell className="text-right tabular-nums">{brl.format(p.currentValue)}</TableCell>
+            <TableCell className="text-right tabular-nums text-muted-foreground">
+              {totalValue > 0 ? `${((p.currentValue / totalValue) * 100).toFixed(1)}%` : '—'}
+            </TableCell>
             <TableCell
               className={`text-right tabular-nums ${
                 p.unrealizedPnl >= 0 ? 'text-emerald-600' : 'text-red-600'

@@ -15,6 +15,7 @@ public static class PortfolioModuleExtensions
     {
         services.AddScoped<IPortfolioService, PortfolioService>();
         services.AddScoped<ITransactionService, TransactionService>();
+        services.AddScoped<IPortfolioPerformanceService, PortfolioPerformanceService>();
         return services;
     }
 
@@ -196,6 +197,31 @@ public static class PortfolioModuleExtensions
             .RequireAuthorization("PERMISSION:portfolio:write")
             .WithName("AmendTransaction")
             .WithSummary("Corrige uma transação por edição lógica (histórico preservado)");
+
+        group
+            .MapGet(
+                "/{id:guid}/performance",
+                async (
+                    Guid id,
+                    IPortfolioPerformanceService service,
+                    HttpContext http,
+                    DateOnly? from,
+                    DateOnly? to,
+                    string? benchmarks,
+                    CancellationToken ct
+                ) =>
+                {
+                    if (!TryGetUserId(http, out var userId))
+                        return Results.Unauthorized();
+                    var result = await service.GetAsync(userId, id, from, to, benchmarks, ct);
+                    return result.IsSuccess ? Results.Ok(result.Value) : MapError(result.Error);
+                }
+            )
+            .RequireAuthorization("PERMISSION:portfolio:read")
+            .WithName("GetPortfolioPerformance")
+            .WithSummary(
+                "Série diária do patrimônio com retorno simples, TWR, MWR e benchmarks (CDI/IPCA/IBOV) — dados locais"
+            );
 
         group
             .MapGet(

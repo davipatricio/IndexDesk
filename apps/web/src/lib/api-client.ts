@@ -752,3 +752,45 @@ export async function fetchAssetLookup(ticker: string): Promise<AssetLookupDto |
   if (!res.ok) throw await portfolioApiError(res, 'Falha ao buscar ativo no catálogo.');
   return (await res.json()) as AssetLookupDto;
 }
+
+/** Ponto da série diária do patrimônio (GET /portfolios/{id}/performance). */
+export interface PerformancePointDto {
+  date: string;
+  value: number;
+  externalFlow: number;
+}
+
+export interface BenchmarkSeriesDto {
+  code: 'CDI' | 'SELIC' | 'IPCA' | 'IBOV' | string;
+  normalizedValues: number[];
+}
+
+export interface PerformanceResultDto {
+  from: string;
+  to: string;
+  series: PerformancePointDto[];
+  totalReturnPercent: number;
+  twrPercentPeriod: number;
+  mwrPercentAnnualized: number | null;
+  volatilityPercentAnnualized: number;
+  sharpeRatio: number;
+  maxDrawdownPercent: number;
+  benchmarks: BenchmarkSeriesDto[];
+}
+
+export async function fetchPortfolioPerformance(
+  portfolioId: string,
+  options?: { from?: string; to?: string; benchmarks?: string },
+): Promise<PerformanceResultDto> {
+  const params = new URLSearchParams();
+  if (options?.from) params.set('from', options.from);
+  if (options?.to) params.set('to', options.to);
+  if (options?.benchmarks) params.set('benchmarks', options.benchmarks);
+
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const res = await fetchWithAuth(
+    `${API_BASE_URL}/api/v1/portfolios/${portfolioId}/performance${query}`,
+  );
+  if (!res.ok) throw await portfolioApiError(res, 'Falha ao calcular a rentabilidade da carteira.');
+  return (await res.json()) as PerformanceResultDto;
+}

@@ -26,6 +26,8 @@ public class IndexDeskDbContext : DbContext
     public DbSet<PortfolioEntity> Portfolios => Set<PortfolioEntity>();
     public DbSet<PortfolioTransactionEntity> PortfolioTransactions =>
         Set<PortfolioTransactionEntity>();
+    public DbSet<PortfolioDailySnapshotEntity> PortfolioDailySnapshots =>
+        Set<PortfolioDailySnapshotEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -283,6 +285,15 @@ public class IndexDeskDbContext : DbContext
             entity.HasIndex(e => new { e.PortfolioId, e.TradeDate });
             entity.HasIndex(e => e.AssetId);
             entity.HasIndex(e => e.AmendedTransactionId);
+        });
+
+        modelBuilder.Entity<PortfolioDailySnapshotEntity>(entity =>
+        {
+            entity.ToTable("portfolio_daily_snapshots");
+            entity.HasKey(e => new { e.PortfolioId, e.SnapshotDate });
+            entity.Property(e => e.TotalValue).HasPrecision(20, 8);
+            entity.Property(e => e.InvestedAmount).HasPrecision(20, 8);
+            entity.Property(e => e.TwrSinceInception).HasPrecision(14, 8);
         });
     }
 
