@@ -49,7 +49,7 @@ medições de 26/08:
 | :--- | :--- | :--- |
 | Fechamento do dia (todas as classes) | **Brapi batch** → gap fill Yahoo → TV | 1 request/dia; ranges curtos funcionam no free |
 | Histórico/backfill ≥6mo | **Yahoo sidecar** → TV | Brapi free devolve 400 acima de `3mo` (§2.5); CLI usa `--provider yahoo` |
-| Proventos | **Yahoo sidecar** | única fonte viva hoje (Brapi paywall; InfoMoney aguarda chave no `.env`) |
+| Proventos | **Yahoo sidecar** | única fonte viva hoje (Brapi paywall; InfoMoney agora roda **sem chave** — descobre a pública do frontend sozinho) |
 | Catálogo de ativos (curadoria) | **Brapi catalog** ⊕ **Bora Investir** ⊕ **B3 `b3 companies|fiis`** | Brapi cobre ~90% (type/subType); Bora completa universo ETF (241 ausentes + classificação BDR_ETF); scraper B3 aporta CNPJ/codeCVM oficial |
 | Metadata cadastral (CNPJ/CVM) | **B3 `b3 companies`** | fonte oficial primária; Brapi/Bora têm CNPJ só parcial |
 | FX | AwesomeAPI | inalterado |
@@ -224,7 +224,7 @@ Comandos e contrato NDJSON v1:
 sidecar yf quotes --symbol PETR4.SA --start YYYY-MM-DD --end YYYY-MM-DD   # {ticker,date,open,high,low,close,adj_close,volume}
 sidecar yf dividends --symbol PETR4.SA                                    # {ticker,date,rate,type}
 sidecar tv history --symbol BMFBOVESPA:BOVA11 --interval 1d --bars 5000 --cookie "$TV_COOKIE"
-sidecar im quotes|dividends --symbol MGLU3                                # InfoMoney (env INFOMONEY_SUBSCRIPTION_KEY)
+sidecar im quotes|dividends --symbol MGLU3                                # InfoMoney (chave opcional: descoberta on demand)
 sidecar fetch --url URL [--method POST] [--data BODY] [--header "K: V"] [--b64]  # transporte genérico anti-WAF
 ```
 
@@ -306,11 +306,15 @@ sidecar fetch --url URL [--method POST] [--data BODY] [--header "K: V"] [--b64] 
 
 - **Host base:** `https://api-infomoney.xpi.com.br/infomoney-services-marketdata/v1/api/v1/`
 - **Auth:** header `ocp-apim-subscription-key` (Azure APIM) — chave **pública embutida no
-  frontend** (sem segredo próprio; risco de revogação baixo/médio). No IndexDesk a chave vem de
-  `Providers__InfoMoney__SubscriptionKeys__0` e injetada como env
-  `INFOMONEY_SUBSCRIPTION_KEY` no processo sidecar.
-- **WAF XP:** bloqueia TLS não-browser **mesmo com key** (403 Akamai "Acesso Bloqueado") →
-  acesso obrigatoriamente via sidecar `im` (`curl_cffi impersonate=chrome`);
+  frontend** (sem segredo próprio; risco de revogação baixo/médio). No IndexDesk a resolução
+  é: env `INFOMONEY_SUBSCRIPTION_KEY` (← `Providers__InfoMoney__SubscriptionKeys__0`) se
+  configurada, senão **descoberta on demand** pelo próprio sidecar — o tema WordPress do
+  infomoney.com.br embute `window.InfoMoneyPage.api_marketdata.ocp_apim_subscription_key`
+  no HTML da página de cotação. **Sem chave no `.env` funciona** (medido 26/08/2026).
+- **WAF XP:** bloqueia TLS não-browser **e, desde ~08/2026, também chamadas stateless com
+  TLS Chrome sem cookies** (403 Akamai) → acesso obrigatoriamente via sidecar `im`
+  (`curl_cffi impersonate=chrome` + **warm-up de sessão na página de cotação** — a mesma
+  resposta entrega cookies e chave);
   403 = `Scrape.WafBlocked`, 401 = `InfoMoney.AuthFailed`.
 - Endpoints usados: `b3/quotes/daily/{ticker}` (OHLCV paginado), `b3/corporate-events/cash-dividends/{ticker}`
   (proventos paginados), `b3/quotes/intraday/leaderboard?Property=Change&Order=Desc&PageSize=995`

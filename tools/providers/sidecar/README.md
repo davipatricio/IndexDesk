@@ -81,10 +81,16 @@ Symbol normalization (built in):
 
 ### InfoMoney (`im`) specifics
 
-- Auth = header `ocp-apim-subscription-key`, read from env
-  `INFOMONEY_SUBSCRIPTION_KEY` (injected by the .NET runner from
-  `Providers__InfoMoney__SubscriptionKeys__0`). Never an argv flag, never
-  logged.
+- Auth = header `ocp-apim-subscription-key` (public frontend key). Resolution
+  order: `INFOMONEY_SUBSCRIPTION_KEY` env (injected by the .NET runner from
+  `Providers__InfoMoney__SubscriptionKeys__0`) → **auto-discovered** from the
+  quote page HTML, where the WordPress theme inlines
+  `window.InfoMoneyPage.api_marketdata.ocp_apim_subscription_key`. Never an
+  argv flag, never logged. Re-measured 26/08/2026: Akamai now rejects stateless
+  Chrome-TLS calls to the API host too — a warm-up GET of
+  `www.infomoney.com.br/mercados/acoes/petrobras-petr4/` (same session) is
+  mandatory before any API call; that one response also carries the key, so
+  bootstrap costs a single GET.
 - Requests use `curl_cffi` with `impersonate="chrome"` because Akamai blocks
   non-browser TLS before validating the key.
 - `im quotes` walks the paginated `b3/quotes/daily/{ticker}` endpoint

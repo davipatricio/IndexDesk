@@ -109,8 +109,12 @@ de `tv_cmd.py` — mude-as apenas com evidência medida, registrando o número n
 - **TV cookie**: chega como flag `--cookie` no processo filho, injetada pelo runner C# a partir de
   `Providers__TradingView__Cookie` (.env). Sessão anônima funciona para dados B3; cookie autenticado só
   amplia janelas. Expirou → client reporta `TradingView.AuthFailed`.
-- **InfoMoney key**: lida da env `INFOMONEY_SUBSCRIPTION_KEY` (injetada pelo runner a partir de
-  `Providers__InfoMoney__SubscriptionKeys__0`). Nunca é flag argv, nunca aparece em log.
+- **InfoMoney key**: OPCIONAL. Se `INFOMONEY_SUBSCRIPTION_KEY` vier no env
+  (injetada pelo runner a partir de `Providers__InfoMoney__SubscriptionKeys__0`),
+  ela tem precedência; sem chave, o sidecar **descobre sozinha** a key pública do
+  frontend embutida no HTML da página de cotação (`window.InfoMoneyPage`,
+  warm-up obrigatório — mesma resposta traz cookie e chave). Nunca é flag argv,
+  nunca aparece em log.
 - Regra geral: o sidecar não lê `.env` próprio nem conhece nomes de config do .NET — quem injeta é o
   runner. Nada de credencial hardcoded, default ou exemplo com valor real nesta pasta.
 

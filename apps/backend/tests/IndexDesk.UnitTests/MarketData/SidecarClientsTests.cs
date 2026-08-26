@@ -313,6 +313,19 @@ public class SidecarClientsTests : IDisposable
         EOF
         """;
 
+    /// <summary>Keyless spawn: the child must run WITHOUT the env var (the sidecar
+    /// discovers the public frontend key on demand) and still map the NDJSON output.</summary>
+    private const string InfoMoneyKeylessGuard = """
+        #!/usr/bin/env bash
+        if [ -n "$INFOMONEY_SUBSCRIPTION_KEY" ]; then
+          echo '{"error":{"code":"Fetch.Failed","message":"key must be absent when none configured"}}' >&2
+          exit 3
+        fi
+        cat <<'EOF'
+        {"ticker":"MGLU3","date":"2026-08-21","open":9.0,"high":9.9,"low":8.9,"close":9.4,"adj_close":9.4,"volume":1100}
+        EOF
+        """;
+
     [Fact]
     public async Task ImClient_HappyPath_ForwardsKeyViaEnvironmentAndMapsQuotes()
     {
@@ -346,19 +359,14 @@ public class SidecarClientsTests : IDisposable
     }
 
     [Fact]
-    public async Task ImClient_WithoutConfiguredKey_FailsBeforeSpawning()
+    public async Task ImClient_WithoutConfiguredKey_SpawnsKeylessChildAndMapsQuotes()
     {
-        var neverSpawn = new SidecarProcessRunner(
-            "/nonexistent/uv-must-not-run",
-            Array.Empty<string>(),
-            TimeSpan.FromSeconds(10),
-            NullLogger<SidecarProcessRunner>.Instance
-        );
+        var config = EmptyConfig();
         var client = new InfoMoneySidecarClient(
-            neverSpawn,
-            EmptyConfig(),
+            NewRunner(WriteScript("imkeyless.sh", InfoMoneyKeylessGuard)),
+            config,
             NullLogger<InfoMoneySidecarClient>.Instance,
-            ResilienceTestKit.NewPoolFromConfig(EmptyConfig()),
+            ResilienceTestKit.NewPoolFromConfig(config),
             ResilienceTestKit.NewResilience()
         );
 
@@ -367,11 +375,13 @@ public class SidecarClientsTests : IDisposable
             new DateOnly(2026, 8, 1),
             new DateOnly(2026, 8, 30)
         );
-        var dividends = await client.GetDividendsAsync("MGLU3");
 
-        quotes.IsFailure.Should().BeTrue();
-        quotes.Error.Code.Should().Be("InfoMoney.NoApiKey");
-        dividends.Error.Code.Should().Be("InfoMoney.NoApiKey");
+        // Keyless is now a supported mode: the sidecar discovers the key itself,
+        // so the child runs without INFOMONEY_SUBSCRIPTION_KEY and output still maps.
+        quotes.IsSuccess.Should().BeTrue();
+        quotes.Value.Should().ContainSingle();
+        quotes.Value[0].Close.Should().Be(9.4m);
+        quotes.Value[0].SourceProvider.Should().Be("InfoMoney");
     }
 
     [Fact]

@@ -12,9 +12,10 @@ from sidecar.errors import SidecarError
 
 
 class FakeResponse:
-    def __init__(self, payload: Any, status_code: int = 200) -> None:
+    def __init__(self, payload: Any, status_code: int = 200, text: str = "") -> None:
         self._payload = payload
         self.status_code = status_code
+        self.text = text
 
     def json(self) -> Any:
         if isinstance(self._payload, Exception):
@@ -105,14 +106,58 @@ def test_quotes_stops_when_target_bars_reached():
     assert len(transport.calls) == 1  # no extra page fetched once target met
 
 
-def test_quotes_missing_subscription_key_is_fetch_failure(monkeypatch):
+def test_quotes_missing_subscription_key_is_discovered_from_page(monkeypatch):
     monkeypatch.delenv(im_cmd.SUBSCRIPTION_KEY_ENV, raising=False)
+    page_html = (
+        '<script>window.InfoMoneyPage={"api_marketdata":{'
+        '"base_api_marketdata":"https://api","ocp_apim_subscription_key":"abc123def4567890"}};'
+        "</script>"
+    )
+    transport = Recorder(
+        [
+            FakeResponse(None, text=page_html),  # warm-up/discovery GET
+            FakeResponse(daily_page([daily_row("2026-08-21", 9.1)], False)),
+        ]
+    )
+
+    records = [r for r, _ in im_cmd.quotes("MGLU3", bars=5, fixture=None, get=transport)]
+
+    assert [r["date"] for r in records] == ["2026-08-21"]
+    assert transport.calls[0]["url"] == im_cmd.DISCOVERY_URL
+    assert transport.calls[1]["headers"]["ocp-apim-subscription-key"] == "abc123def4567890"
+
+
+def test_quotes_env_key_skips_discovery_request(monkeypatch):
+    monkeypatch.setenv(im_cmd.SUBSCRIPTION_KEY_ENV, "env-key-42")
+    transport = Recorder(
+        [FakeResponse(daily_page([daily_row("2026-08-21", 9.1)], False))]
+    )
+
+    records = [r for r, _ in im_cmd.quotes("MGLU3", bars=5, fixture=None, get=transport)]
+
+    assert len(records) == 1
+    assert len(transport.calls) == 1  # no discovery/warm-up GET on stateless fakes
+    assert transport.calls[0]["headers"]["ocp-apim-subscription-key"] == "env-key-42"
+
+
+def test_quotes_page_without_key_is_fetch_failure(monkeypatch):
+    monkeypatch.delenv(im_cmd.SUBSCRIPTION_KEY_ENV, raising=False)
+    transport = Recorder([FakeResponse(None, text="<html>no blob here</html>")])
 
     with pytest.raises(SidecarError) as excinfo:
-        list(im_cmd.quotes("MGLU3", bars=5, fixture=None, get=Recorder([])))
+        list(im_cmd.quotes("MGLU3", bars=5, fixture=None, get=transport))
 
     assert excinfo.value.code == "Fetch.Failed"
-    assert excinfo.value.exit_code == 3
+
+
+def test_quotes_discovery_waf_block_maps_to_scrape_wafblocked(monkeypatch):
+    monkeypatch.delenv(im_cmd.SUBSCRIPTION_KEY_ENV, raising=False)
+    transport = Recorder([FakeResponse(None, status_code=403)])
+
+    with pytest.raises(SidecarError) as excinfo:
+        list(im_cmd.quotes("MGLU3", bars=5, fixture=None, get=transport))
+
+    assert excinfo.value.code == "Scrape.WafBlocked"
 
 
 def test_quotes_waf_block_maps_to_scrape_wafblocked():

@@ -9,11 +9,13 @@ namespace IndexDesk.Modules.MarketData.Clients;
 /// <summary>
 /// InfoMoney (XP Inc) market-data via the Python sidecar (<c>sidecar im ...</c>) —
 /// SECONDARY, cross-validation source. The private API sits behind Akamai (blocks
-/// non-browser TLS) and Azure APIM (subscription key), so fetches run in the sidecar
-/// with curl_cffi chrome impersonation; the key is acquired per attempt from the
-/// API-key pool (<c>Providers__InfoMoney__SubscriptionKeys__0..N</c>) and injected
-/// through the child environment variable <c>INFOMONEY_SUBSCRIPTION_KEY</c> — never
-/// logged, never hardcoded.
+/// non-browser TLS AND stateless Chrome-TLS calls) and Azure APIM (subscription
+/// key), so fetches run in the sidecar with curl_cffi chrome impersonation plus a
+/// cookie warm-up. Keys from the pool (<c>Providers__InfoMoney__SubscriptionKeys__0..N</c>)
+/// are injected through the child environment variable
+/// <c>INFOMONEY_SUBSCRIPTION_KEY</c> — never logged, never hardcoded. With NO key
+/// configured the client still spawns the child: the sidecar discovers the public
+/// frontend key on demand from the InfoMoney quote page itself (measured 26/08/2026).
 ///
 /// Error codes: <c>Scrape.WafBlocked</c> (403 Akamai page, counts toward the breaker),
 /// <c>InfoMoney.AuthFailed</c> (401 APIM → pool disables that key index), plus the
@@ -92,21 +94,6 @@ public class InfoMoneySidecarClient : IMarketDataClient
     internal static IReadOnlyList<string> DividendArguments(string ticker) =>
         new[] { "im", "dividends", "--symbol", ticker.Trim().ToUpperInvariant() };
 
-    private Result<T> NoApiKey<T>()
-    {
-        _logger.LogWarning(
-            "[InfoMoney] No subscription key configured ({EnvVar}); set Providers__InfoMoney__SubscriptionKeys__0.",
-            SubscriptionKeyEnvVar
-        );
-        return Result<T>.Failure(
-            Error.Failure(
-                "InfoMoney.NoApiKey",
-                $"InfoMoney requires a subscription key ({SubscriptionKeyEnvVar}); "
-                    + "configure Providers__InfoMoney__SubscriptionKeys__0"
-            )
-        );
-    }
-
     /// <summary>Acquires a key for one attempt: null key when the provider runs keyless
     /// (legacy behavior), or a soft <c>Provider.PoolExhausted</c> failure when keys exist
     /// but all are cooling down / disabled.</summary>
@@ -144,11 +131,6 @@ public class InfoMoneySidecarClient : IMarketDataClient
     {
         try
         {
-            if (!_apiKeyPool.HasKeys(ProviderName))
-            {
-                return NoApiKey<IReadOnlyList<NormalizedQuote>>();
-            }
-
             return await _resilience.ExecuteAsync<IReadOnlyList<NormalizedQuote>>(
                 ProviderName,
                 $"daily quotes for {ticker}",
@@ -170,7 +152,7 @@ public class InfoMoneySidecarClient : IMarketDataClient
                     var run = await _runner
                         .RunAsync(
                             QuoteArguments(ticker, startDate, endDate),
-                            new Dictionary<string, string?> { [SubscriptionKeyEnvVar] = key },
+                            KeyEnvironment(key),
                             cancellationToken
                         )
                         .ConfigureAwait(false);
@@ -181,7 +163,7 @@ public class InfoMoneySidecarClient : IMarketDataClient
                     )
                     {
                         var error = MapFailure(run);
-                        ReportByKey(error.Code, key!);
+                        ReportByKey(error.Code, key);
                         return Result<IReadOnlyList<NormalizedQuote>>.Failure(error);
                     }
 
@@ -231,11 +213,6 @@ public class InfoMoneySidecarClient : IMarketDataClient
     {
         try
         {
-            if (!_apiKeyPool.HasKeys(ProviderName))
-            {
-                return NoApiKey<IReadOnlyList<NormalizedDividend>>();
-            }
-
             return await _resilience.ExecuteAsync<IReadOnlyList<NormalizedDividend>>(
                 ProviderName,
                 $"cash dividends for {ticker}",
@@ -253,11 +230,7 @@ public class InfoMoneySidecarClient : IMarketDataClient
                     );
 
                     var run = await _runner
-                        .RunAsync(
-                            DividendArguments(ticker),
-                            new Dictionary<string, string?> { [SubscriptionKeyEnvVar] = key },
-                            cancellationToken
-                        )
+                        .RunAsync(DividendArguments(ticker), KeyEnvironment(key), cancellationToken)
                         .ConfigureAwait(false);
                     if (
                         run.SpawnFailed
@@ -266,7 +239,7 @@ public class InfoMoneySidecarClient : IMarketDataClient
                     )
                     {
                         var error = MapFailure(run);
-                        ReportByKey(error.Code, key!);
+                        ReportByKey(error.Code, key);
                         return Result<IReadOnlyList<NormalizedDividend>>.Failure(error);
                     }
 
@@ -288,18 +261,30 @@ public class InfoMoneySidecarClient : IMarketDataClient
         }
     }
 
-    /// <summary>Auth rejections disable that key index in the pool; everything else
-    /// leaves the key state untouched.</summary>
-    private void ReportByKey(string errorCode, string key)
+    /// <summary>Child environment: the pool key when one is configured; empty when
+    /// keyless — the sidecar then discovers the public frontend key itself.</summary>
+    private static IDictionary<string, string?> KeyEnvironment(string? key) =>
+        key is null
+            ? new Dictionary<string, string?>()
+            : new Dictionary<string, string?> { [SubscriptionKeyEnvVar] = key };
+
+    /// <summary>Auth rejections disable that key index in the pool (keyless attempts
+    /// have no pool entry); everything else leaves the key state untouched.</summary>
+    private void ReportByKey(string errorCode, string? key)
     {
-        if (errorCode.Equals("InfoMoney.AuthFailed", StringComparison.Ordinal))
+        if (key is not null && errorCode.Equals("InfoMoney.AuthFailed", StringComparison.Ordinal))
         {
             _apiKeyPool.Report(ProviderName, key, KeyResult.Invalid);
         }
     }
 
-    private void ReportSuccess(string key) =>
-        _apiKeyPool.Report(ProviderName, key, KeyResult.Success);
+    private void ReportSuccess(string? key)
+    {
+        if (key is not null)
+        {
+            _apiKeyPool.Report(ProviderName, key, KeyResult.Success);
+        }
+    }
 
     /// <summary>
     /// Provider-specific mapping first (Scrape.WafBlocked / Scrape.AuthFailed envelopes

@@ -55,4 +55,4 @@ Invalidação orientada a eventos: invalidar somente as chaves afetadas. Políti
 
 ## Segredos
 
-Somente `.env` / appsettings: `ConnectionStrings__{Postgres,Redis,RabbitMQ}`, `Providers__{Brapi__ApiKey,BCB__BaseUrl,CVM__BaseUrl,ANBIMA__BaseUrl,FMP__ApiKey,HGBrasil__ApiKey,AwesomeApi__Token,TradingView__Cookie,InfoMoney__SubscriptionKeys__0}` (HGBrasil **sem valor por ora** — plano pago não contratado; client mantido desativado). Frontend lê apenas `NEXT_PUBLIC_API_URL`. Nunca em código/commits; nunca logar tokens/dados financeiros em spans OTel.
+Somente `.env` / appsettings: `ConnectionStrings__{Postgres,Redis,RabbitMQ}`, `Providers__{Brapi__ApiKey,BCB__BaseUrl,CVM__BaseUrl,ANBIMA__BaseUrl,FMP__ApiKey,HGBrasil__ApiKey,AwesomeApi__Token,TradingView__Cookie,InfoMoney__SubscriptionKeys__0}` (HGBrasil **sem valor por ora** — plano pago não contratado; client mantido desativado; **InfoMoney opcional** — sem chave o sidecar descobre a pública do frontend sozinho). Frontend lê apenas `NEXT_PUBLIC_API_URL`. Nunca em código/commits; nunca logar tokens/dados financeiros em spans OTel.

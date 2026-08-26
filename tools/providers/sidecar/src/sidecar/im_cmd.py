@@ -1,14 +1,19 @@
 """``sidecar im ...`` - InfoMoney (XP Inc) market-data API via curl_cffi.
 
-Measured facts (Fase 0.5 recon - ``tools/providers/recon/recon.md``):
+Measured facts (Fase 0.5 recon - ``tools/providers/recon/recon.md``; re-measured
+26/08/2026):
 
 - Host base ``https://api-infomoney.xpi.com.br/infomoney-services-marketdata/v1/api/v1/``.
-- Auth = header ``ocp-apim-subscription-key`` (public frontend key). It is read
-  from the ``INFOMONEY_SUBSCRIPTION_KEY`` environment variable, injected by the
-  .NET runner from configuration - never logged and never an argv flag.
-- Akamai WAF blocks non-browser TLS *before* validating the key: plain clients
-  get 403 HTML, so requests go through ``curl_cffi`` with
-  ``impersonate="chrome"``.
+- Auth = header ``ocp-apim-subscription-key`` (public frontend key). Resolution
+  order: explicit arg > ``INFOMONEY_SUBSCRIPTION_KEY`` env (injected by the .NET
+  runner from configuration) > **auto-discovered** from the quote page HTML,
+  where the WordPress theme injects ``window.InfoMoneyPage.api_marketdata
+  .ocp_apim_subscription_key``. The key is never logged and never an argv flag.
+- Akamai WAF guards both hosts: non-browser TLS gets 403 HTML, so requests go
+  through ``curl_cffi`` with ``impersonate="chrome"``. Re-measured 26/08: a
+  stateless Chrome-TLS call to the API host is now rejected too - a cookie
+  warm-up GET on the quote page (same session) is REQUIRED before any API call;
+  the same response carries the subscription key, so bootstrap costs one GET.
 - ``b3/quotes/daily/{ticker}`` is paginated (``Page``/``PageSize``/``Order``
   are mandatory) and returns raw (unadjusted) prices: ``tradeDate``, ``open``,
   ``high``, ``low``, ``close``, ``tradeVolume``. No adjusted close exists -
@@ -22,6 +27,7 @@ Measured facts (Fase 0.5 recon - ``tools/providers/recon/recon.md``):
 from __future__ import annotations
 
 import os
+import re
 from typing import Any, Iterator, Protocol
 
 from sidecar import ndjson, symbols
@@ -34,6 +40,13 @@ BASE_URL = (
 )
 SUBSCRIPTION_KEY_ENV = "INFOMONEY_SUBSCRIPTION_KEY"
 
+# Any quote page works as warm-up/discovery; the WP theme inlines the config
+# blob ``window.InfoMoneyPage`` with the APIM key for the marketdata API.
+DISCOVERY_URL = "https://www.infomoney.com.br/mercados/acoes/petrobras-petr4/"
+_SUBSCRIPTION_KEY_RE = re.compile(
+    r'"api_marketdata":\{[^{}]*?"ocp_apim_subscription_key":"([0-9a-fA-F]{16,64})"'
+)
+
 DEFAULT_PAGE_SIZE = 500
 MAX_QUOTE_PAGES = 40  # safety stop: 40 x 500 = 20k bars ceiling per invocation
 MAX_DIVIDEND_PAGES = 20
@@ -42,6 +55,11 @@ REQUEST_TIMEOUT_SECONDS = 30.0
 _HEADERS = {
     "Accept": "application/json",
     "Origin": "https://www.infomoney.com.br",
+    "Referer": "https://www.infomoney.com.br/",
+}
+
+_PAGE_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml",
     "Referer": "https://www.infomoney.com.br/",
 }
 
@@ -67,32 +85,58 @@ class HttpGet(Protocol):
     ) -> ResponseLike: ...
 
 
-def _default_get(
-    url: str,
-    *,
-    headers: dict[str, str],
-    params: dict[str, Any],
-    timeout: float,
-) -> ResponseLike:
-    from curl_cffi import requests as curl_requests
+def _bootstrap(
+    subscription_key: str | None,
+    get: HttpGet | None,
+) -> tuple[str, HttpGet]:
+    """Resolve the APIM key and a warm transport before any API call.
 
-    return curl_requests.get(
-        url,
-        headers=headers,
-        params=params,
-        timeout=timeout,
-        impersonate="chrome",  # Akamai WAF: TLS fingerprint must look like Chrome
+    - Real transport (``get is None``): one Chrome-TLS session whose first GET
+      warms up Akamai cookies on the quote page (re-measured 26/08: stateless
+      calls to the API host get 403 even with a valid key). The same HTML
+      carries the public frontend key when none was provided.
+    - Injected transports (tests/stateless fakes): no warm-up needed; the page
+      is only fetched through them when a key must be discovered.
+    """
+    provided = (subscription_key or os.environ.get(SUBSCRIPTION_KEY_ENV, "")).strip()
+    live = False
+    if get is None:
+        from curl_cffi import requests as curl_requests
+
+        session = curl_requests.Session(impersonate="chrome")
+
+        def bound_get(
+            url: str,
+            *,
+            headers: dict[str, str],
+            params: dict[str, Any],
+            timeout: float,
+        ) -> ResponseLike:
+            return session.get(url, headers=headers, params=params, timeout=timeout)
+
+        get = bound_get
+        live = True
+
+    if provided and not live:
+        # Explicit/env key + stateless transport: nothing to discover or warm.
+        return provided, get
+
+    response = get(
+        DISCOVERY_URL,
+        headers=_PAGE_HEADERS,
+        params={},
+        timeout=REQUEST_TIMEOUT_SECONDS,
     )
-
-
-def _subscription_key(explicit: str | None) -> str:
-    key = explicit or os.environ.get(SUBSCRIPTION_KEY_ENV, "").strip()
-    if not key:
-        raise fetch_error(
-            f"{SUBSCRIPTION_KEY_ENV} is not set (injected by the .NET runner "
-            "from Providers__InfoMoney__SubscriptionKeys__0)"
-        )
-    return key
+    _error_for_status(response, DISCOVERY_URL)
+    if not provided:
+        match = _SUBSCRIPTION_KEY_RE.search(getattr(response, "text", "") or "")
+        if not match:
+            raise fetch_error(
+                "could not discover an InfoMoney subscription key on the quote "
+                f"page; set {SUBSCRIPTION_KEY_ENV} as fallback"
+            )
+        provided = match.group(1)
+    return provided, get
 
 
 def _error_for_status(response: ResponseLike, path: str) -> None:
@@ -148,7 +192,7 @@ def quotes(
     fixture: str | None,
     *,
     subscription_key: str | None = None,
-    get: HttpGet = _default_get,
+    get: HttpGet | None = None,
 ) -> Iterator[tuple[dict[str, Any], str | None]]:
     """Command body for ``sidecar im quotes``."""
     if bars <= 0:
@@ -159,10 +203,10 @@ def quotes(
         return
 
     ticker = symbols.im_symbol(symbol)
-    key = _subscription_key(subscription_key)
+    key, get = _bootstrap(subscription_key, get)
 
     with ndjson.stdout_guard():
-        ndjson.log(f"im quotes {ticker} bars={bars}")
+        ndjson.log(f"im quotes {ticker} bars={bars} (key resolved, not logged)")
         by_date: dict[str, dict[str, Any]] = {}
         for item in _paged_results(
             get,
@@ -213,7 +257,7 @@ def dividends(
     fixture: str | None,
     *,
     subscription_key: str | None = None,
-    get: HttpGet = _default_get,
+    get: HttpGet | None = None,
 ) -> Iterator[tuple[dict[str, Any], str | None]]:
     """Command body for ``sidecar im dividends`` (empty series emits nothing)."""
     if fixture is not None:
@@ -221,10 +265,10 @@ def dividends(
         return
 
     ticker = symbols.im_symbol(symbol)
-    key = _subscription_key(subscription_key)
+    key, get = _bootstrap(subscription_key, get)
 
     with ndjson.stdout_guard():
-        ndjson.log(f"im dividends {ticker}")
+        ndjson.log(f"im dividends {ticker} (key resolved, not logged)")
         events = list(
             _paged_results(
                 get,

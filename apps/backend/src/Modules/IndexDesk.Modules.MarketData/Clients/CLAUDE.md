@@ -34,8 +34,9 @@ aqui — isso é `Ingestion/`.
   `Providers:TradingView:Cookie` vai ao argv do filho apenas; `MinBars 5` / `MaxBars 5000`;
   auth falha vira `TradingView.AuthFailed`.
 - `InfoMoneySidecarClient.cs` — Priority 4, **FORA do failover automático** (fonte secundária de validação
-  cruzada, preço cru sem ajuste); Akamai + APIM: chave do pool injetada via env `INFOMONEY_SUBSCRIPTION_KEY`;
-  `Scrape.WafBlocked` conta pro breaker.
+  cruzada, preço cru sem ajuste); Akamai (warm-up obrigatório) + APIM: chave do pool injetada via env
+  `INFOMONEY_SUBSCRIPTION_KEY`; **sem chave configurada o spawn segue keyless** — o sidecar descobre a
+  key pública do frontend on demand (26/08); `Scrape.WafBlocked` conta pro breaker.
 
 ### Infra de transporte
 

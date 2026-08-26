@@ -68,7 +68,8 @@ uma linha malformada = `Sidecar.ParseError` (falha a chamada inteira — o Pytho
   `.ParseError`; códigos específicos do envelope stderr (`TradingView.AuthFailed`,
   `Scrape.WafBlocked`...) têm precedência e são aplicados pelos clients.
 - Segredos para o filho: cookie TV vai **no argv** (`Providers__TradingView__Cookie`), chave InfoMoney
-  **no environment** (`INFOMONEY_SUBSCRIPTION_KEY` ← `Providers__InfoMoney__SubscriptionKeys__0`).
+  **no environment** (`INFOMONEY_SUBSCRIPTION_KEY` ← `Providers__InfoMoney__SubscriptionKeys__0`) —
+  **opcional**: sem chave o spawn é keyless e o sidecar descobre a key pública do frontend sozinho.
 - `SidecarHttp` (comando genérico `fetch --url [--method] [--data] [--header K: V] [--timeout-s] [--b64]`)
   = transporte anti-WAF (curl_cffi impersonate=chrome) para hosts que fazem TLS fingerprinting
   (medido: `www.itnow.com.br`). Feeds aderem por config — `Providers:Holdings:ItNow:Transport=sidecar|native`
