@@ -24,6 +24,20 @@
 
 ---
 
+## Recon 26/08/2026 — sites de catálogo/fundamentalistas (5 fontes, subagentes paralelos)
+
+Relatórios completos: [`recon-investidor10.md`](recon-investidor10.md) · [`recon-maisretorno.md`](recon-maisretorno.md) · [`recon-fundsexplorer.md`](recon-fundsexplorer.md) · [`recon-clubefii.md`](recon-clubefii.md) · [`recon-advfn.md`](recon-advfn.md). Spec destilada: `PROVIDERS.md` §2.14–§2.18.
+
+| Fonte | Classificação | Cliente recomendado | Evidência-chave |
+| :--- | :--- | :--- | :--- |
+| Investidor10 | ✅ **REPLICAVEL** — ALTO p/ enriquecimento, BAIXO-MÉDIO como preço primário | Sidecar ou C# nativo (APIs GET sem auth) | `/api/cotacoes/batch?tickers=…` 200; históricos close ajustável até 15y; 31 indicadores ×10y; **sem OHLCV/volume**; IDs internos numéricos precisam resolução ticker→id |
+| MaisRetorno | ✅ **REPLICAVEL** — ALTO p/ séries de rentabilidade + cadastro + gestoras | Sidecar/C# (`__NEXT_DATA__` ou `_next/data/{buildId}`) | PETR4 mensal desde 1994; lista-acoes 528 tickers c/ CNPJ+code_cvm+ISIN; gestores 3.236 c/ CNPJ; buildId muda por deploy; zero proventos/DY/PVP |
+| FundsExplorer | ✅ **REPLICAVEL** — ALTO p/ FIIs | Sidecar/C# (`POST admin-ajax.php` + nonce do HTML) | `funds-get-income` rendimentos desde 2016-06; `funds-get-quotations` diária ~5y; patrimonial mensal desde 2016-01; lista ~696 FIIs; API legada `/api/v1` morta (500) |
+| ClubeFII | ✅ **REPLICAVEL** — MÉDIO-ALTO (fundamentais), BAIXO (rendimentos gated) | Sidecar/C# (XHR HTML fragment) | `/fundo_basico?cod=TICKER` público c/ CNPJ/DY/PVP/cotistas/taxa adm; cotações mensais 2011–2026; lista 825 FIIs; rendimentos detalhados atrás de login |
+| ADVFN Brasil | ⚠️ **REPLICAVEL parcial** — ALTO só p/ proventos cross-check | C# nativo (HTML server-rendered) | `/balanco/dividendos` histórico completo grátis (PETR4 JCP+div, KNCR11 120 linhas); OHLCV via WebSocket/ag-grid — nada por HTTP simples |
+
+---
+
 ## 1. InfoMoney (XP Inc) — REPLICAVEL
 
 ### Página que dispara as chamadas

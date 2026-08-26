@@ -75,6 +75,33 @@ Sem resolução de captcha: challenge duro = `Fetch.Failed`/403. Contrato v2 doc
 README do sidecar; testes offline em `tests/test_b3_cmd.py`. Consumidor C#/persistência ainda
 não existe — próximo passo natural é um client `B3CatalogSidecarClient` + job de curadoria.
 
+### Recon de 5 sites de dados BR (26/08/2026) — spec em PROVIDERS.md §2.14–§2.18
+
+Recon read-only com subagentes paralelos; relatórios completos versionados em
+`tools/providers/recon/recon-{investidor10,maisretorno,fundsexplorer,clubefii,advfn}.md`.
+Nenhum scraper/client implementado ainda — só conhecimento medido:
+
+- **Investidor10 (ALTO enriquecimento):** APIs GET sem auth (`/api/cotacoes/batch`,
+  `/api/historico-indicadores/{id}/…` 31 indicadores ×10y, balanços, comparador FIIs,
+  índices/macros). Close-only — **sem volume**. IDs internos numéricos precisam resolução.
+- **MaisRetorno (ALTO):** `__NEXT_DATA__`/`_next/data/{buildId}` públicos; rentabilidade
+  mensal/anual desde a origem (PETR4/IBOV 1994); lista-acoes 528 tickers c/ CNPJ+code_cvm+ISIN;
+  gestoras 3.236 c/ CNPJ; administradoras 334. Zero proventos/DY/PVP.
+- **FundsExplorer (ALTO FIIs):** `POST /wp-admin/admin-ajax.php` actions `funds-get-income`
+  (rendimentos 2016-06→), `funds-get-quotations` (diária ~5y), `funds-get-patrimonials`;
+  nonce `data-nonce` do HTML; lista ~696 FIIs server-side.
+- **ClubeFII (MÉDIO-ALTO):** XHR público `fundo_basico?cod=TICKER` (CNPJ/DY/PVP/cotistas/
+  taxa adm), cotações mensais 2011–2026, lista 825 FIIs; rendimentos detalhados gated.
+- **ADVFN (ALTO só proventos):** `/balanco/dividendos` server-rendered grátis (ações JCP/div +
+  FII rendimentos); OHLCV inacessível por HTTP (WebSocket/ag-grid).
+
+### InfoMoney keyless (26/08/2026)
+
+`sidecar im ...` funciona **sem** `INFOMONEY_SUBSCRIPTION_KEY`: bootstrap faz warm-up GET na
+página de cotação (obrigatório — Akamai agora rejeita chamadas stateless mesmo com TLS chrome)
+e extrai a chave pública do frontend do blob `window.InfoMoneyPage`. Env/pool continua com
+precedência quando configurada. Client C# spawna keyless (NoApiKey removido).
+
 ### Transporte HTTP genérico anti-WAF (`sidecar fetch` + `ISidecarHttp`, Fase 3 adendo)Hosts com fingerprinting TLS Akamai (ex.: `www.itnow.com.br`: curl/HttpClient nativo = 403
 "Access Denied" mesmo com headers de browser; `curl_cffi impersonate="chrome"` = 200) são
 servidos por um comando genérico do sidecar: `sidecar fetch --url URL [--method GET|POST]

@@ -20,7 +20,12 @@ Este documento especifica todas as fontes de dados e APIs externas utilizadas pe
 | **Yahoo Finance (sidecar Python)**                         | OHLCV + Proventos (slot 2) | **Gratuito (Não oficial)** |       ~2.000 req/IP/hora        | **Fonte primária efetiva de histórico e proventos**: backfill `*.SA`, benchmarks globais (`^BVSP`, `USDBRL=X`, `GC=F`). Dividendos ricos p/ ações/BDRs/FIIs; ausente em muitos ETFs. |
 | **TradingView (sidecar tv-scraper)**                       | OHLCV slot 3              | **Gratuito c/ conta (cookie)** |       Por IP · chunking ≥4500 bars flaky       | Histórico adicional que Yahoo não cobre (`BMFBOVESPA:TICKER`) — cobriu IBOV/IFIX na prática. Sem proventos por design. |
 | **AwesomeAPI (economia.awesomeapi.com.br)**                | Câmbio & Cripto           | **Gratuito** (token premium opcional) |       Sem limite rígido documentado       | FX diário bid/ask `USD-BRL`, `EUR-BRL`, `BTC-BRL` na tabela `fx_rates` (bid = proxy de close). |
-| **InfoMoney (XP Inc)**                                     | B3 secundária             | **Gratuito** (key APIM pública do frontend) |       APIM por chave       | Validação cruzada, leaderboard em lote e proventos com vocabulário B3 nativo. **FORA da cadeia** — só backfill explícito; série sem adjclose. |
+| **InfoMoney (XP Inc)**                                     | B3 secundária             | **Gratuito** (key APIM pública do frontend; sidecar descobre sozinho) |       APIM por chave       | Validação cruzada, leaderboard em lote e proventos com vocabulário B3 nativo. **FORA da cadeia** — só backfill explícito; série sem adjclose. |
+| **Investidor10**                                           | Fundamentalistas B3+EUA   |        **Gratuito** (APIs GET sem auth)  |       Cloudflare passivo       | Enriquecimento: cotação batch, históricos close ajustável, 31 indicadores ×10y, balanços/DRE, comparador FIIs. **Sem OHLCV/volume** (§2.14). |
+| **MaisRetorno**                                            | Rentabilidade + cadastro  |        **Gratuito** (`__NEXT_DATA__`)    |       Sem bloqueio observado       | Séries mensal/anual desde a origem (PETR4/IBOV 1994), lista-acoes 528 c/ CNPJ+CVM+ISIN, gestoras 3236, administradoras 334 (§2.15). |
+| **FundsExplorer**                                          | FIIs (rendimentos+cotação) |        **Gratuito** (admin-ajax + nonce) |       Cloudflare passivo       | Rendimentos mensais desde 2016-06, cotação diária ~5y, patrimônio/cota, universo ~696 FIIs (§2.16). |
+| **ClubeFII**                                               | FIIs (fundamentais)       |        **Gratuito** (XHR público)        |       Sem bloqueio observado       | CNPJ/DY/PVP/cotistas/taxa adm por FII, cotações mensais 2011–2026, lista 825 FIIs; rendimentos detalhados gated (§2.17). |
+| **ADVFN Brasil**                                           | Proventos cross-check     |        **Gratuito** (HTML server-side)   |       Nenhum desafio observado       | Histórico completo de proventos por ticker (ações JCP/div, FIIs). Sem OHLCV histórico por HTTP (WebSocket/ag-grid) (§2.18). |
 | **Financial Modeling Prep (FMP) / EODHD**                  | Dados Globais (Backup)  | **Freemium / $19-$29/mês** |      250 a 10.000 req/dia       | Holdings e setores de ETFs UCITS (Irlanda) e ETFs dos EUA.          |
 | **HG Brasil Finanças**                                     | ~~B3 Backup Data~~        |  **Pago (não contratado)** |       —                            | **REMOVIDO da cadeia ativa** — descoberto ser pago (não freemium). Client mantido no código, desativado; contingência paga só mediante decisão explícita de custo. |
 
@@ -37,6 +42,11 @@ Este documento especifica todas as fontes de dados e APIs externas utilizadas pe
 | **TradingView (sidecar)** | ✅ até ~5000 bars/chunk | ❌ (série crua) | ❌ por design | — | — | ✅ cobriu IBOV/IFIX |
 | **AwesomeAPI** | FX diário (`json/daily/{par}`) | — | — | — | — | FX: USD/EUR/BTC-BRL |
 | **InfoMoney** | ✅ diário cru | ❌ (`adj_close=close`) | ✅ vocabulário B3 nativo (DIVIDENDO/JRSC…) | — | — | — |
+| **Investidor10** | ⚠️ close-only ajustável (até 15y) | ✅ (ajustado por proventos) | ⚠️ FII mensal/anual; ação/stock parciais | — | 31 indicadores ×10y, balanços/DRE, DY, comparador FIIs | índices/macros (ibov, SELIC, IPCA, IFIX) |
+| **MaisRetorno** | — (rentabilidade %, não preço) | n/a | ❌ | ✅ lista-acoes 528 (CNPJ+CVM+ISIN+situação) | rentab/vol/sharpe MTD→60M, gestoras 3236, admins 334 | IBOV desde 1994 |
+| **FundsExplorer** | ⚠️ diária ~5 anos (cotação FII) | n/a (série de cota) | ✅ mensal desde 2016-06 (+DY 3/6/12m) | ✅ ~696 FIIs (+30 FI-Infra, 51 FI-Agro) | P/VP, PL, cotistas, segmento ANBIMA, CNPJ | — |
+| **ClubeFII** | ⚠️ mensal 2011–2026 | n/a | ⚠️ só DY agregado (detalhado gated) | ✅ 825 FIIs (lista) | CNPJ, taxa adm, cotistas, %IFIX, gestor/admin/auditor | — |
+| **ADVFN Brasil** | ❌ (WebSocket/ag-grid) | — | ✅✅ histórico completo server-rendered | — | P/L, DY, mktcap na página | índices (IBOV página) |
 | **Gestoras (holdings)** | — | — | — | — | composição % (iShares/SPDR/ItNow/Investo) | — |
 
 ### 1.2 Prioridade por caso de uso (repriorização 26/08/2026)
@@ -49,9 +59,11 @@ medições de 26/08:
 | :--- | :--- | :--- |
 | Fechamento do dia (todas as classes) | **Brapi batch** → gap fill Yahoo → TV | 1 request/dia; ranges curtos funcionam no free |
 | Histórico/backfill ≥6mo | **Yahoo sidecar** → TV | Brapi free devolve 400 acima de `3mo` (§2.5); CLI usa `--provider yahoo` |
-| Proventos | **Yahoo sidecar** | única fonte viva hoje (Brapi paywall; InfoMoney agora roda **sem chave** — descobre a pública do frontend sozinho) |
-| Catálogo de ativos (curadoria) | **Brapi catalog** ⊕ **Bora Investir** ⊕ **B3 `b3 companies|fiis`** | Brapi cobre ~90% (type/subType); Bora completa universo ETF (241 ausentes + classificação BDR_ETF); scraper B3 aporta CNPJ/codeCVM oficial |
-| Metadata cadastral (CNPJ/CVM) | **B3 `b3 companies`** | fonte oficial primária; Brapi/Bora têm CNPJ só parcial |
+| Proventos | **Yahoo sidecar** | única fonte viva de dividendos de ações/BDRs/ETFs hoje; FIIs: FundsExplorer `funds-get-income` (2016→) e ClubeFII DY agregado; cross-check grátis: ADVFN `/balanco/dividendos` e InfoMoney (agora sem chave) |
+| Catálogo de ativos (curadoria) | **Brapi catalog** ⊕ **Bora Investir** ⊕ **B3 `b3 companies|fiis`** ⊕ **MaisRetorno lista-acoes** | Brapi cobre ~90% (type/subType); Bora completa universo ETF (241 ausentes + classificação BDR_ETF); scraper B3 aporta CNPJ/codeCVM oficial; MaisRetorno dá 528 ações com CNPJ+CVM+ISIN+situação |
+| Metadata cadastral (CNPJ/CVM) | **B3 `b3 companies`** ⊕ MaisRetorno | fonte oficial primária; MaisRetorno adiciona ISIN/situação/setor por ação |
+| Fundamentalista/rankings (ações) | **Investidor10** (`historico-indicadores`, `comparador`) | 31 indicadores ×10y e comparador FIIs; close-only, sem volume |
+| Rentabilidade histórica % (mensal/anual) | **MaisRetorno** (`stats.years`) | séries desde a origem do papel (1994 p/ ações antigas) — complementa OHLCV ajustada |
 | FX | AwesomeAPI | inalterado |
 | Redundância OHLCV (futuro) | **COTAHIST** (`bvmf.bmfbovespa.com.br`, zip público sem auth — verificado 26/08) | fecharia os 45 tickers sem cobertura e daria base oficial; sem adj_close/proventos |
 
@@ -382,6 +394,100 @@ sidecar fetch --url URL [--method POST] [--data BODY] [--header "K: V"] [--b64] 
   detalhes no README da pasta. Consumidor C#/persistência ainda não existe.
 - **Uso recomendado:** metadata cadastral oficial (CNPJ/codeCVM dos 2165 ativos locais) e
   detecção de listagens novas que Yahoo/TV/Brapi ainda não cobrem.
+
+---
+
+### 2.14. Investidor10 — fundamentalistas B3+EUA (recon 26/08/2026, ALTO p/ enriquecimento)
+
+- **Tipo:** Laravel+jQuery; APIs AJAX GET **sem auth/cookie/Referer** (21 requests, zero bloqueio;
+  Cloudflare passivo). Relatório completo: `tools/providers/recon/recon-investidor10.md`.
+- **Endpoints-chave medidos:**
+  - `GET /api/cotacoes/batch?tickers=MXRF11,VALE3,PETR4,HGLG11` → cotação atual em lote,
+    qualquer classe B3 (melhor endpoint de ingestão diária).
+  - `GET /api/fii/cotacoes/chart/{id}/{dias}/{true|false}` → close diário ajustável até 15y
+    (`5475/false`). Ação: `/api/cotacoes/acao/chart/vale3/`; ETF BDR: `/api/etfs/cotacoes/chart/{id}/`;
+    stock EUA: `/api/stock/cotacoes/chart/{id}/`; índice/macros: `/api/indices/cotacoes/{id}/`
+    (ibov=1; existem SELIC, IPCA, CDI, IFIX, SMLL…).
+  - `GET /api/historico-indicadores/{tickerId}/{dias}/?v=2` → **31 indicadores × ~10 anos**
+    (P/L, EV/EBITDA, ROE, ROIC, margens, DY, payout, dívida, CAGR).
+  - `GET /api/fii/dividendos/chart/{id}/{dias}/{mes|ano}` e `.../dividend-yield/chart/...`;
+    balanços/DRE: `/api/balancos/*`, `/api/international/*` (stocks EUA);
+    intraday 5-min: `/api/quotations/one-day/{TICKER}/`.
+  - Ranking FIIs quase pronto: `GET /api/fii/comparador/table/{id}/all/` (DY, P/VP, PL, segmento).
+- **Limitações:** **sem OHLCV/volume em lugar nenhum** (só close); datas BR string
+  (`dd/mm/yyyy`, `mm/yyyy`) e chaves inconsistentes entre endpoints; IDs internos numéricos
+  exigem resolução ticker→id (rota de busca candidata não confirmada); vacância deu 500 sem params.
+- **Veredicto:** ALTO para enriquecimento fundamentalista/rankings; BAIXO-MÉDIO como fonte de
+  preço primária. Risco ToS (produto Pro pago) — ingestão em massa exige decisão consciente.
+
+---
+
+### 2.15. MaisRetorno — séries de rentabilidade + cadastro + gestoras (recon 26/08/2026, ALTO)
+
+- **Tipo:** Next.js SSR; dado completo embutido em `__NEXT_DATA__` e servido por rotas públicas
+  `/_next/data/{buildId}/...json` (sem auth; buildId muda a cada deploy — extrair do HTML).
+  Relatório: `tools/providers/recon/recon-maisretorno.md`.
+- **O que retorna:**
+  - Detalhe ETF/ação/FII/índice: rentabilidade **mensal + anual desde a origem do papel**
+    (`stats.years`: PETR4 e IBOV desde 1994), janelas mtd/ytd/3–60M com rentab/vol/sharpe,
+    CNPJ, ISIN, razão social, setor/subsetor.
+  - `lista-acoes`: 528 tickers paginados (/page/N), 16 campos incluindo `cnpj`, `code_cvm`,
+    `situation`, `issuer_company`, `isin` — cadastro B3 quase completo numa fonte só.
+  - Diretórios: `gestores` (**3.236** registros com CNPJ + PL + cotistas), `administradores` (334).
+- **Limitações:** zero proventos/DY/PVP/PL/taxa adm (fiscal precisa de outra fonte); sem busca
+  pública; APIs internas v3 autenticadas (401); shape Next.js instável = best-effort, nunca canônico.
+
+---
+
+### 2.16. FundsExplorer — FIIs: rendimentos + cotação (recon 26/08/2026, ALTO)
+
+- **Tipo:** WordPress; dados via `POST /wp-admin/admin-ajax.php` com `action=<a>&fund=<TICKER>`
+  + header `X-CSRF-TOKEN` (nonce de 10 chars no `data-nonce` do HTML da página de detalhe);
+  cookies dispensáveis; Cloudflare passivo. Relatório: `tools/providers/recon/recon-fundsexplorer.md`.
+- **Actions vivas medidas (KNCR11):**
+  - `funds-get-income` → rendimentos mensais **2016-06 → hoje** (~122 linhas): valor/cota,
+    data pagamento, cotação fechamento, DY médio 3/6/12m.
+  - `funds-get-quotations` → série diária ~5 anos (1.248 pts; campo `quotations` é JSON
+    duplamente serializado, datas `dd/mm/yy`).
+  - `funds-get-patrimonials` → patrimônio/cota mensal desde 2016-01 (base do P/VP histórico).
+- **HTML server-side do detalhe:** CNPJ, segmento ANBIMA, P/VP, DY 12m, liquidez média, cotistas.
+- **Listas sem paginação:** `/funds` ≈696 tickers (universo FII completo), `/fiinfras` 30, `/fiagros` 51.
+- **Limitações:** API legada `/api/v1/funds/{ticker}` morta (HTTP 500); nonce exige 1 GET antes dos
+  POSTs; cotação limitada a ~5y (histórico antigo segue via CVM/B3); sem contrato formal.
+
+---
+
+### 2.17. ClubeFII — fundamentais de FII (recon 26/08/2026, MÉDIO-ALTO)
+
+- **Tipo:** ASP.NET + jQuery; XHR same-origin retorna **HTML fragment** (não JSON).
+  Relatório: `tools/providers/recon/recon-clubefii.md`.
+- **Público (sem login):** `/fundo_basico?cod=MXRF11&fiiLiberado=False&fiiLiberadoLogado=False`
+  → segmento, DY 1m/12m, P/VP, liquidez média 30d, cotistas, %IFIX, VP/VPA, taxa adm, **CNPJ**,
+  administrador, auditor, custódia, gestor. `/fundo_cotacao?cod=...` → cotações mensais
+  **2011–2026** + rentabilidade por ano. Lista `/fundo_imobiliario_lista`: **825 FIIs**
+  server-side (nome, IPO, segmento, administrador).
+- **Gated (login gratuito):** rendimentos mensais detalhados (`fundo_proventos`), vacância,
+  passivo, cotistas — corpo "Você precisa estar logado".
+- **Armadilhas:** param `cod` deve ser o **ticker** (id numérico retorna payload errado); params
+  faltando dão HTTP 500 IIS silencioso; site pequeno — throttle obrigatório.
+- **Uso recomendado:** fundamentais agregados que CVM não dá prontos (liquidez média, %IFIX,
+  taxa adm, auditor); rendimentos históricos seguem melhores via FundsExplorer/CVM/B3.
+
+---
+
+### 2.18. ADVFN Brasil — proventos cross-check (recon 26/08/2026)
+
+- **Tipo:** portal global agressivo em JS; mas a página de proventos é **100% server-rendered e grátis**.
+  Relatório: `tools/providers/recon/recon-advfn.md`.
+- **O que funciona por HTTP simples:** `br.advfn.com/bolsa-de-valores/bovespa/{slug}-{TICKER}/balanco/dividendos`
+  → histórico completo Data-Ex | Valor | Registrada | Pagamento (PETR4 JCP+div; KNCR11 120 linhas
+  de rendimentos). URL curta `/bovespa/PETR4/cotacao` redireciona pra canônica (slug dispensável).
+  Cotação estática na página: último preço + prev close + P/L, DY, mktcap + JSON-LD FAQ (range 52w).
+- **O que NÃO funciona:** OHLCV/histórico — tabela client-side (ag-grid) sem endpoint exposto;
+  cotação ao vivo via WebSocket `wss://streamws-lo.advfn.com`; CSV download redireciona pra
+  landing paga; times&sales gated. Índice IBOV idem (placeholders vazios no HTML).
+- **Veredicto:** MÉDIO-BAIXO como fonte primária / **ALTO como secundária de proventos** e
+  cross-check de fechamento (classes: ações JCP/div, FIIs). Yahoo segue principal p/ série histórica.
 
 ---
 
