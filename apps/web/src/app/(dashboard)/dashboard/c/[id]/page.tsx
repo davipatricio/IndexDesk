@@ -9,6 +9,7 @@ import { useSession } from '@/hooks/use-session';
 import { PerformancePanel } from '@/components/portfolio/performance-panel';
 import { AnalysisPanel } from '@/components/portfolio/analysis-panel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { fetchPortfolioTimeline, type TimelineItemDto } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +38,13 @@ export default function CarteiraPage() {
     queryKey: ['portfolio', id],
     queryFn: () => fetchPortfolioSummary(id),
     enabled: Boolean(isReady && isAuthenticated && id),
+  });
+
+  const timelineQuery = useQuery({
+    queryKey: ['portfolio', id, 'timeline'],
+    queryFn: () => fetchPortfolioTimeline(id),
+    enabled: Boolean(isReady && isAuthenticated && id),
+    staleTime: 10 * 60 * 1000,
   });
 
   React.useEffect(() => {
@@ -127,6 +135,8 @@ export default function CarteiraPage() {
           </CardContent>
         </Card>
       </section>
+
+      <TimelineCard items={timelineQuery.data ?? []} />
 
       <Tabs defaultValue="posicoes" className="space-y-4">
         <TabsList>
@@ -227,4 +237,47 @@ function PositionsTable({ positions }: { positions: PositionDto[] }) {
 
 function formatQty(q: number): string {
   return q % 1 === 0 ? String(q) : q.toLocaleString('pt-BR', { maximumFractionDigits: 8 });
+}
+
+function TimelineCard({ items }: { items: TimelineItemDto[] }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = items.filter((i) => i.date >= today).slice(0, 5);
+  if (upcoming.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">Próximos vencimentos</CardTitle>
+        <CardDescription>Carências e vencimentos de renda fixa da carteira.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ul className="space-y-1.5">
+          {upcoming.map((item) => {
+            const days = Math.round(
+              (new Date(`${item.date}T12:00:00`).getTime() - Date.now()) / 86_400_000,
+            );
+            return (
+              <li
+                key={`${item.label}-${item.date}`}
+                className="flex items-center justify-between text-xs"
+              >
+                <span className="flex items-center gap-2">
+                  <Badge variant={days <= 30 ? 'default' : 'secondary'}>
+                    {days <= 0 ? 'hoje' : `${days}d`}
+                  </Badge>
+                  {item.label}
+                  {item.kind === 'liquidity' ? (
+                    <span className="text-muted-foreground">(carência)</span>
+                  ) : null}
+                </span>
+                <span className="tabular-nums text-muted-foreground">
+                  {brl.format(item.amount)}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </CardContent>
+    </Card>
+  );
 }

@@ -36,8 +36,19 @@ Regra: ao concluir uma tarefa, marcar o checkbox no mesmo commit que entrega o c
 | M-P1 | Fundação: CRUD carteiras, transações BUY/SELL, PM, posições, home mínima | ✅ concluído (2026-08-25) — integração automatizada e tabela agregada pendentes |
 | M-P2 | Performance: snapshots, TWR/MWR, benchmarks, análise | ✅ concluído (2026-08-25) |
 | M-P3 | Classes completas: RF accrual, Tesouro, cripto top100, previdência | 🔲 não iniciado |
-| M-P4 | Fiscal: simulador resgate, ledger prejuízos, DARF projeção | 🔲 não iniciado |
-| M-P5 | Público/link, clone, metas, alocação-alvo, CSV/XLSX | 🔲 não iniciado |
+| M-P4 | Fiscal: simulador resgate, ledger prejuízos, DARF projeção | 🚧 em andamento (backend em build) |
+| M-P5 | Público/link, clone, metas, alocação-alvo, CSV/XLSX | 🚧 em andamento (backend em build) |
+
+## Bloqueios ativos (2026-08-26)
+
+1. ⛔ **Cripto top 100**: provider de cotação não escolhido → preço manual no wizard até resolver.
+2. ⛔ **Tesouro Direto específico**: falta seed/curadoria dos títulos → accrual IPCA_PLUS pronto,
+   falta o ativo.
+3. ⛔ **Previdência/fundos como classe catalogada**: mesma causa raiz (curadoria de ativos);
+   previdência tem TaxRegime no schema desde o início.
+4. ⛔ **Feed automático de fundos** depende do MVP-003 (informe diário CVM).
+
+Nenhum deles impede M-P4/M-P5. Todos marcados também no PR #3 e no código (`⛔ BLOCKED`).
 
 ## Tensões e bloqueios transversais
 

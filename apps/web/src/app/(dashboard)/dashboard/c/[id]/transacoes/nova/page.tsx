@@ -3,7 +3,13 @@
 import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { createTransaction, fetchAssetLookup, type AssetLookupDto } from '@/lib/api-client';
+import {
+  attachFixedIncome,
+  createTransaction,
+  fetchAssetLookup,
+  type AssetLookupDto,
+  type FixedIncomeParamDto,
+} from '@/lib/api-client';
 import { useSession } from '@/hooks/use-session';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,31 +22,73 @@ const operationTypes = [
   { value: 'BUY', label: 'Compra' },
   { value: 'SELL', label: 'Venda' },
   { value: 'INCOME', label: 'Provento / rendimento' },
+  { value: 'CORP_ACTION', label: 'Evento corporativo' },
 ] as const;
 
 type OperationType = (typeof operationTypes)[number]['value'];
+
+const corpActionKinds = [
+  { value: 'split', label: 'Desdobramento (split)', factorLabel: 'Fator (ex.: 2 dobra)' },
+  { value: 'grupamento', label: 'Grupamento (inpc)', factorLabel: 'Fator (ex.: 2 agrupa)' },
+  { value: 'bonificacao', label: 'Bonificação', factorLabel: '' },
+] as const;
+
+const syntheticOptions = [
+  { code: 'CDI', label: 'Caixa CDI' },
+  { code: 'SELIC', label: 'Caixa Selic' },
+] as const;
+
+const indexerOptions = [
+  { value: 'CDI_PERCENT', label: '% do CDI' },
+  { value: 'CDI_PLUS', label: 'CDI +' },
+  { value: 'PREFIXED', label: 'Prefixado a.a.' },
+] as const;
 
 interface WizardState {
   type: OperationType;
   ticker: string;
   asset: AssetLookupDto | null;
+  syntheticCode: string | null;
   broker: string;
   tradeDate: string;
   quantity: string;
   unitPrice: string;
   fees: string;
+  corpKind: string;
+  corpFactor: string;
+  corpPercent: string;
+  rfIndexer: string;
+  rfRate: string;
+  rfMaturity: string;
 }
 
 const initialState: WizardState = {
   type: 'BUY',
   ticker: '',
   asset: null,
+  syntheticCode: null,
   broker: '',
   tradeDate: new Date().toISOString().slice(0, 10),
   quantity: '',
   unitPrice: '',
   fees: '0',
+  corpKind: 'split',
+  corpFactor: '2',
+  corpPercent: '',
+  rfIndexer: 'CDI_PERCENT',
+  rfRate: '100',
+  rfMaturity: '',
 };
+
+function buildCorpActionJson(state: WizardState): string | null {
+  if (state.type !== 'CORP_ACTION') return null;
+  if (state.corpKind === 'bonificacao') {
+    const pctNum = Number(state.corpPercent.replace(',', '.')) || 0;
+    return JSON.stringify({ kind: 'bonificacao', percent: pctNum });
+  }
+  const factorNum = Number(state.corpFactor.replace(',', '.')) || 1;
+  return JSON.stringify({ kind: state.corpKind, factor: factorNum });
+}
 
 /** Wizard de transação em 3 etapas + revisão (decisão do grill §3). */
 export default function NovaTransacaoPage() {
@@ -73,29 +121,59 @@ export default function NovaTransacaoPage() {
   };
 
   const mutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const qty = Number(state.quantity.replace(',', '.'));
       const price = Number(state.unitPrice.replace(',', '.'));
       const fees = Number(state.fees.replace(',', '.')) || 0;
+      const targetAssetId = state.syntheticCode ? null : (state.asset?.id ?? null);
 
+      let created;
       if (state.type === 'INCOME') {
-        return createTransaction(id, {
+        created = await createTransaction(id, {
           type: 'INCOME',
-          assetId: state.asset?.id ?? null,
+          assetId: targetAssetId,
+          syntheticIndexCode: state.syntheticCode,
           broker: state.broker,
           grossAmount: qty * price,
         });
+      } else if (state.type === 'CORP_ACTION') {
+        created = await createTransaction(id, {
+          type: 'CORP_ACTION',
+          assetId: targetAssetId,
+          syntheticIndexCode: state.syntheticCode,
+          broker: state.broker,
+          quantity: qty,
+          unitPrice: state.corpKind === 'subscricao' ? price : undefined,
+          grossAmount: state.corpKind === 'subscricao' ? qty * price : 0,
+          corpActionJson: buildCorpActionJson(state) ?? undefined,
+          tradeDate: state.tradeDate,
+        });
+      } else {
+        created = await createTransaction(id, {
+          type: state.type,
+          assetId: targetAssetId,
+          syntheticIndexCode: state.syntheticCode,
+          broker: state.broker,
+          quantity: qty,
+          unitPrice: state.syntheticCode ? 1 : price,
+          grossAmount: state.syntheticCode ? qty : qty * price,
+          fees: state.type === 'BUY' ? fees : undefined,
+          tradeDate: state.tradeDate,
+        });
       }
-      return createTransaction(id, {
-        type: state.type,
-        assetId: state.asset?.id ?? null,
-        broker: state.broker,
-        quantity: qty,
-        unitPrice: price,
-        grossAmount: qty * price,
-        fees: state.type === 'BUY' ? fees : undefined,
-        tradeDate: state.tradeDate,
-      });
+
+      // Parâmetros de rendimento para caixa sintético (accrual local-first)
+      if (created && state.type === 'BUY' && state.syntheticCode && state.rfMaturity) {
+        await attachFixedIncome(id, {
+          syntheticIndexCode: state.syntheticCode,
+          indexer: state.rfIndexer as FixedIncomeParamDto['indexer'],
+          indexerRate: Number(state.rfRate.replace(',', '.')) || 100,
+          principal: qty,
+          startDate: state.tradeDate,
+          maturityDate: state.rfMaturity,
+        });
+      }
+      return created;
     },
     onSuccess: () => {
       toast.success('Transação lançada!');
@@ -110,8 +188,17 @@ export default function NovaTransacaoPage() {
   const canAdvanceFrom2 =
     state.type === 'INCOME'
       ? Number(state.quantity) >= 0 && Number(state.unitPrice) > 0
-      : Number(state.quantity.replace(',', '.')) > 0 &&
-        Number(state.unitPrice.replace(',', '.')) > 0;
+      : state.type === 'CORP_ACTION' && state.corpKind !== 'bonificacao'
+        ? state.corpKind === 'subscricao'
+          ? Number(state.quantity.replace(',', '.')) > 0 &&
+            Number(state.unitPrice.replace(',', '.')) > 0
+          : Number(state.corpFactor.replace(',', '.')) > 1
+        : state.type === 'CORP_ACTION'
+          ? Number(state.corpPercent.replace(',', '.')) > 0
+          : state.syntheticCode
+            ? Number(state.quantity.replace(',', '.')) > 0
+            : Number(state.quantity.replace(',', '.')) > 0 &&
+              Number(state.unitPrice.replace(',', '.')) > 0;
 
   return (
     <div className="mx-auto w-full max-w-xl space-y-6 px-4 py-8">
@@ -180,6 +267,80 @@ export default function NovaTransacaoPage() {
             </div>
 
             <div className="space-y-2">
+              <label className="text-sm font-medium">Ou caixa sintético</label>
+              <div className="flex gap-2">
+                {syntheticOptions.map((o) => (
+                  <button
+                    key={o.code}
+                    type="button"
+                    onClick={() =>
+                      patch({
+                        syntheticCode: state.syntheticCode === o.code ? null : o.code,
+                        ticker: '',
+                        asset: null,
+                      })
+                    }
+                    className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+                      state.syntheticCode === o.code
+                        ? 'border-primary bg-primary/5 font-medium'
+                        : 'hover:bg-muted/50'
+                    }`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Para conta remunerada / caixa. ⛔ Tesouro e previdência como classe catalogada:
+                bloqueados (curadoria de ativos pendente).
+              </p>
+            </div>
+
+            {state.type === 'CORP_ACTION' ? (
+              <fieldset className="space-y-2 rounded-lg border p-3">
+                <legend className="px-1 text-sm font-medium">Evento</legend>
+                <div className="grid grid-cols-3 gap-2">
+                  {corpActionKinds.map((k) => (
+                    <button
+                      key={k.value}
+                      type="button"
+                      onClick={() => patch({ corpKind: k.value })}
+                      className={`rounded-lg border p-2 text-xs transition-colors ${
+                        state.corpKind === k.value
+                          ? 'border-primary bg-primary/5 font-medium'
+                          : 'hover:bg-muted/50'
+                      }`}
+                    >
+                      {k.label}
+                    </button>
+                  ))}
+                </div>
+                {state.corpKind === 'bonificacao' ? (
+                  <Input
+                    inputMode="decimal"
+                    placeholder="Percentual de bonificação (ex.: 10)"
+                    value={state.corpPercent}
+                    onChange={(e) => patch({ corpPercent: e.target.value })}
+                  />
+                ) : (
+                  <Input
+                    inputMode="decimal"
+                    placeholder={
+                      corpActionKinds.find((k) => k.value === state.corpKind)?.factorLabel
+                    }
+                    value={state.corpFactor}
+                    onChange={(e) => patch({ corpFactor: e.target.value })}
+                  />
+                )}
+                {state.corpKind === 'subscricao' ? null : (
+                  <p className="text-xs text-muted-foreground">
+                    A quantidade do evento é ajustada automaticamente sobre a posição existente.
+                  </p>
+                )}
+              </fieldset>
+            ) : null}
+
+            <div className="space-y-2">
               <label className="text-sm font-medium" htmlFor="broker">
                 Corretora
               </label>
@@ -211,8 +372,12 @@ export default function NovaTransacaoPage() {
                 Cancelar
               </Button>
               <Button
-                disabled={!state.ticker.trim() || !state.broker.trim()}
-                onClick={() => void lookupTicker()}
+                disabled={(!state.ticker.trim() && !state.syntheticCode) || !state.broker.trim()}
+                onClick={() =>
+                  state.syntheticCode
+                    ? (patch({ asset: null }), setTickerError(null), setStep(2))
+                    : void lookupTicker()
+                }
               >
                 Continuar
               </Button>
@@ -275,8 +440,61 @@ export default function NovaTransacaoPage() {
                     </p>
                   </div>
                 ) : null}
+                {state.syntheticCode && state.type === 'BUY' ? (
+                  <fieldset className="space-y-2 rounded-lg border p-3">
+                    <legend className="px-1 text-sm font-medium">
+                      Rendimento do caixa (opcional)
+                    </legend>
+                    <div className="grid grid-cols-3 gap-2">
+                      {indexerOptions.map((o) => (
+                        <button
+                          key={o.value}
+                          type="button"
+                          onClick={() => patch({ rfIndexer: o.value })}
+                          className={`rounded-lg border px-2 py-1.5 text-[11px] transition-colors ${
+                            state.rfIndexer === o.value
+                              ? 'border-primary bg-primary/5 font-medium'
+                              : 'hover:bg-muted/50'
+                          }`}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground" htmlFor="rf-taxa">
+                          {state.rfIndexer === 'CDI_PERCENT' ? '% do CDI' : 'Taxa % a.a.'}
+                        </label>
+                        <Input
+                          id="rf-taxa"
+                          inputMode="decimal"
+                          value={state.rfRate}
+                          onChange={(e) => patch({ rfRate: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground" htmlFor="rf-venc">
+                          Vencimento
+                        </label>
+                        <Input
+                          id="rf-venc"
+                          type="date"
+                          value={state.rfMaturity}
+                          onChange={(e) => patch({ rfMaturity: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Correção calculada localmente pelas séries oficiais (CDI/Selic/IPCA).
+                    </p>
+                  </fieldset>
+                ) : null}
                 <p className="text-sm tabular-nums text-muted-foreground">
-                  Total: {brl.format(total)}
+                  Total:{' '}
+                  {brl.format(
+                    state.syntheticCode ? Number(state.quantity.replace(',', '.') || 0) : total,
+                  )}
                 </p>
               </>
             ) : (
@@ -340,7 +558,17 @@ export default function NovaTransacaoPage() {
               label="Data"
               value={new Date(`${state.tradeDate}T12:00:00`).toLocaleDateString('pt-BR')}
             />
-            {state.type !== 'INCOME' ? (
+            {state.type === 'CORP_ACTION' ? (
+              <ReviewRow
+                label="Evento"
+                value={
+                  state.corpKind === 'bonificacao'
+                    ? `Bonificação de ${state.corpPercent}%`
+                    : `${corpActionKinds.find((k) => k.value === state.corpKind)?.label} ×${state.corpFactor}`
+                }
+              />
+            ) : null}
+            {state.type !== 'INCOME' && state.type !== 'CORP_ACTION' ? (
               <>
                 <ReviewRow label="Quantidade" value={state.quantity} />
                 <ReviewRow
@@ -357,7 +585,15 @@ export default function NovaTransacaoPage() {
             ) : (
               <ReviewRow label="Bruto recebido" value={brl.format(Number(state.quantity || 0))} />
             )}
-            <ReviewRow label="Total" value={brl.format(total)} strong />
+            <ReviewRow
+              label="Total"
+              value={brl.format(
+                state.syntheticCode && state.type === 'BUY'
+                  ? Number(state.quantity.replace(',', '.') || 0)
+                  : total,
+              )}
+              strong
+            />
 
             <div className="flex justify-between pt-2">
               <Button variant="ghost" onClick={() => setStep(2)}>

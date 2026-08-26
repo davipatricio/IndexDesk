@@ -796,3 +796,60 @@ export async function fetchPortfolioPerformance(
   if (!res.ok) throw await portfolioApiError(res, 'Falha ao calcular a rentabilidade da carteira.');
   return (await res.json()) as PerformanceResultDto;
 }
+
+// ---------------------------------------------------------------------------
+// Renda fixa (M-P3) — parâmetros por posição + timeline de vencimentos
+// ---------------------------------------------------------------------------
+
+export interface FixedIncomeParamDto {
+  id: string;
+  assetId: string | null;
+  syntheticIndexCode: string | null;
+  indexer: 'CDI_PERCENT' | 'CDI_PLUS' | 'SELIC' | 'IPCA_PLUS' | 'PREFIXED';
+  indexerRate: number;
+  principal: number;
+  startDate: string;
+  maturityDate: string;
+  liquidity: string;
+  taxRegime: string;
+  accruedValue: number;
+  lastAccrualDate: string | null;
+}
+
+export interface AttachFixedIncomeInput {
+  assetId?: string | null;
+  syntheticIndexCode?: string | null;
+  indexer: FixedIncomeParamDto['indexer'];
+  indexerRate: number;
+  principal: number;
+  startDate: string;
+  maturityDate: string;
+  liquidity?: string;
+  taxRegime?: string;
+}
+
+export interface TimelineItemDto {
+  date: string;
+  label: string;
+  kind: 'maturity' | 'liquidity';
+  amount: number;
+}
+
+export async function attachFixedIncome(
+  portfolioId: string,
+  input: AttachFixedIncomeInput,
+): Promise<FixedIncomeParamDto> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/portfolios/${portfolioId}/fixed-income`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw await portfolioApiError(res, 'Falha ao salvar parâmetros de renda fixa.');
+  return (await res.json()) as FixedIncomeParamDto;
+}
+
+export async function fetchPortfolioTimeline(portfolioId: string): Promise<TimelineItemDto[]> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/portfolios/${portfolioId}/timeline`);
+  if (!res.ok) throw await portfolioApiError(res, 'Falha ao obter vencimentos.');
+  return (await res.json()) as TimelineItemDto[];
+}
