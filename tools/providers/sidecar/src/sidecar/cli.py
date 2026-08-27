@@ -15,6 +15,9 @@ Layout::
     sidecar fe quotations --symbol KNCR11 [--fixture FILE]
     sidecar fe patrimonials --symbol KNCR11 [--fixture FILE]
     sidecar mr returns --symbol PETR4 --kind acoes|etf|fii|indice [--fixture FILE]
+    sidecar mr lista-acoes [--fixture FILE]
+    sidecar mr gestores [--fixture FILE]
+    sidecar mr administradores [--fixture FILE]
     sidecar i10 batch --tickers PETR4,VALE3,MXRF11 [--fixture FILE]
     sidecar i10 acao --symbol VALE3 [--fixture FILE]
     sidecar adv dividends --symbol PETR4 [--fixture FILE]
@@ -114,6 +117,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_returns.add_argument("--symbol", required=True)
     p_returns.add_argument("--kind", default="acoes", choices=["etf", "acoes", "fii", "indice"])
     p_returns.add_argument("--fixture", metavar="FILE")
+    p_mr_lista = mr_commands.add_parser("lista-acoes", help="lista completa de ações B3 (kind: company)")
+    p_mr_lista.add_argument("--fixture", metavar="FILE")
+    p_mr_gest = mr_commands.add_parser("gestores", help="gestoras de fundos B3 (kind: fund)")
+    p_mr_gest.add_argument("--fixture", metavar="FILE")
+    p_mr_adm = mr_commands.add_parser("administradores", help="administradoras (kind: fund)")
+    p_mr_adm.add_argument("--fixture", metavar="FILE")
 
     i10 = commands.add_parser("i10", help="Investidor10 (apis sem auth)")
     i10_commands = i10.add_subparsers(dest="i10_command", required=True)
@@ -219,6 +228,12 @@ def run(args: argparse.Namespace, out) -> int:
         pairs = fe_cmd.patrimonials(args.symbol, args.fixture)
     elif args.command == "mr" and args.mr_command == "returns":
         pairs = mr_cmd.returns(args.symbol, args.kind, args.fixture)
+    elif args.command == "mr" and args.mr_command == "lista-acoes":
+        pairs = mr_cmd.lista_acoes(args.fixture)
+    elif args.command == "mr" and args.mr_command == "gestores":
+        pairs = mr_cmd.gestores(args.fixture)
+    elif args.command == "mr" and args.mr_command == "administradores":
+        pairs = mr_cmd.administradores(args.fixture)
     elif args.command == "i10" and args.i10_command == "batch":
         pairs = i10_cmd.batch(args.tickers, args.fixture)
     elif args.command == "i10" and args.i10_command == "acao":

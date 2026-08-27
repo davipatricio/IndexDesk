@@ -80,8 +80,13 @@ def _fetch_next_data_json(
     slug: str,
     page: int | None = None,
 ) -> dict[str, Any]:
-    path = f"{tipo}/{slug}" if page in (None, 1) else f"{tipo}/{slug}/page/{page}"
-    url = f"{BASE_URL}/_next/data/{build_id}/{path}.json"
+    # /_next/data/{buildId}/{tipo}/{slug}.json for assets, but lists live at e.g. /lista-acoes.json vs /gestores.json (no slug).
+    if page is None:
+        path = f"{tipo}/{slug}" if slug else tipo
+        url = f"{BASE_URL}/_next/data/{build_id}/{path}.json"
+    else:
+        path = f"{tipo}/{slug}/page/{page}" if slug else f"{tipo}/page/{page}"
+        url = f"{BASE_URL}/_next/data/{build_id}/{path}.json"
     response = get(url, timeout=REQUEST_TIMEOUT_SECONDS)
     _error_for_status(response, url)
     try:
@@ -161,6 +166,128 @@ def returns(
                     )
                 )
         records.sort(key=lambda record: record["period"])
+
+    for record in records:
+        yield record, None
+
+
+def _paged_list(
+    get: HttpGet,
+    build_id: str,
+    kind: str,
+    key: str,
+) -> Iterator[dict[str, Any]]:
+    """Walk _next/data pages for a list-kind until pagination done.
+
+    MaisRetorno lists use rawList/list + pagination, not items.
+    Fallback to items so gestores/administradores keep working.
+    """
+    for page in range(1, 80):
+        payload = _fetch_next_data_json(get, build_id, kind, "", page if page > 1 else None)
+        if payload.get("pageProps") is None:
+            break
+        props = payload.get("pageProps")
+        assert isinstance(props, dict)
+        items = props.get("items") or props.get("rawList") or props.get("list") or []
+        if not isinstance(items, list) or not items:
+            break
+        for row in items:
+            if isinstance(row, dict):
+                yield row
+        pagination = props.get("pagination") or {}
+        pages_q = pagination.get("pages_quantity")
+        if isinstance(pages_q, int) and page >= pages_q:
+            break
+        if isinstance(pagination.get("total"), int) and pagination.get("total", 0) <= page * max(len(items), 1):
+            break
+
+
+def lista_acoes(
+    fixture: str | None,
+    *,
+    get: HttpGet | None = None,
+) -> Iterator[tuple[dict[str, Any], str | None]]:
+    """Command body for ``sidecar mr lista-acoes`` (kind: fund/company-ish)."""
+    if fixture is not None:
+        yield from ndjson.fixture_lines(fixture, "company")
+        return
+    from sidecar.schema import make_company  # local import: heavy module dep
+
+    with ndjson.stdout_guard():
+        if get is None:
+            get = _default_session_get()
+        build_id, get = _resolve_build_id(get)
+        records = []
+        for row in _paged_list(get, build_id, "lista-acoes", "items"):
+            # keys: cnpj, code_cvm, company_name, ticker, isin, situation, actuation_*
+            ticker = str(row.get("ticker") or "").strip().upper()
+            if not ticker:
+                continue
+            records.append(
+                make_company(
+                    cnpj=str(row.get("cnpj") or ""),
+                    code_cvm=str(row.get("code_cvm") or ""),
+                    issuing_company=str(row.get("issuer_company") or row.get("company_name") or ticker),
+                    trading_name=ticker,
+                    market_indicator="",
+                    date_listing=str(row.get("situation") or ""),
+                )
+            )
+        records.sort(key=lambda r: r["trading_name"])
+
+    for record in records:
+        yield record, None
+
+
+def gestores(
+    fixture: str | None,
+    *,
+    get: HttpGet | None = None,
+) -> Iterator[tuple[dict[str, Any], str | None]]:
+    """Command body for ``sidecar mr gestores`` (kind: fund — stored as fund_type=gestor)."""
+    if fixture is not None:
+        yield from ndjson.fixture_lines(fixture, "fund")
+        return
+    from sidecar.schema import make_fund
+
+    with ndjson.stdout_guard():
+        if get is None:
+            get = _default_session_get()
+        build_id, get = _resolve_build_id(get)
+        records = []
+        for row in _paged_list(get, build_id, "gestores", "items"):
+            cnpj = str(row.get("cnpj") or "")
+            ticker = cnpj  # CNPJ as synthetic ticker so kind stays fund
+            if not ticker:
+                continue
+            records.append(make_fund(ticker=ticker, name=str(row.get("nicename") or cnpj), fund_type="gestor"))
+
+    for record in records:
+        yield record, None
+
+
+def administradores(
+    fixture: str | None,
+    *,
+    get: HttpGet | None = None,
+) -> Iterator[tuple[dict[str, Any], str | None]]:
+    """Command body for ``sidecar mr administradores``."""
+    if fixture is not None:
+        yield from ndjson.fixture_lines(fixture, "fund")
+        return
+    from sidecar.schema import make_fund
+
+    with ndjson.stdout_guard():
+        if get is None:
+            get = _default_session_get()
+        build_id, get = _resolve_build_id(get)
+        records = []
+        for row in _paged_list(get, build_id, "administradores", "items"):
+            ticker = str(row.get("slug") or row.get("id") or "")
+            ticker = ticker.strip().upper()
+            if not ticker:
+                continue
+            records.append(make_fund(ticker=ticker, name=str(row.get("nicename") or ticker), fund_type="administrador"))
 
     for record in records:
         yield record, None
