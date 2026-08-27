@@ -12,6 +12,24 @@ public sealed record PortfolioDto(
     DateTime CreatedAt
 );
 
+/// <summary>
+/// Item da listagem enriquecido para a tabela do dashboard: série diária de patrimônio
+/// dos últimos 30 dias (sparkline) + retornos. Série vazia quando a carteira não tem
+/// snapshots no período (nunca busca mercado em tempo real — só portfolio_daily_snapshots).
+/// </summary>
+public sealed record PortfolioListItemDto(
+    Guid Id,
+    string Title,
+    string? Description,
+    string RiskProfile,
+    string Visibility,
+    string PublicValuesMode,
+    DateTime CreatedAt,
+    IReadOnlyList<decimal> Series30d,
+    decimal? ReturnPercentMonth,
+    decimal? ReturnPercentTotal
+);
+
 public sealed record PositionDto(
     Guid? AssetId,
     string Ticker,

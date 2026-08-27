@@ -69,6 +69,82 @@ public sealed class PortfolioService(IndexDeskDbContext db) : IPortfolioService
         return Result<IReadOnlyList<PortfolioDto>>.Success(portfolios.Select(ToDto).ToList());
     }
 
+    public async Task<Result<IReadOnlyList<PortfolioListItemDto>>> ListWithSeriesAsync(
+        Guid userId,
+        CancellationToken ct
+    )
+    {
+        var portfolios = await db
+            .Portfolios.Where(p => p.UserId == userId)
+            .OrderBy(p => p.CreatedAt)
+            .ToListAsync(ct);
+
+        // Uma única query agregada para TODA a lista (nunca N+1): agrupa os snapshots dos
+        // últimos 30 dias por carteira já no Postgres. Série vazia quando não há snapshots.
+        var ids = portfolios.Select(p => p.Id).ToList();
+        var cutoff = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-30));
+        var grouped = await db
+            .PortfolioDailySnapshots.Where(s =>
+                ids.Contains(s.PortfolioId) && s.SnapshotDate >= cutoff
+            )
+            .GroupBy(s => s.PortfolioId)
+            .Select(g => new
+            {
+                PortfolioId = g.Key,
+                Values = g.OrderBy(s => s.SnapshotDate).Select(s => s.TotalValue).ToList(),
+            })
+            .ToListAsync(ct);
+        var seriesByPortfolio = grouped.ToDictionary(g => g.PortfolioId, g => g.Values);
+
+        // Âncoras do retorno TOTAL (desde o primeiro snapshot de cada carteira): agregada
+        // no Postgres — primeiro e último valor por carteira, uma query agrupada a mais.
+        var anchors = await db
+            .PortfolioDailySnapshots.Where(s => ids.Contains(s.PortfolioId))
+            .GroupBy(s => s.PortfolioId)
+            .Select(g => new
+            {
+                PortfolioId = g.Key,
+                FirstValue = g.OrderBy(s => s.SnapshotDate).First().TotalValue,
+                LastValue = g.OrderByDescending(s => s.SnapshotDate).First().TotalValue,
+            })
+            .ToListAsync(ct);
+        var anchorsByPortfolio = anchors
+            .Where(a => a.FirstValue > 0 && a.LastValue > 0)
+            .ToDictionary(a => a.PortfolioId, a => (a.FirstValue, a.LastValue));
+
+        return Result<IReadOnlyList<PortfolioListItemDto>>.Success(
+            portfolios
+                .Select(p =>
+                {
+                    var series = seriesByPortfolio.GetValueOrDefault(p.Id, []);
+                    var hasPair = series.Count >= 2;
+                    var first = hasPair ? series[0] : 0m;
+                    var last = series.Count > 0 ? series[^1] : 0m;
+                    decimal? returnPercentMonth =
+                        hasPair && first > 0 ? decimal.Round((last / first - 1m) * 100m, 2) : null;
+                    decimal? returnPercentTotal = null;
+                    if (anchorsByPortfolio.TryGetValue(p.Id, out var anchor))
+                        returnPercentTotal = decimal.Round(
+                            (anchor.LastValue / anchor.FirstValue - 1m) * 100m,
+                            2
+                        );
+                    return new PortfolioListItemDto(
+                        p.Id,
+                        p.Title,
+                        p.Description,
+                        p.RiskProfile,
+                        p.Visibility,
+                        p.PublicValuesMode,
+                        p.CreatedAt,
+                        series,
+                        returnPercentMonth,
+                        returnPercentTotal
+                    );
+                })
+                .ToList()
+        );
+    }
+
     public async Task<Result<PortfolioSummaryDto>> GetSummaryAsync(
         Guid userId,
         Guid portfolioId,

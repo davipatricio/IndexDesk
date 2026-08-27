@@ -10,6 +10,10 @@ public interface IPortfolioService
         CancellationToken ct
     );
     Task<Result<IReadOnlyList<PortfolioDto>>> ListAsync(Guid userId, CancellationToken ct);
+    Task<Result<IReadOnlyList<PortfolioListItemDto>>> ListWithSeriesAsync(
+        Guid userId,
+        CancellationToken ct
+    );
     Task<Result<PortfolioSummaryDto>> GetSummaryAsync(
         Guid userId,
         Guid portfolioId,
