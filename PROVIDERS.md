@@ -575,7 +575,19 @@ Providers__AwesomeApi__BaseUrl="https://economia.awesomeapi.com.br/"
 Providers__AwesomeApi__Token=""
 
 # InfoMoney secundária (fora da cadeia; backfill explícito)
-Providers__InfoMoney__SubscriptionKeys__0=""
+Providers__InfoMoney__SubscriptionKeys__0=
+
+# MSB cookies (WAF Akamai/FP):
+# - MSN etfdetails (assets.msn.com/service/Finance): requer warm-up na página (MUID/_EDGE_*/ANON)
+#   e apikey do bundle — PROBEOU 401 sem sessão (app auth db). Guardado como cookie rotativo,
+#   NÃO é Bearer. Ver PROVIDERS.md §2.19 se reativar (sidecar Session(impersonate="chrome")).
+Providers__Msn__Cookie=
+
+# Opcoes.net.br precisa só de timestamp z=seg/10 como bust; sem cookie, sem key — deixado anônimo
+# MaisRetorno data.maisretorno.com/api/v3 é gated PRO (Cookie -> /api/auth/session -> Bearer
+# accessToken aud mrdata, mas 403 sem role paga). Canal público usado é _next/data/{buildId}
+# (sem auth), varrido em /tmp/opencode/mr-deep. Bourbon-620 PRO varreria como
+# Authorization: Bearer $accessToken originando de __Secure-next-auth.session-token""
 
 # Holdings — It Now via transporte sidecar (Akamai); mapa fundCode semeado no appsettings.json
 Providers__Holdings__ItNow__Transport="sidecar"
