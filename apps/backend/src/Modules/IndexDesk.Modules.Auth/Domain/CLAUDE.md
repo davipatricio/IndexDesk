@@ -15,7 +15,9 @@ DTOs de request/response da API de autenticação. Entidades persistidas (`UserE
 | :--- | :--- |
 | `SignUpRequest(Email, Password, FullName)` | payload de `POST /api/v1/auth/signup`. |
 | `SignInRequest(Email, Password)` | payload de `POST /api/v1/auth/signin`. |
-| `UserDto(Id, Email, FullName, Roles, Permissions)` | perfil retornado por signup/signin/refresh/me; listas somente-leitura. |
+| `UserDto(Id, Email, FullName, Roles, Permissions, Preferences)` | perfil retornado por signup/signin/refresh/me e patch /users/me; listas somente-leitura e record `UserPreferencesDto(HideValues)`. |
+| `UserPreferencesDto(HideValues)` | preferências do usuário (ex.: toggle "Esconder dados"). |
+| `UpdateUserPreferencesRequest(HideValues)` | payload de `PATCH /api/v1/users/me` (`HideValues` bool obrigatório). |
 | `AuthResponse(AccessToken, RefreshToken, ExpiresIn, User)` | resposta com o par de tokens; o refresh também vai como cookie HttpOnly pelo endpoint. |
 
 Todos são records `sealed` imutáveis, sem lógica nem validação interna (validação vive em

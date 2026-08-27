@@ -13,8 +13,8 @@ falha de negócio.
 
 | Tipo | Papel |
 | :--- | :--- |
-| `IAuthService` | Contrato: `SignUpAsync`, `SignInAsync`, `RefreshTokenAsync`, `SignOutAsync`, `GetCurrentUserAsync` (todos recebem IP/UserAgent quando aplicável). |
-| `AuthService` | Implementação scoped: valida e normaliza entrada, hasheia senha via `IPasswordHasher`, emite par de tokens via `ITokenService`, persiste `RefreshTokenEntity` com hash + IP/UserAgent, monta o `UserDto` com roles/permissions. |
+| `IAuthService` | Contrato: `SignUpAsync`, `SignInAsync`, `RefreshTokenAsync`, `SignOutAsync`, `GetCurrentUserAsync`, `UpdatePreferencesAsync` (todos recebem IP/UserAgent quando aplicável). |
+| `AuthService` | Implementação scoped: valida e normaliza entrada, hasheia senha via `IPasswordHasher`, emite par de tokens via `ITokenService`, persiste `RefreshTokenEntity` com hash + IP/UserAgent, monta o `UserDto` com roles/permissions/preferences. |
 
 Dependências injetadas: `IndexDeskDbContext`, `IPasswordHasher`, `ITokenService`, `IConfiguration`.
 

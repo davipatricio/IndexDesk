@@ -2,7 +2,10 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using FluentAssertions;
+using IndexDesk.BuildingBlocks.Persistence;
+using IndexDesk.BuildingBlocks.Persistence.Entities;
 using IndexDesk.IntegrationTests.Auth;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace IndexDesk.IntegrationTests.Portfolio;
@@ -66,6 +69,98 @@ public class PortfolioEndpointsTests : IClassFixture<AuthWebApplicationFactory>
 
         var list = await client.GetFromJsonAsync<List<PortfolioItem>>("/api/v1/portfolios");
         list.Should().HaveCount(3);
+    }
+
+    [Fact]
+    public async Task List_ReturnsSeries30d_ReturnsAndEmptySeries()
+    {
+        var token = await NewUserTokenAsync();
+        var client = NewClientWith(token);
+
+        // Carteira 1: snapshots suficientes (2 pontos na janela de 30 dias).
+        var pf1 = await (
+            await client.PostAsJsonAsync("/api/v1/portfolios", new { title = "Com série" })
+        ).Content.ReadFromJsonAsync<PortfolioItem>();
+
+        // Carteira 2: sem nenhum snapshot no período.
+        var pf2 = await (
+            await client.PostAsJsonAsync("/api/v1/portfolios", new { title = "Sem série" })
+        ).Content.ReadFromJsonAsync<PortfolioItem>();
+
+        // Carteira 3: snapshot antigo (fora da janela de 30 dias) — série vazia,
+        // mas retorno total existe (âncora antes do cutoff).
+        var pf3 = await (
+            await client.PostAsJsonAsync("/api/v1/portfolios", new { title = "Só antigo" })
+        ).Content.ReadFromJsonAsync<PortfolioItem>();
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        await SeedSnapshotAsync(pf1!.Id, today.AddDays(-2), 1000m);
+        await SeedSnapshotAsync(pf1.Id, today, 1035m);
+        await SeedSnapshotAsync(pf3!.Id, today.AddDays(-60), 100m);
+        await SeedSnapshotAsync(pf3.Id, today.AddDays(-40), 110m);
+
+        var list = await client.GetFromJsonAsync<List<ListItem>>("/api/v1/portfolios");
+        list.Should().HaveCount(3);
+
+        var withSeries = list!.Single(i => i.Id == pf1.Id);
+        withSeries.Series30d.Should().Equal([1000m, 1035m]); // antigo → recente, 2 casas
+        withSeries.ReturnPercentMonth.Should().Be(3.5m);
+        withSeries.ReturnPercentTotal.Should().Be(3.5m);
+
+        var empty = list.Single(i => i.Id == pf2!.Id);
+        empty.Series30d.Should().BeEmpty();
+        empty.ReturnPercentMonth.Should().BeNull();
+        empty.ReturnPercentTotal.Should().BeNull();
+
+        var oldOnly = list.Single(i => i.Id == pf3!.Id);
+        oldOnly.Series30d.Should().BeEmpty(); // snapshots fora da janela de 30 dias
+        oldOnly.ReturnPercentMonth.Should().BeNull();
+        oldOnly.ReturnPercentTotal.Should().Be(10m); // 110/100 - 1
+
+        var ids = list.Select(i => i.Id).ToHashSet();
+        ids.Should().Contain([pf1!.Id, pf2!.Id, pf3!.Id]);
+    }
+
+    [Fact]
+    public async Task List_SeriesIsolatedPerPortfolio_NoCrossLeak()
+    {
+        var token = await NewUserTokenAsync();
+        var client = NewClientWith(token);
+
+        var a = await (
+            await client.PostAsJsonAsync("/api/v1/portfolios", new { title = "A" })
+        ).Content.ReadFromJsonAsync<PortfolioItem>();
+        var b = await (
+            await client.PostAsJsonAsync("/api/v1/portfolios", new { title = "B" })
+        ).Content.ReadFromJsonAsync<PortfolioItem>();
+
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        await SeedSnapshotAsync(a!.Id, today.AddDays(-1), 100m);
+        await SeedSnapshotAsync(a.Id, today, 150m);
+        await SeedSnapshotAsync(b!.Id, today, 7m);
+
+        var list = await client.GetFromJsonAsync<List<ListItem>>("/api/v1/portfolios");
+
+        var byId = list!.ToDictionary(i => i.Id);
+        byId[a.Id].Series30d.Should().Equal([100m, 150m]);
+        byId[a.Id].ReturnPercentMonth.Should().Be(50m);
+        byId[b.Id].Series30d.Should().Equal([7m]); // série própria, não herdou de A
+        byId[b.Id].ReturnPercentMonth.Should().BeNull(); // < 2 pontos
+    }
+
+    private async Task SeedSnapshotAsync(Guid portfolioId, DateOnly date, decimal totalValue)
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<IndexDeskDbContext>();
+        db.PortfolioDailySnapshots.Add(
+            new PortfolioDailySnapshotEntity
+            {
+                PortfolioId = portfolioId,
+                SnapshotDate = date,
+                TotalValue = totalValue,
+            }
+        );
+        await db.SaveChangesAsync();
     }
 
     [Fact]
@@ -208,6 +303,14 @@ public class PortfolioEndpointsTests : IClassFixture<AuthWebApplicationFactory>
     private sealed record AuthResponse(string AccessToken, int ExpiresIn);
 
     private sealed record PortfolioItem(Guid Id, string Title);
+
+    private sealed record ListItem(
+        Guid Id,
+        string Title,
+        IReadOnlyList<decimal> Series30d,
+        decimal? ReturnPercentMonth,
+        decimal? ReturnPercentTotal
+    );
 
     private sealed record TransactionItem(Guid Id, bool IsAmendment);
 

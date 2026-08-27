@@ -21,6 +21,7 @@ create table users (
   "IsActive" boolean not null default true,
   "EmailVerified" boolean not null default false,
   "LastLoginAt" timestamptz,
+  "Preferences" jsonb not null default '{}',
   "CreatedAt" timestamptz not null default now(),
   "UpdatedAt" timestamptz not null default now()
 );

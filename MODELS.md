@@ -315,6 +315,7 @@ CREATE TABLE users (
     full_name VARCHAR(150) NOT NULL,
     role user_role_enum NOT NULL DEFAULT 'USER', -- Permite acesso ao painel /admin
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    preferences JSONB NOT NULL DEFAULT '{}',     -- UI prefs (ex.: hideValues do privacy toggle)
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -182,13 +182,119 @@ public class AuthEndpointsTests : IClassFixture<AuthWebApplicationFactory>
         clearCookie.ToLowerInvariant().Should().Contain("expires=");
     }
 
+    [Fact]
+    public async Task GetMe_WithoutPreferencesSet_ReturnsHideValuesFalse()
+    {
+        // Arrange
+        var (client, accessToken, _) = await SignUpAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var me = await response.Content.ReadFromJsonAsync<TestUserDto>();
+        me.Should().NotBeNull();
+        me!.Preferences.Should().NotBeNull();
+        me.Preferences.HideValues.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PatchUsersMe_WithHideValuesTrue_UpdatesAndPersists()
+    {
+        // Arrange
+        var (client, accessToken, _) = await SignUpAsync();
+
+        using var patch = new HttpRequestMessage(HttpMethod.Patch, "/api/v1/users/me")
+        {
+            Content = JsonContent.Create(new { hideValues = true }),
+        };
+        patch.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        // Act — PATCH
+        var patchResponse = await client.SendAsync(patch);
+
+        // Assert — PATCH returns the same shape as /me, updated
+        patchResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var patched = await patchResponse.Content.ReadFromJsonAsync<TestUserDto>();
+        patched.Should().NotBeNull();
+        patched!.Preferences.HideValues.Should().BeTrue();
+
+        // Assert — GET /me reflects the persisted value
+        using var me = new HttpRequestMessage(HttpMethod.Get, "/api/v1/auth/me");
+        me.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        var meResponse = await client.SendAsync(me);
+        meResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var refreshed = await meResponse.Content.ReadFromJsonAsync<TestUserDto>();
+        refreshed!.Preferences.HideValues.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task PatchUsersMe_WithoutToken_Returns401Unauthorized()
+    {
+        // Arrange
+        var client = _factory.CreateClient();
+
+        // Act
+        var response = await client.PatchAsJsonAsync("/api/v1/users/me", new { hideValues = true });
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task PatchUsersMe_WithMissingHideValues_Returns400BadRequest()
+    {
+        // Arrange — body without the required hideValues field
+        var (client, accessToken, _) = await SignUpAsync();
+
+        using var request = new HttpRequestMessage(HttpMethod.Patch, "/api/v1/users/me")
+        {
+            Content = JsonContent.Create(new { someOtherField = true }),
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    private async Task<(HttpClient Client, string AccessToken, Guid UserId)> SignUpAsync()
+    {
+        var client = _factory.CreateClient();
+        var response = await client.PostAsJsonAsync(
+            "/api/v1/auth/signup",
+            new
+            {
+                email = NewEmail(),
+                password = "SecurePassword123!",
+                fullName = "Preferences User",
+            }
+        );
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var body = await response.Content.ReadFromJsonAsync<TestAuthResponse>();
+        body.Should().NotBeNull();
+
+        return (client, body!.AccessToken, body.User.Id);
+    }
+
     // Mirrors the wire contract without coupling the test to module internals.
+    private sealed record TestUserPreferences(bool HideValues);
+
     private sealed record TestUserDto(
         Guid Id,
         string Email,
         string FullName,
         IReadOnlyList<string> Roles,
-        IReadOnlyList<string> Permissions
+        IReadOnlyList<string> Permissions,
+        TestUserPreferences Preferences
     );
 
     private sealed record TestAuthResponse(string AccessToken, int ExpiresIn, TestUserDto User);

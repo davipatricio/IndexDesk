@@ -76,6 +76,7 @@ public static class AuthModuleExtensions
 
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
-        return AuthEndpoints.MapAuthEndpoints(app);
+        AuthEndpoints.MapAuthEndpoints(app);
+        return UserEndpoints.MapUserEndpoints(app);
     }
 }
