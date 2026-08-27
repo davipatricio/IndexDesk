@@ -15,6 +15,9 @@ Layout::
     sidecar fe quotations --symbol KNCR11 [--fixture FILE]
     sidecar fe patrimonials --symbol KNCR11 [--fixture FILE]
     sidecar mr returns --symbol PETR4 --kind acoes|etf|fii|indice [--fixture FILE]
+    sidecar i10 batch --tickers PETR4,VALE3,MXRF11 [--fixture FILE]
+    sidecar i10 acao --symbol VALE3 [--fixture FILE]
+    sidecar adv dividends --symbol PETR4 [--fixture FILE]
     sidecar fetch        --url URL [--method GET|POST] [--data BODY]
                          [--header "K: V" ...] [--timeout-s N] [--b64]
 
@@ -28,7 +31,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-from sidecar import b3_cmd, fe_cmd, fetch_cmd, im_cmd, mr_cmd, ndjson, tv_cmd, yf_cmd
+from sidecar import ad_cmd, b3_cmd, cf_cmd, fe_cmd, fetch_cmd, i10_cmd, im_cmd, mr_cmd, ndjson, tv_cmd, yf_cmd
 from sidecar.errors import EXIT_OK, EXIT_PARSE, SidecarError
 
 
@@ -112,6 +115,29 @@ def build_parser() -> argparse.ArgumentParser:
     p_returns.add_argument("--kind", default="acoes", choices=["etf", "acoes", "fii", "indice"])
     p_returns.add_argument("--fixture", metavar="FILE")
 
+    i10 = commands.add_parser("i10", help="Investidor10 (apis sem auth)")
+    i10_commands = i10.add_subparsers(dest="i10_command", required=True)
+    p_batch = i10_commands.add_parser("batch", help="cotação lote close-only (kind: quote)")
+    p_batch.add_argument("--tickers", required=True, help="CSV: PETR4,VALE3,MXRF11")
+    p_batch.add_argument("--fixture", metavar="FILE")
+    p_acao = i10_commands.add_parser("acao", help="série close diária (kind: quote)")
+    p_acao.add_argument("--symbol", required=True)
+    p_acao.add_argument("--fixture", metavar="FILE")
+
+    adv = commands.add_parser("adv", help="ADVFN BR (dividendos HTML)")
+    adv_commands = adv.add_subparsers(dest="adv_command", required=True)
+    p_adv_div = adv_commands.add_parser("dividends", help="histórico Data-Ex/Valor (kind: dividend)")
+    p_adv_div.add_argument("--symbol", required=True)
+    p_adv_div.add_argument("--fixture", metavar="FILE")
+
+    cf = commands.add_parser("cf", help="ClubeFII (lista + FII)")
+    cf_commands = cf.add_subparsers(dest="cf_command", required=True)
+    p_cf_lista = cf_commands.add_parser("lista", help="FII listados (kind: fund)")
+    p_cf_lista.add_argument("--fixture", metavar="FILE")
+    p_cf_one = cf_commands.add_parser("fundos", help="detalhe de um FII (kind: fund)")
+    p_cf_one.add_argument("--symbol", required=True)
+    p_cf_one.add_argument("--fixture", metavar="FILE")
+
     p_fetch = commands.add_parser(
         "fetch",
         help="generic HTTP GET/POST through curl_cffi (WAF-safe transport)",
@@ -193,6 +219,16 @@ def run(args: argparse.Namespace, out) -> int:
         pairs = fe_cmd.patrimonials(args.symbol, args.fixture)
     elif args.command == "mr" and args.mr_command == "returns":
         pairs = mr_cmd.returns(args.symbol, args.kind, args.fixture)
+    elif args.command == "i10" and args.i10_command == "batch":
+        pairs = i10_cmd.batch(args.tickers, args.fixture)
+    elif args.command == "i10" and args.i10_command == "acao":
+        pairs = i10_cmd.acao(args.symbol, args.fixture)
+    elif args.command == "adv" and args.adv_command == "dividends":
+        pairs = ad_cmd.dividends(args.symbol, args.fixture)
+    elif args.command == "cf" and args.cf_command == "lista":
+        pairs = cf_cmd.lista(args.fixture)
+    elif args.command == "cf" and args.cf_command == "fundos":
+        pairs = cf_cmd.fundos(args.symbol, args.fixture)
     else:  # pragma: no cover - argparse enforces the combinations
         raise SidecarError("Usage.Invalid", f"unknown command {args.command}", 2)
     count = _write_pairs(pairs, out)
