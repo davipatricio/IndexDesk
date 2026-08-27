@@ -251,14 +251,15 @@ sidecar fetch --url URL [--method POST] [--data BODY] [--header "K: V"] [--b64] 
 
 ### 2.7. Yahoo Finance via Sidecar (OHLCV slot 2 + Benchmarks)
 
-- **Tipo:** API não-oficial acessada pelo comando `sidecar yf` (lib `yfinance` + curl_cffi)
-- **Autenticação:** Nenhuma — o anti-bloqueio vem do TLS fingerprint do `curl_cffi`
-  (impersonate=chrome), que contorna cookie/crumb challenges sem spoof manual de headers.
+- **Tipo:** API não-oficial `query1/2.finance.yahoo.com/v8/finance/chart/{T}.SA` via `sidecar yf` (`yfinance==1.6.0` + `curl_cffi impersonate=chrome`)
+- **Autenticação:** triplo (crumb): cookies `A1/A3/A1S` (`finance.yahoo.com` domain) + `crumb` de `fc.yahoo.com` + `Origin: https://finance.yahoo.com` & `Referer: /chart/{T}.SA` + `source=cosaic` (ATS) — `query1` devolve `yfinance` sem isso 401/crumb-mismatch e `set-cookie: _SUPERFLY_lockout_finance=1` + `ATS`. `curl_cffi` já covera; cookie extra opcional `Providers__Yahoo__Cookie` (warm-up `finance.yahoo.com/chart/{T}.SA`) só se yfinance der `Unauthorized`.
 
-#### Regras de símbolo
+#### Regras de símbolo & v8 raw
 
 - Sufixo **`.SA` obrigatório** para B3: bare `BOVA11` = vazio/404; `PETR4.SA`, `BOVA11.SA` ok
   (o cliente C# mapeia e o sidecar normaliza bare → `.SA`).
+- v8 raw medido 27/08/2026 `VWRA11.SA` `events=div|split|earn&source=cosaic` → `meta.instrumentType="EQUITY"`,
+  `events:{}` vazio — muitos ETF/BDR-ETF B3 realmente sem distribuição no Yahoo (gap de dados, não bug client).
 - Benchmarks: `^BVSP` (Ibovespa), `^GSPC`, `^IXIC`, `USDBRL=X`, `GC=F`.
 - IFIX: série **forward-only** (Yahoo não expõe histórico do índice).
 

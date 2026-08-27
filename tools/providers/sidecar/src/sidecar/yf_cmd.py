@@ -1,9 +1,16 @@
 """``sidecar yf ...`` - Yahoo Finance via yfinance (pinned 1.6.0).
 
-Notes from Fase 0 measurements:
+Notes from Fase 0 + 26-27/08/2026 probes:
 - B3 tickers need the ``.SA`` suffix (handled by :func:`sidecar.symbols.yf_symbol`).
-- Dividends can legitimately be empty (e.g. BOVA11 has none on Yahoo) - empty
-  output is valid NDJSON (zero lines), never an error.
+- Dividend stream (events=div|split|earn) can be empty for many BDR-ETF/ETF
+  B3 (VWRA11 0, BOVA11 0). So is Yahoo v8: events keys [] even with
+  source=cosaic. MSN-style gap → not a client bug, data gap at Yahoo.
+- Yahoo v8 `query1.finance.yahoo.com` needs triplo: cookies A1/A3/A1S,
+  crumb from fc.yahoo.com, Origin https://finance.yahoo.com + Referer
+  /chart/{T}.SA — curl_cffi impersonate=chrome covers it. User cookie
+  optional via Providers__Yahoo__Cookie (warm-up fallback via sidecar if needed).
+- Raw capture 27/08: source=cosaic, interval=1d, includePrePost, lang en-US,
+  ATS + _SUPERFLY_lockout_finance cookie.
 """
 
 from __future__ import annotations
