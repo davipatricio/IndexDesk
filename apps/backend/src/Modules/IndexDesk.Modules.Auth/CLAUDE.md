@@ -4,7 +4,7 @@
 > Contexto geral: [`../../../CLAUDE.md`](../../../CLAUDE.md). **Do not modify code** when only
 > instruction updates are requested.
 
-## Endpoints (`/api/v1/auth`, grupo `Auth`)
+## Endpoints (`/api/v1/auth` e `/api/v1/users`, grupos `Auth` e `Users`)
 
 | Rota | Método | Auth | Contrato |
 | :--- | :--- | :--- | :--- |
@@ -12,7 +12,8 @@
 | `/signin` | POST | anônima | 200 `AuthResponse` · cookie refresh setado |
 | `/refresh` | POST | cookie | 200 rotação: lê cookie → revoga antigo (`ReplacedByTokenHash`) → novo par |
 | `/signout` | POST | cookie opc. | 204: revoga token atual + limpa cookie |
-| `/me` | GET | `RequireAuthorization()` | 200 `UserDto` (roles + permissions) |
+| `/me` | GET | `RequireAuthorization()` | 200 `UserDto` (roles + permissions + `preferences: { hideValues }`) |
+| `/api/v1/users/me` | PATCH | `RequireAuthorization()` | 200 `UserDto` atualizado · body `{ "hideValues": bool }` obrigatório |
 
 Mapeamento de erros no endpoint (`ErrorToResult`): `Auth.Unauthorized` → 401 vazio;
 código `Conflict` → 409 `{message}`; demais validações/falhas → 400 `{message}`.

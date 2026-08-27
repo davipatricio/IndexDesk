@@ -17,13 +17,18 @@ public sealed class AuthCookieService : IAuthCookieService
     /// em que a API e o frontend vivem em origens diferentes (ex.: túneis HTTPS separados).
     /// Sem ele, o cookie de refresh não viaja no fetch cross-site e o refresh silencioso quebra.
     /// </summary>
-    public AuthCookieService(IHostEnvironment? environment = null, IConfiguration? configuration = null)
+    public AuthCookieService(
+        IHostEnvironment? environment = null,
+        IConfiguration? configuration = null
+    )
     {
         _environment = environment;
         _crossSite =
             configuration?.GetValue<bool>("Auth:CookieCrossSite")
-            ?? bool.TryParse(Environment.GetEnvironmentVariable("Auth__CookieCrossSite"), out var env)
-                && env;
+            ?? bool.TryParse(
+                Environment.GetEnvironmentVariable("Auth__CookieCrossSite"),
+                out var env
+            ) && env;
     }
 
     public void SetRefreshTokenCookie(HttpContext context, string token, DateTime expiresAt)
@@ -52,7 +57,8 @@ public sealed class AuthCookieService : IAuthCookieService
         var options = new CookieOptions
         {
             HttpOnly = true,
-            Secure = _crossSite || context.Request.IsHttps || !(_environment?.IsDevelopment() ?? false),
+            Secure =
+                _crossSite || context.Request.IsHttps || !(_environment?.IsDevelopment() ?? false),
             SameSite = _crossSite ? SameSiteMode.None : SameSiteMode.Lax,
             Path = AuthPath,
             Expires = DateTimeOffset.UtcNow.AddDays(-1),

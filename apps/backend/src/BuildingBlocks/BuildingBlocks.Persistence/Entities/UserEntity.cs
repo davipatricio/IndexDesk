@@ -12,6 +12,13 @@ public class UserEntity
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// UI preferences stored as a jsonb object (default <c>{"{}"}</c>). Parsed by the Auth
+    /// module's <c>UserPreferencesCodec</c>; unknown keys are preserved, missing ones
+    /// fall back to defaults (e.g. <c>hideValues = false</c>).
+    /// </summary>
+    public string Preferences { get; set; } = "{}";
+
     public ICollection<UserRoleEntity> UserRoles { get; set; } = new List<UserRoleEntity>();
     public ICollection<RefreshTokenEntity> RefreshTokens { get; set; } =
         new List<RefreshTokenEntity>();

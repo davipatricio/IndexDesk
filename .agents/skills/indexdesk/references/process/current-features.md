@@ -6,10 +6,10 @@
 
 ## API .NET (`apps/backend/src/IndexDesk.Api`)
 
-### `/api/v1/auth` (módulo Auth)
-`POST /signup` · `POST /signin` · `POST /refresh` · `POST /signout` · `GET /me` (autenticado).
+### `/api/v1/auth` e `/api/v1/users` (módulo Auth)
+`POST /signup` · `POST /signin` · `POST /refresh` · `POST /signout` · `GET /me` (autenticado, inclui `preferences`) · `PATCH /api/v1/users/me` (autenticado, toggle `hideValues`).
 Detalhes/contratos: [`../../../../apps/backend/src/Modules/IndexDesk.Modules.Auth/CLAUDE.md`](../../../../../apps/backend/src/Modules/IndexDesk.Modules.Auth/CLAUDE.md)
-(resumo também na skill: hashing Argon2id, rotação de refresh, RBAC `PERMISSION:`).
+(resumo também na skill: hashing Argon2id, rotação de refresh, RBAC `PERMISSION:`, preferências de usuário jsonb).
 
 ### `/api/v1/assets` (módulo MarketData)
 | Rota | Nome | Função |
@@ -206,9 +206,7 @@ Autenticado (JWT; policies `portfolio:read`/`portfolio:write`). Plano vivo:
   identidade ("Investidor X"), clone 1 clique normalizando pesos; goals CRUD + projeção
   (`portfolio_goals`, DDL 06); export CSV pt-BR em `/export/*.csv`. Pendente: página pública
   /c/[slug], UI metas/alocação-alvo, XLSX (⛔ pacote), social.
-- Frontend: grupo `(dashboard)` autenticado client-side — `/dashboard` (consolidado),
-  `/dashboard/carteiras/nova`, `/dashboard/c/[id]`, `/dashboard/c/[id]/transacoes/nova`
-  (wizard 3 etapas + revisão). Fetchers em `lib/api-client.ts`.
+- Frontend: grupo `(dashboard)` com layout app shell dedicado (`DashboardShell` com sidebar retrátil, drawer mobile via Sheet, atalho global `Ctrl+.` para alternar "Esconder dados", busca `q` sincronizada entre header/sidebar/tabela, e `MaskedValue`/`BlurChart` exportados). Rotas: `/dashboard` (consolidado), `/dashboard/carteiras/nova`, `/dashboard/c/[id]`, `/dashboard/c/[id]/transacoes/nova`. Fetchers em `lib/api-client.ts`, store em `stores/privacy-store.ts`.
 
 ### `/api/v1/providers` (MarketData)
 - `GET /health` — saúde por provider agregada de `sync_job_logs`.

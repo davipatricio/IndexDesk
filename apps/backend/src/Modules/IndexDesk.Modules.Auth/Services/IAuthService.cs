@@ -29,4 +29,10 @@ public interface IAuthService
     Task<Result> SignOutAsync(string rawRefreshToken, CancellationToken ct = default);
 
     Task<Result<UserDto>> GetCurrentUserAsync(Guid userId, CancellationToken ct = default);
+
+    Task<Result<UserDto>> UpdatePreferencesAsync(
+        Guid userId,
+        UpdateUserPreferencesRequest request,
+        CancellationToken ct = default
+    );
 }

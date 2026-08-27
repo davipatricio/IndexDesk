@@ -264,6 +264,36 @@ public sealed class AuthService : IAuthService
             : Result<UserDto>.Success(dto);
     }
 
+    public async Task<Result<UserDto>> UpdatePreferencesAsync(
+        Guid userId,
+        UpdateUserPreferencesRequest request,
+        CancellationToken ct = default
+    )
+    {
+        if (request.HideValues is null)
+        {
+            return Result<UserDto>.Failure(
+                Error.Validation("MissingHideValues", "The hideValues field is required.")
+            );
+        }
+
+        var user = await LoadUserWithAccessByGuidAsync(userId, ct);
+        if (user is null)
+        {
+            return Result<UserDto>.Failure(Error.NotFound("User", userId.ToString()));
+        }
+
+        user.Preferences = UserPreferencesCodec.Serialize(
+            user.Preferences,
+            request.HideValues.Value
+        );
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync(ct);
+
+        return Result<UserDto>.Success(GetUserDto(user));
+    }
+
     private async Task<(string accessToken, string refreshToken, int expiresIn)> IssueTokensAsync(
         UserEntity user,
         CancellationToken ct
@@ -348,7 +378,14 @@ public sealed class AuthService : IAuthService
                 .ToList()
             ?? new List<string>();
 
-        return new UserDto(user.Id, user.Email, user.FullName, roles, permissions);
+        return new UserDto(
+            user.Id,
+            user.Email,
+            user.FullName,
+            roles,
+            permissions,
+            UserPreferencesCodec.Parse(user.Preferences)
+        );
     }
 
     private async Task<UserEntity?> LoadUserWithAccessAsync(

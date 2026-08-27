@@ -122,11 +122,20 @@ public sealed class PortfolioPerformanceService(IndexDeskDbContext db)
         // ----- day grid: trade days ∪ quote days ∪ end -----
         var days = new SortedSet<DateOnly> { end };
         foreach (var t in transactions)
+        {
             if (t.TradeDate >= start && t.TradeDate <= end)
+            {
                 days.Add(t.TradeDate);
+            }
+        }
+
         foreach (var list in closes.Values)
-        foreach (var (d, _) in list)
-            days.Add(d);
+        {
+            foreach (var (d, _) in list)
+            {
+                days.Add(d);
+            }
+        }
 
         // ----- walk the grid: apply flows, forward-fill prices, value positions -----
         var quantities = new Dictionary<Guid, decimal>();

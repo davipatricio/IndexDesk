@@ -4,27 +4,21 @@ import * as React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchPortfolioSummary, deletePortfolio, type PositionDto } from '@/lib/api-client';
+import { fetchPortfolioSummary, deletePortfolio } from '@/lib/api-client';
 import { useSession } from '@/hooks/use-session';
 import { PerformancePanel } from '@/components/portfolio/performance-panel';
 import { AnalysisPanel } from '@/components/portfolio/analysis-panel';
 import { FiscalPanel } from '@/components/portfolio/fiscal-panel';
 import { ShareControls } from '@/components/portfolio/share-controls';
 import { GoalsPanel } from '@/components/portfolio/goals-panel';
+import { PositionsTable } from '@/components/portfolio/positions-table';
+import { MaskedValue } from '@/components/privacy/masked-value';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { fetchPortfolioTimeline, type TimelineItemDto } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { toast } from 'sonner';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -121,7 +115,9 @@ export default function CarteiraPage() {
             <CardDescription>Patrimônio</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold tabular-nums">{brl.format(s.totalValue)}</p>
+            <p className="text-2xl font-semibold tabular-nums">
+              <MaskedValue>{brl.format(s.totalValue)}</MaskedValue>
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -129,7 +125,9 @@ export default function CarteiraPage() {
             <CardDescription>Investido</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-semibold tabular-nums">{brl.format(s.totalInvested)}</p>
+            <p className="text-2xl font-semibold tabular-nums">
+              <MaskedValue>{brl.format(s.totalInvested)}</MaskedValue>
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -142,7 +140,7 @@ export default function CarteiraPage() {
                 s.unrealizedPnl >= 0 ? 'text-emerald-600' : 'text-red-600'
               }`}
             >
-              {brl.format(s.unrealizedPnl)}
+              <MaskedValue>{brl.format(s.unrealizedPnl)}</MaskedValue>
             </p>
           </CardContent>
         </Card>
@@ -199,68 +197,6 @@ export default function CarteiraPage() {
   );
 }
 
-function PositionsTable({ positions }: { positions: PositionDto[] }) {
-  const totalValue = positions.reduce((acc, p) => acc + p.currentValue, 0);
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Ativo</TableHead>
-          <TableHead>Corretora</TableHead>
-          <TableHead className="text-right">Quantidade</TableHead>
-          <TableHead className="text-right">Preço médio</TableHead>
-          <TableHead className="text-right">Atual</TableHead>
-          <TableHead className="text-right">Valor</TableHead>
-          <TableHead className="text-right">Peso</TableHead>
-          <TableHead className="text-right" title="Fatia do lucro total gerado pela posição">
-            Contrib.
-          </TableHead>
-          <TableHead className="text-right">Resultado</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {positions.map((p, i) => (
-          <TableRow key={`${p.ticker}-${p.broker}-${i}`}>
-            <TableCell>
-              <span className="font-medium">{p.ticker}</span>
-              <span className="block text-xs text-muted-foreground">{p.name}</span>
-            </TableCell>
-            <TableCell>{p.broker}</TableCell>
-            <TableCell className="text-right tabular-nums">{formatQty(p.quantity)}</TableCell>
-            <TableCell className="text-right tabular-nums">{brl.format(p.averagePrice)}</TableCell>
-            <TableCell className="text-right tabular-nums">
-              {p.hasMarketPrice ? brl.format(p.currentPrice) : '—'}
-            </TableCell>
-            <TableCell className="text-right tabular-nums">{brl.format(p.currentValue)}</TableCell>
-            <TableCell className="text-right tabular-nums text-muted-foreground">
-              {totalValue > 0 ? `${((p.currentValue / totalValue) * 100).toFixed(1)}%` : '—'}
-            </TableCell>
-            <TableCell className="text-right tabular-nums text-muted-foreground">
-              {p.contributionPercent !== null && p.contributionPercent !== undefined
-                ? `${p.contributionPercent.toFixed(1)}%`
-                : '—'}
-            </TableCell>
-            <TableCell
-              className={`text-right tabular-nums ${
-                p.unrealizedPnl >= 0 ? 'text-emerald-600' : 'text-red-600'
-              }`}
-            >
-              {brl.format(p.unrealizedPnl)}
-              {!p.hasMarketPrice ? (
-                <span className="block text-[10px] text-muted-foreground">sem cotação</span>
-              ) : null}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
-}
-
-function formatQty(q: number): string {
-  return q % 1 === 0 ? String(q) : q.toLocaleString('pt-BR', { maximumFractionDigits: 8 });
-}
-
 function TimelineCard({ items }: { items: TimelineItemDto[] }) {
   const upcoming = items.filter((i) => i.date >= TODAY_ISO).slice(0, 5);
   if (upcoming.length === 0) return null;
@@ -294,7 +230,7 @@ function TimelineCard({ items }: { items: TimelineItemDto[] }) {
                   ) : null}
                 </span>
                 <span className="tabular-nums text-muted-foreground">
-                  {brl.format(item.amount)}
+                  <MaskedValue>{brl.format(item.amount)}</MaskedValue>
                 </span>
               </li>
             );

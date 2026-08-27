@@ -58,13 +58,15 @@ public static class PortfolioModuleExtensions
                 {
                     if (!TryGetUserId(http, out var userId))
                         return Results.Unauthorized();
-                    var result = await service.ListAsync(userId, ct);
+                    var result = await service.ListWithSeriesAsync(userId, ct);
                     return result.IsSuccess ? Results.Ok(result.Value) : MapError(result.Error);
                 }
             )
             .RequireAuthorization("PERMISSION:portfolio:read")
             .WithName("ListPortfolios")
-            .WithSummary("Lista as carteiras do usuário autenticado");
+            .WithSummary(
+                "Lista as carteiras do usuário autenticado com série diária de 30 dias (sparkline)"
+            );
 
         group
             .MapGet(

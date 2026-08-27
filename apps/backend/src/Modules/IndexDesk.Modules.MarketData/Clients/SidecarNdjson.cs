@@ -48,7 +48,7 @@ internal static class SidecarNdjson
                 continue;
             }
 
-            SidecarQuoteLine parsed;
+            SidecarQuoteLine? parsed;
             try
             {
                 parsed = JsonSerializer.Deserialize<SidecarQuoteLine>(line, SidecarJson.Options);
@@ -108,7 +108,7 @@ internal static class SidecarNdjson
                 continue;
             }
 
-            SidecarDividendLine parsed;
+            SidecarDividendLine? parsed;
             try
             {
                 parsed = JsonSerializer.Deserialize<SidecarDividendLine>(line, SidecarJson.Options);

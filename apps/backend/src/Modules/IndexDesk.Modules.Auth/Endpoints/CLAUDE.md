@@ -17,7 +17,8 @@ Handlers HTTP do grupo `/api/v1/auth` (tag `Auth`), mapeados por `AuthEndpoints.
 | POST | `/signin` | `SignIn` | 200 `AuthResponse`; grava cookie de refresh. |
 | POST | `/refresh` | `RefreshToken` | lê o cookie, rotaciona o par de tokens, regrava o cookie; 200 ou erro. |
 | POST | `/signout` | `SignOut` | revoga o refresh atual (cookie opcional) e limpa o cookie; sempre 204. |
-| GET | `/me` | `GetCurrentUser` | requer autorização; 200 `UserDto` · 401 sem claim sub válida · 404 usuário ausente. |
+| GET | `/me` | `GetCurrentUser` | requer autorização; 200 `UserDto` com `preferences` · 401 sem claim sub válida · 404 usuário ausente. |
+| PATCH | `/api/v1/users/me` | `UpdateUserPreferences` | requer autorização; 200 `UserDto` com preferências atualizadas · 400 sem hideValues. |
 
 IP (`RemoteIpAddress`) e `UserAgent` são extraídos aqui e passados ao serviço para auditoria do
 refresh token.

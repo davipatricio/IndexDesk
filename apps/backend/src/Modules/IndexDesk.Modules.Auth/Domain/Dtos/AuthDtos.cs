@@ -9,7 +9,8 @@ public sealed record UserDto(
     string Email,
     string FullName,
     IReadOnlyList<string> Roles,
-    IReadOnlyList<string> Permissions
+    IReadOnlyList<string> Permissions,
+    UserPreferencesDto Preferences
 );
 
 /// <summary>
@@ -23,3 +24,12 @@ public sealed record AuthResponse(
     int ExpiresIn,
     UserDto User
 );
+
+/// <summary>UI preferences returned by /me and PATCH /users/me (privacy toggle).</summary>
+public sealed record UserPreferencesDto(bool HideValues);
+
+/// <summary>
+/// PATCH /api/v1/users/me payload. A <see langword="null" /> HideValues means "leave
+/// unchanged" (absent key); the endpoint rejects a request without any field set.
+/// </summary>
+public sealed record UpdateUserPreferencesRequest(bool? HideValues);
