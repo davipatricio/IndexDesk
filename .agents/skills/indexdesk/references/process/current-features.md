@@ -102,6 +102,17 @@ página de cotação (obrigatório — Akamai agora rejeita chamadas stateless m
 e extrai a chave pública do frontend do blob `window.InfoMoneyPage`. Env/pool continua com
 precedência quando configurada. Client C# spawna keyless (NoApiKey removido).
 
+### FundsExplorer + MaisRetorno no sidecar (26/08/2026, implementado)
+
+- **`sidecar fe income|quotations|patrimonials --symbol TICKER`** (curl_cffi chrome + nonce
+  `data-nonce` do HTML). Mapeiam para ``dividend`` (income, desde 2016-06; 122 pontos KNCR11),
+  ``quote`` (~5y diária, double-serialized, `volume=0`), e ``return_series``
+  (`equity_per_share` mensal). Smoke medido: income 122 linhas OK.
+- **`sidecar mr returns --symbol TICKER --kind acoes|etf|fii|indice`** (curl_cffi chrome,
+  `_next/data/{buildId}` + `buildId` extraído da home). Emite `return_series`
+  (mensal `YYYY-MM` + anual `YYYY`); WRLD11 → 65 linhas desde 2021. Novo kind
+  `return_series` no NDJSON (`metric` distingue `return` de `equity_per_share`).
+
 ### Transporte HTTP genérico anti-WAF (`sidecar fetch` + `ISidecarHttp`, Fase 3 adendo)Hosts com fingerprinting TLS Akamai (ex.: `www.itnow.com.br`: curl/HttpClient nativo = 403
 "Access Denied" mesmo com headers de browser; `curl_cffi impersonate="chrome"` = 200) são
 servidos por um comando genérico do sidecar: `sidecar fetch --url URL [--method GET|POST]

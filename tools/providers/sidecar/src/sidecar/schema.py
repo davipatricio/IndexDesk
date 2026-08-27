@@ -12,6 +12,13 @@ Contract v2 additions (catalog records, ``sidecar b3 ...``):
   (``dd/mm/yyyy``); they are metadata, not quote dates.
 - Fund:    ``{"ticker","name","fund_type"}``
 
+Contract v2b (return-series, ``sidecar fe ...`` / ``sidecar mr ...``):
+
+- ReturnSeries: ``{"ticker","type","period","ret","metric"}`` where
+  ``type`` is ``monthly``|``annual``, ``period`` is ``YYYY-MM``|``YYYY``,
+  ``ret`` a finite percentage, and ``metric`` a free identifier (``return`` by
+  default, ``equity_per_share`` for FundsExplorer patrimonials).
+
 ``date`` is ISO-8601 ``YYYY-MM-DD``; numeric fields are JSON numbers
 (int or float, never bool, never NaN/Infinity); ``ticker`` and ``type``
 are non-empty strings. Empty output is valid (e.g. a ticker with no
@@ -42,6 +49,7 @@ COMPANY_KEYS = frozenset(
     }
 )
 FUND_KEYS = frozenset({"ticker", "name", "fund_type"})
+RETURN_SERIES_KEYS = frozenset({"ticker", "type", "period", "ret", "metric"})
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -100,6 +108,29 @@ def make_fund(*, ticker: str, name: str, fund_type: str) -> dict[str, Any]:
     return {"ticker": ticker, "name": name, "fund_type": fund_type}
 
 
+def make_return_series(
+    *,
+    ticker: str,
+    type_: str,
+    period: str,
+    ret: float,
+    metric: str = "return",
+) -> dict[str, Any]:
+    """Build a return-series point (contract-ordered keys).
+
+    ``type_`` is ``monthly`` | ``annual``; ``period`` is ``YYYY-MM`` (monthly)
+    or ``YYYY`` (annual); ``ret`` is the percentage return for that period;
+    ``metric`` distinguishes alternate series (e.g. ``equity_per_share``).
+    """
+    return {
+        "ticker": ticker,
+        "type": type_,
+        "period": period,
+        "ret": ret,
+        "metric": metric,
+    }
+
+
 def _validate_number(record: dict[str, Any], key: str) -> None:
     value = record[key]
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -119,7 +150,8 @@ def _validate_string(record: dict[str, Any], key: str, *, required: bool = True)
 def validate_record(record: Any, kind: str) -> dict[str, Any]:
     """Validate one decoded NDJSON object against the schema for *kind*.
 
-    *kind* is ``"quote"``, ``"dividend"``, ``"company"`` or ``"fund"``.
+    *kind* is ``"quote"``, ``"dividend"``, ``"company"``, ``"fund"`` or
+    ``"return_series"``.
     Raises :class:`SidecarError` with exit code 4 on any violation; returns
     the record unchanged when valid.
     """
@@ -138,6 +170,8 @@ def validate_record(record: Any, kind: str) -> dict[str, Any]:
         expected = COMPANY_KEYS
     elif kind == "fund":
         expected = FUND_KEYS
+    elif kind == "return_series":
+        expected = RETURN_SERIES_KEYS
     else:
         raise parse_error(f"unknown record kind {kind!r}")
 
@@ -152,9 +186,26 @@ def validate_record(record: Any, kind: str) -> dict[str, Any]:
             detail.append(f"unexpected {extra}")
         raise parse_error(f"{kind} schema mismatch: {'; '.join(detail)}")
 
-    if kind in ("quote", "dividend"):
+    if kind in ("quote", "dividend", "return_series"):
         if not isinstance(record["ticker"], str) or not record["ticker"]:
             raise parse_error("field 'ticker' must be a non-empty string")
+        if kind == "return_series":
+            _validate_number(record, "ret")
+            for key in ("type", "period", "metric"):
+                _validate_string(record, key)
+            if record["type"] not in ("monthly", "annual"):
+                raise parse_error("field 'type' must be 'monthly' or 'annual'")
+            period = record["period"]
+            period_re = (
+                re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+                if record["type"] == "monthly"
+                else re.compile(r"^\d{4}$")
+            )
+            if not period_re.match(period):
+                raise parse_error(
+                    f"field 'period' must be {'YYYY-MM' if record['type'] == 'monthly' else 'YYYY'}"
+                )
+            return record
         if not isinstance(record["date"], str) or not DATE_RE.match(record["date"]):
             raise parse_error("field 'date' must be an ISO-8601 YYYY-MM-DD string")
         try:

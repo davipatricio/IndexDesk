@@ -57,3 +57,10 @@ def im_symbol(raw: str) -> str:
             f"InfoMoney serves bare B3 tickers only; {raw!r} is not supported"
         )
     return symbol
+
+
+def bare_symbol(raw: str) -> str:
+    """Normalize *raw* to a bare uppercase B3 ticker (shared by B3 sites:
+    FundsExplorer, ClubeFII, Investidor10, ...). Rejects benchmark/FX-style
+    symbols, which those sites do not serve."""
+    return im_symbol(raw)

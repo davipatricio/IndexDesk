@@ -11,6 +11,10 @@ Layout::
     sidecar b3 companies [--page-size N] [--max-records N] [--fixture FILE]
     sidecar b3 fiis      [--type FII] [--page-size N] [--max-records N]
                          [--fixture FILE]
+    sidecar fe income --symbol KNCR11 [--fixture FILE]
+    sidecar fe quotations --symbol KNCR11 [--fixture FILE]
+    sidecar fe patrimonials --symbol KNCR11 [--fixture FILE]
+    sidecar mr returns --symbol PETR4 --kind acoes|etf|fii|indice [--fixture FILE]
     sidecar fetch        --url URL [--method GET|POST] [--data BODY]
                          [--header "K: V" ...] [--timeout-s N] [--b64]
 
@@ -24,7 +28,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 
-from sidecar import b3_cmd, fetch_cmd, im_cmd, ndjson, tv_cmd, yf_cmd
+from sidecar import b3_cmd, fe_cmd, fetch_cmd, im_cmd, mr_cmd, ndjson, tv_cmd, yf_cmd
 from sidecar.errors import EXIT_OK, EXIT_PARSE, SidecarError
 
 
@@ -88,6 +92,25 @@ def build_parser() -> argparse.ArgumentParser:
     p_b3_fiis.add_argument("--page-size", dest="page_size", type=int, default=b3_cmd.DEFAULT_PAGE_SIZE)
     p_b3_fiis.add_argument("--max-records", dest="max_records", type=int, default=None)
     p_b3_fiis.add_argument("--fixture", metavar="FILE")
+
+    fe = commands.add_parser("fe", help="FundsExplorer (funds.fiis via wp-admin/admin-ajax.php)")
+    fe_commands = fe.add_subparsers(dest="fe_command", required=True)
+    p_income = fe_commands.add_parser("income", help="monthly rendimentos (kind: dividend)")
+    p_income.add_argument("--symbol", required=True)
+    p_income.add_argument("--fixture", metavar="FILE")
+    p_q = fe_commands.add_parser("quotations", help="daily close ~5y (kind: quote, volume=0)")
+    p_q.add_argument("--symbol", required=True)
+    p_q.add_argument("--fixture", metavar="FILE")
+    p_pat = fe_commands.add_parser("patrimonials", help="equity-per-share monthly (kind: return_series)")
+    p_pat.add_argument("--symbol", required=True)
+    p_pat.add_argument("--fixture", metavar="FILE")
+
+    mr = commands.add_parser("mr", help="MaisRetorno (_next/data)")
+    mr_commands = mr.add_subparsers(dest="mr_command", required=True)
+    p_returns = mr_commands.add_parser("returns", help="rentab. mensal+anual (kind: return_series)")
+    p_returns.add_argument("--symbol", required=True)
+    p_returns.add_argument("--kind", default="acoes", choices=["etf", "acoes", "fii", "indice"])
+    p_returns.add_argument("--fixture", metavar="FILE")
 
     p_fetch = commands.add_parser(
         "fetch",
@@ -162,6 +185,14 @@ def run(args: argparse.Namespace, out) -> int:
             page_size=args.page_size,
             max_records=args.max_records,
         )
+    elif args.command == "fe" and args.fe_command == "income":
+        pairs = fe_cmd.income(args.symbol, args.fixture)
+    elif args.command == "fe" and args.fe_command == "quotations":
+        pairs = fe_cmd.quotations(args.symbol, args.fixture)
+    elif args.command == "fe" and args.fe_command == "patrimonials":
+        pairs = fe_cmd.patrimonials(args.symbol, args.fixture)
+    elif args.command == "mr" and args.mr_command == "returns":
+        pairs = mr_cmd.returns(args.symbol, args.kind, args.fixture)
     else:  # pragma: no cover - argparse enforces the combinations
         raise SidecarError("Usage.Invalid", f"unknown command {args.command}", 2)
     count = _write_pairs(pairs, out)

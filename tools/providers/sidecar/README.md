@@ -46,6 +46,9 @@ Rules:
   strings/bools/NaN).
 - Catalog records (`company`/`fund`) carry only strings; `date_listing`
   stays verbatim B3 format (`dd/mm/yyyy`) — it is metadata, not a quote date.
+- Return-series records (`return_series`, `sidecar fe|mr ...`) carry
+  ``{"ticker","type","period","ret","metric"}`` where ``type`` is
+  ``monthly|annual`` and ``period`` is ``YYYY-MM|YYYY``.
 - **Empty output is valid** (zero lines, exit 0) - e.g. BOVA11 has no
   dividends on Yahoo; that is data absence, not an error.
 - Exit codes: `0` ok · `2` spawn/usage error · `3` fetch failure · `4` parse
@@ -66,6 +69,10 @@ sidecar im quotes    --symbol MGLU3 [--bars N] [--fixture FILE]
 sidecar im dividends --symbol MGLU3 [--fixture FILE]
 sidecar b3 companies [--page-size N] [--max-records N] [--fixture FILE]
 sidecar b3 fiis      [--type FII] [--page-size N] [--max-records N] [--fixture FILE]
+sidecar fe income --symbol TICKER [--fixture FILE]
+sidecar fe quotations --symbol TICKER [--fixture FILE]
+sidecar fe patrimonials --symbol TICKER [--fixture FILE]
+sidecar mr returns --symbol TICKER --kind acoes|etf|fii|indice [--fixture FILE]
 sidecar fetch        --url URL [--method GET|POST] [--data BODY] [--header "K: V" ...] [--timeout-s N] [--b64]
 ```
 
@@ -119,6 +126,32 @@ Chrome **and** a warm-up GET of the app page must run first — without those
 session cookies the proxy answers HTTP 200 with an empty body. No captcha
 solving is attempted; a hard challenge surfaces as `Fetch.Failed`/403
 `Scrape.WafBlocked`.
+
+### FundsExplorer (`fe`) specifics
+
+WordPress AJAX behind `https://www.fundsexplorer.com.br`:
+
+- `funds-get-income` → monthly ``{valor, data_base}`` since ~2016-06 → kind `dividend`
+  (``rate`` per cota, ``date`` = ``data_base``).
+- `funds-get-quotations` → daily close for a fixed ~5-year window (~1.2k rows) —
+  NOTE: double-serialized (``data: [{"quotations":"[{\\"price\\":...,\\"date\\":...}]"}]``)
+  with ``{price, date}``; close-only (``open=high=low=close``, ``volume=0``).
+- `funds-get-patrimonials` → equity-per-share monthly since 2016-01 → kind
+  ``return_series`` (``metric=equity_per_share``, ``period YYYY-MM``).
+- All go through ``POST /wp-admin/admin-ajax.php`` (``action`` + ``fund`` +
+  ``X-CSRF-TOKEN: <data-nonce for that action>`` from the detail page, found
+  regardless of attribute order). Cloudflare passive.
+
+### MaisRetorno (`mr`) specifics
+
+Next.js SSR under `https://maisretorno.com` (no auth):
+
+- `GET /_next/data/{buildId}/{kind}/{slug}.json` (``buildId`` from the home
+  page; ``kind`` = ``etf|acoes|fii|indice``) → ``pageProps.stats.years``
+  (rentab. mensal+anual since inception — PETR4 1994). Emits
+  ``return_series`` (monthly ``YYYY-MM`` + annual ``YYYY``).
+- BuildId changes every deploy; stock/indices/fiis lists (``lista-acoes``,
+  ``gestores``, ``administradores``) are paginated ``/page/N``.
 
 ### Generic fetch (`fetch`) — WAF-safe raw HTTP
 

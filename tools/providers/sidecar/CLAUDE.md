@@ -31,6 +31,8 @@ src/sidecar/
 ├── tv_cmd.py   tv-scraper + caminhada chunked/retry/dedupe do histórico
 ├── im_cmd.py   API InfoMoney (curl_cffi chrome, paginação daily/dividends)
 ├── b3_cmd.py   catálogo oficial B3 (empresas/FIIs, curl_cffi chrome + warm-up de sessão)
+├── fe_cmd.py   FundsExplorer (income/quotations/patrimonials, curl_cffi chrome + nonce)
+├── mr_cmd.py   MaisRetorno (_next/data + buildId, curl_cffi chrome + warm-up)
 └── fetch_cmd.py fetch genérico curl_cffi (body cru no stdout; transporte WAF-safe)
 tests/          suíte pytest offline (fixtures, schema, símbolos, chunks, CLI)
 ```
