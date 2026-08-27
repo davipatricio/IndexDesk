@@ -8,6 +8,7 @@ import {
   type PositionDto,
   type TaxProjectionDto,
 } from '@/lib/api-client';
+import { MaskedValue } from '@/components/privacy/masked-value';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -123,13 +124,16 @@ function RedemptionSimulator({
 
         {r ? (
           <div className="space-y-2 rounded-lg border p-3 text-sm">
-            <Row label="Valor bruto" value={brl.format(r.grossAmount)} />
-            <Row label="Custo" value={brl.format(r.costBasis)} />
-            <Row label="Lucro" value={brl.format(r.profit)} />
+            <Row
+              label="Valor bruto"
+              value={<MaskedValue>{brl.format(r.grossAmount)}</MaskedValue>}
+            />
+            <Row label="Custo" value={<MaskedValue>{brl.format(r.costBasis)}</MaskedValue>} />
+            <Row label="Lucro" value={<MaskedValue>{brl.format(r.profit)}</MaskedValue>} />
             {r.comeCotasAlreadyPaid > 0 ? (
               <Row
                 label="Come-cotas já pago"
-                value={brl.format(r.comeCotasAlreadyPaid)}
+                value={<MaskedValue>{brl.format(r.comeCotasAlreadyPaid)}</MaskedValue>}
                 hint="Antecipações semestrais reduziram o rendimento"
               />
             ) : null}
@@ -140,18 +144,27 @@ function RedemptionSimulator({
               </div>
             ) : (
               <>
-                <Row label={`IR (${r.irPercent.toFixed(2)}%)`} value={brl.format(-r.irAmount)} />
-                {r.iofAmount > 0 ? <Row label="IOF" value={brl.format(-r.iofAmount)} /> : null}
+                <Row
+                  label={`IR (${r.irPercent.toFixed(2)}%)`}
+                  value={<MaskedValue>{brl.format(-r.irAmount)}</MaskedValue>}
+                />
+                {r.iofAmount > 0 ? (
+                  <Row label="IOF" value={<MaskedValue>{brl.format(-r.iofAmount)}</MaskedValue>} />
+                ) : null}
               </>
             )}
             <div className="border-t pt-2">
-              <Row label="Líquido" value={brl.format(r.netAmount)} strong />
+              <Row
+                label="Líquido"
+                value={<MaskedValue>{brl.format(r.netAmount)}</MaskedValue>}
+                strong
+              />
             </div>
             <details className="text-[11px] text-muted-foreground">
               <summary className="cursor-pointer">Premissas</summary>
               <ul className="mt-1 list-inside list-disc space-y-0.5">
-                {r.premises.map((p, i) => (
-                  <li key={i}>{p}</li>
+                {r.premises.map((p) => (
+                  <li key={p}>{p}</li>
                 ))}
               </ul>
               <p className="mt-2">{r.disclaimer}</p>
@@ -221,13 +234,17 @@ function DarfCard({ portfolioId }: { portfolioId: string }) {
             {d.items.map((i) => (
               <div key={i.assetClass} className="flex items-center justify-between">
                 <span>{i.assetClass}</span>
-                <span className="tabular-nums">{brl.format(i.taxDue)}</span>
+                <span className="tabular-nums">
+                  <MaskedValue>{brl.format(i.taxDue)}</MaskedValue>
+                </span>
               </div>
             ))}
             <div className="flex items-center justify-between border-t pt-2 font-semibold">
               <span>Total devido</span>
               <span className="tabular-nums">
-                {brl.format(d.items.reduce((acc, i) => acc + i.taxDue, 0))}
+                <MaskedValue>
+                  {brl.format(d.items.reduce((acc, i) => acc + i.taxDue, 0))}
+                </MaskedValue>
               </span>
             </div>
             {d.items[0]?.dueDate ? (
@@ -238,8 +255,8 @@ function DarfCard({ portfolioId }: { portfolioId: string }) {
             <details className="text-[11px] text-muted-foreground">
               <summary className="cursor-pointer">Premissas</summary>
               <ul className="mt-1 list-inside list-disc space-y-0.5">
-                {d.premises.map((p, i) => (
-                  <li key={i}>{p}</li>
+                {d.premises.map((p) => (
+                  <li key={p}>{p}</li>
                 ))}
               </ul>
               <p className="mt-2">{d.disclaimer}</p>
@@ -258,7 +275,7 @@ function Row({
   hint,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   strong?: boolean;
   hint?: string;
 }) {

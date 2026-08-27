@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { fetchPublicPortfolio, type PublicPortfolioDto } from '@/lib/api-client';
+import { MaskedValue } from '@/components/privacy/masked-value';
+import { MaskedSection } from '@/components/portfolio/masked-section';
 
 // Cache de dados fica no fetch (next.revalidate em fetchPublicPortfolio) —
 // segment config "revalidate" não é compatível com nextConfig.cacheComponents.
@@ -71,137 +73,139 @@ export default async function PublicPortfolioPage({ params, searchParams }: Page
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+    <MaskedSection>
+      <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
 
-      <header className="space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold tracking-tight">{portfolio.title}</h1>
-          <Badge variant="secondary">
-            {riskLabels[portfolio.riskProfile] ?? portfolio.riskProfile}
-          </Badge>
-          <Badge variant="outline">{portfolio.identityLabel}</Badge>
-        </div>
-        {portfolio.description ? (
-          <p className="text-sm text-muted-foreground">{portfolio.description}</p>
-        ) : null}
-        <p className="text-xs text-muted-foreground">
-          Atualizada em {new Date(portfolio.createdAt).toLocaleDateString('pt-BR')} · dados de
-          fechamento local
-        </p>
-      </header>
+        <header className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-2xl font-semibold tracking-tight">{portfolio.title}</h1>
+            <Badge variant="secondary">
+              {riskLabels[portfolio.riskProfile] ?? portfolio.riskProfile}
+            </Badge>
+            <Badge variant="outline">{portfolio.identityLabel}</Badge>
+          </div>
+          {portfolio.description ? (
+            <p className="text-sm text-muted-foreground">{portfolio.description}</p>
+          ) : null}
+          <p className="text-xs text-muted-foreground">
+            Atualizada em {new Date(portfolio.createdAt).toLocaleDateString('pt-BR')} · dados de
+            fechamento local
+          </p>
+        </header>
 
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-1">
-            <p className="text-xs text-muted-foreground">Retorno total</p>
-          </CardHeader>
-          <CardContent>
-            <p
-              className={`text-xl font-semibold tabular-nums ${
-                portfolio.totalReturnPercent >= 0 ? 'text-emerald-600' : 'text-red-600'
-              }`}
-            >
-              {fmtPct(portfolio.totalReturnPercent)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-1">
-            <p className="text-xs text-muted-foreground">Posições</p>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-semibold tabular-nums">{portfolio.positions.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-1">
-            <p className="text-xs text-muted-foreground">Modo</p>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm font-medium">
-              {showValues ? 'Valores abertos' : 'Somente percentuais'}
-            </p>
-          </CardContent>
-        </Card>
-      </section>
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <Card>
+            <CardHeader className="pb-1">
+              <p className="text-xs text-muted-foreground">Retorno total</p>
+            </CardHeader>
+            <CardContent>
+              <p
+                className={`text-xl font-semibold tabular-nums ${
+                  portfolio.totalReturnPercent >= 0 ? 'text-emerald-600' : 'text-red-600'
+                }`}
+              >
+                <MaskedValue>{fmtPct(portfolio.totalReturnPercent)}</MaskedValue>
+              </p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <p className="text-xs text-muted-foreground">Posições</p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xl font-semibold tabular-nums">{portfolio.positions.length}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-1">
+              <p className="text-xs text-muted-foreground">Modo</p>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm font-medium">
+                {showValues ? 'Valores abertos' : 'Somente percentuais'}
+              </p>
+            </CardContent>
+          </Card>
+        </section>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Alocação por classe</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {portfolio.allocationPercent.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sem posições para exibir.</p>
-          ) : (
-            portfolio.allocationPercent.map((a) => (
-              <div key={a.assetClass} className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span>{a.assetClass}</span>
-                  <span className="tabular-nums">{fmtPct(a.percent)}</span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{ width: `${Math.min(100, Math.max(0, a.percent))}%` }}
-                  />
-                </div>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-
-      {portfolio.positions.length > 0 ? (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Principais posições</CardTitle>
+            <CardTitle className="text-base">Alocação por classe</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ul className="divide-y">
-              {portfolio.positions.map((p) => (
-                <li key={p.ticker} className="flex items-center justify-between py-2 text-sm">
-                  <span>
-                    <span className="font-medium">{p.ticker}</span>
-                    <span className="block text-xs text-muted-foreground">{p.name}</span>
-                  </span>
-                  <span className="flex items-center gap-4 tabular-nums">
-                    <span className="text-xs text-muted-foreground">
-                      peso {fmtPct(p.weightPercent)}
-                    </span>
-                    <span
-                      className={
-                        p.returnPercent >= 0
-                          ? 'font-medium text-emerald-600'
-                          : 'font-medium text-red-600'
-                      }
-                    >
-                      {fmtPct(p.returnPercent)}
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
+          <CardContent className="space-y-2">
+            {portfolio.allocationPercent.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sem posições para exibir.</p>
+            ) : (
+              portfolio.allocationPercent.map((a) => (
+                <div key={a.assetClass} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span>{a.assetClass}</span>
+                    <span className="tabular-nums">{fmtPct(a.percent)}</span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: `${Math.min(100, Math.max(0, a.percent))}%` }}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
-      ) : null}
 
-      {!showValues ? (
-        <p className="rounded-lg border bg-muted/30 p-3 text-[11px] text-muted-foreground">
-          O dono desta carteira optou por compartilhar apenas percentuais — valores em R$ ficam
-          privados.
+        {portfolio.positions.length > 0 ? (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Principais posições</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="divide-y">
+                {portfolio.positions.map((p) => (
+                  <li key={p.ticker} className="flex items-center justify-between py-2 text-sm">
+                    <span>
+                      <span className="font-medium">{p.ticker}</span>
+                      <span className="block text-xs text-muted-foreground">{p.name}</span>
+                    </span>
+                    <span className="flex items-center gap-4 tabular-nums">
+                      <span className="text-xs text-muted-foreground">
+                        peso {fmtPct(p.weightPercent)}
+                      </span>
+                      <span
+                        className={
+                          p.returnPercent >= 0
+                            ? 'font-medium text-emerald-600'
+                            : 'font-medium text-red-600'
+                        }
+                      >
+                        <MaskedValue>{fmtPct(p.returnPercent)}</MaskedValue>
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {!showValues ? (
+          <p className="rounded-lg border bg-muted/30 p-3 text-[11px] text-muted-foreground">
+            O dono desta carteira optou por compartilhar apenas percentuais — valores em R$ ficam
+            privados.
+          </p>
+        ) : null}
+
+        <CloneCta slug={slug} />
+
+        <p className="text-[11px] text-muted-foreground">
+          Conteúdo educacional. Não constitui recomendação de investimento.
         </p>
-      ) : null}
-
-      <CloneCta slug={slug} />
-
-      <p className="text-[11px] text-muted-foreground">
-        Conteúdo educacional. Não constitui recomendação de investimento.
-      </p>
-    </div>
+      </div>
+    </MaskedSection>
   );
 }
 

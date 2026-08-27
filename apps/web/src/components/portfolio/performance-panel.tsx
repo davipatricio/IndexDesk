@@ -13,6 +13,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { MaskedValue, BlurChart } from '@/components/privacy/masked-value';
 import { fetchPortfolioPerformance } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -163,74 +164,90 @@ export function PerformancePanel({ portfolioId }: { portfolioId: string }) {
           <>
             {/* Métricas */}
             <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              <Metric label="Retorno" value={`${fmtPct(data.perf.totalReturnPercent)}`} accent />
-              <Metric label="TWR período" value={fmtPct(data.perf.twrPercentPeriod)} />
+              <Metric
+                label="Retorno"
+                value={`${fmtPct(data.perf.totalReturnPercent)}`}
+                accent
+                masked
+              />
+              <Metric label="TWR período" value={fmtPct(data.perf.twrPercentPeriod)} masked />
               <Metric
                 label="MWR a.a."
+                masked
                 value={
                   data.perf.mwrPercentAnnualized !== null
                     ? fmtPct(data.perf.mwrPercentAnnualized)
                     : '—'
                 }
               />
-              <Metric label="Vol a.a." value={fmtPct(data.perf.volatilityPercentAnnualized)} />
-              <Metric label="Sharpe" value={data.perf.sharpeRatio.toFixed(2)} />
-              <Metric label="Queda máx." value={`-${fmtPct(data.perf.maxDrawdownPercent)}`} />
+              <Metric
+                label="Vol a.a."
+                value={fmtPct(data.perf.volatilityPercentAnnualized)}
+                masked
+              />
+              <Metric label="Sharpe" value={data.perf.sharpeRatio.toFixed(2)} masked />
+              <Metric
+                label="Queda máx."
+                value={`-${fmtPct(data.perf.maxDrawdownPercent)}`}
+                masked
+              />
             </dl>
 
-            <div className="h-64 w-full sm:h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={data.rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 11 }}
-                    tickFormatter={(v: string) => v.slice(5).replace('-', '/')}
-                    minTickGap={40}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11 }}
-                    domain={['auto', 'auto']}
-                    tickFormatter={(v: number) => `${Math.round(v / 1000)}k`}
-                    width={38}
-                  />
-                  <Tooltip
-                    formatter={(value: unknown, name: unknown): [string, string] => [
-                      brl.format(Number(value ?? 0)),
-                      name === 'patrimonio'
-                        ? 'Carteira'
-                        : (BENCHMARK_LABELS[String(name)] ?? String(name)),
-                    ]}
-                    labelFormatter={(l: unknown) =>
-                      typeof l === 'string'
-                        ? new Date(`${l}T12:00:00`).toLocaleDateString('pt-BR')
-                        : String(l ?? '')
-                    }
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="patrimonio"
-                    stroke={seriesColor(0)}
-                    fill={seriesColor(0)}
-                    fillOpacity={0.15}
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  {data.perf.benchmarks.map((b, i) => (
-                    <Line
-                      key={b.code}
-                      type="monotone"
-                      dataKey={b.code}
-                      stroke={seriesColor(i + 1)}
-                      strokeWidth={1.5}
-                      strokeDasharray="4 4"
-                      dot={false}
-                      connectNulls
+            <BlurChart>
+              <div className="h-64 w-full sm:h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={data.rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(v: string) => v.slice(5).replace('-', '/')}
+                      minTickGap={40}
                     />
-                  ))}
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      domain={['auto', 'auto']}
+                      tickFormatter={(v: number) => `${Math.round(v / 1000)}k`}
+                      width={38}
+                    />
+                    <Tooltip
+                      formatter={(value: unknown, name: unknown): [string, string] => [
+                        brl.format(Number(value ?? 0)),
+                        name === 'patrimonio'
+                          ? 'Carteira'
+                          : (BENCHMARK_LABELS[String(name)] ?? String(name)),
+                      ]}
+                      labelFormatter={(l: unknown) =>
+                        typeof l === 'string'
+                          ? new Date(`${l}T12:00:00`).toLocaleDateString('pt-BR')
+                          : String(l ?? '')
+                      }
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="patrimonio"
+                      stroke={seriesColor(0)}
+                      fill={seriesColor(0)}
+                      fillOpacity={0.15}
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    {data.perf.benchmarks.map((b, i) => (
+                      <Line
+                        key={b.code}
+                        type="monotone"
+                        dataKey={b.code}
+                        stroke={seriesColor(i + 1)}
+                        strokeWidth={1.5}
+                        strokeDasharray="4 4"
+                        dot={false}
+                        connectNulls
+                      />
+                    ))}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </BlurChart>
 
             <p className="text-[11px] text-muted-foreground">
               Linhas tracejadas: benchmarks normalizados ao valor inicial da carteira. Métricas
@@ -243,8 +260,19 @@ export function PerformancePanel({ portfolioId }: { portfolioId: string }) {
   );
 }
 
-function Metric({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+function Metric({
+  label,
+  value,
+  accent,
+  masked,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  masked?: boolean;
+}) {
   const negative = value.trim().startsWith('-');
+  const content = masked ? <MaskedValue>{value}</MaskedValue> : value;
   return (
     <div className="rounded-lg border p-2">
       <dt className="text-[11px] text-muted-foreground">{label}</dt>
@@ -253,7 +281,7 @@ function Metric({ label, value, accent }: { label: string; value: string; accent
           accent ? (negative ? 'text-red-600' : 'text-emerald-600') : ''
         }`}
       >
-        {value}
+        {content}
       </dd>
     </div>
   );

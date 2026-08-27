@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchPortfolioPerformance } from '@/lib/api-client';
+import { MaskedValue } from '@/components/privacy/masked-value';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -114,7 +115,9 @@ function RiskCard({ label, value, hint }: { label: string; value: string; hint: 
         <CardDescription>{label}</CardDescription>
       </CardHeader>
       <CardContent>
-        <p className="text-lg font-semibold tabular-nums">{value}</p>
+        <p className="text-lg font-semibold tabular-nums">
+          <MaskedValue>{value}</MaskedValue>
+        </p>
         <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{hint}</p>
       </CardContent>
     </Card>
@@ -136,8 +139,10 @@ function MoveList({ moves }: { moves: DailyMove[] }) {
               m.changePercent >= 0 ? 'text-emerald-600' : 'text-red-600'
             }`}
           >
-            {m.changePercent >= 0 ? '+' : ''}
-            {pct(m.changePercent)}
+            <MaskedValue>
+              {m.changePercent >= 0 ? '+' : ''}
+              {pct(m.changePercent)}
+            </MaskedValue>
           </span>
         </li>
       ))}

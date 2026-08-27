@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createGoal, deleteGoal, fetchGoals, type GoalDto } from '@/lib/api-client';
+import { MaskedValue } from '@/components/privacy/masked-value';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -80,12 +81,14 @@ function GoalRow({
   onRemove: () => void;
 }) {
   const g = data.goal;
-  const label =
-    g.kind === 'TARGET_AMOUNT'
-      ? `Chegar a ${brl.format(Number(g.targetValue))}`
-      : g.kind === 'TARGET_RETURN_PCT'
-        ? `Retornar ${Number(g.targetPct).toLocaleString('pt-BR')}%`
-        : `Ter uma carteira ativa até ${new Date(`${g.targetDate}T12:00:00`).toLocaleDateString('pt-BR')}`;
+  const label: React.ReactNode =
+    g.kind === 'TARGET_AMOUNT' ? (
+      <MaskedValue>Chegar a {brl.format(Number(g.targetValue))}</MaskedValue>
+    ) : g.kind === 'TARGET_RETURN_PCT' ? (
+      `Retornar ${Number(g.targetPct).toLocaleString('pt-BR')}%`
+    ) : (
+      `Ter uma carteira ativa até ${new Date(`${g.targetDate}T12:00:00`).toLocaleDateString('pt-BR')}`
+    );
 
   const progress = data.progressPercent ?? 0;
 
@@ -104,7 +107,9 @@ function GoalRow({
         />
       </div>
       <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-        <span className="tabular-nums">{brl.format(data.currentValue)}</span>
+        <span className="tabular-nums">
+          <MaskedValue>{brl.format(data.currentValue)}</MaskedValue>
+        </span>
         <Badge variant={progress >= 100 ? 'default' : 'secondary'}>{progress.toFixed(0)}%</Badge>
       </div>
     </div>

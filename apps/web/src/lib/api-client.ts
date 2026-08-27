@@ -1,6 +1,6 @@
-import type { User, AuthResponse, SignInDto, SignUpDto } from '@/types/auth';
+import type { User, AuthResponse, SignInDto, SignUpDto, UserPreferencesDto } from '@/types/auth';
 
-export type { User, AuthResponse, SignInDto, SignUpDto };
+export type { User, AuthResponse, SignInDto, SignUpDto, UserPreferencesDto };
 
 /** Compact asset row returned by GET /api/v1/assets. */
 export interface AssetDto {
@@ -376,6 +376,24 @@ export async function getCurrentUser(): Promise<User> {
   return (await res.json()) as User;
 }
 
+/** Body de PATCH /api/v1/users/me. */
+export interface UpdatePreferencesInput {
+  hideValues: boolean;
+}
+
+/** PATCH /api/v1/users/me — grava as preferências da conta. */
+export async function updateMyPreferences(
+  input: UpdatePreferencesInput,
+): Promise<UserPreferencesDto> {
+  const res = await fetchWithAuth(`${API_BASE_URL}/api/v1/users/me`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) throw await readApiError(res, 'Falha ao salvar preferências.');
+  return (await res.json()) as UserPreferencesDto;
+}
+
 // ---------------------------------------------------------------------------
 // Market Data & Analytics APIs
 // ---------------------------------------------------------------------------
@@ -599,7 +617,7 @@ export async function fetchAssetDividends(ticker: string): Promise<AssetDividend
 // Portfolios (dashboard do usuário) — GET/POST /api/v1/portfolios
 // ---------------------------------------------------------------------------
 
-/** Carteira retornada por GET /api/v1/portfolios. */
+/** Carteira retornada por GET /api/v1/portfolios (com série de 30d e retornos). */
 export interface PortfolioDto {
   id: string;
   title: string;
@@ -608,6 +626,9 @@ export interface PortfolioDto {
   visibility: 'private' | 'public' | 'link';
   publicValuesMode: 'percent_only' | 'full_values';
   createdAt: string;
+  series30d?: number[];
+  returnPercentMonth?: number | null;
+  returnPercentTotal?: number | null;
 }
 
 /** Posição projetada de um par (ativo, corretora). */

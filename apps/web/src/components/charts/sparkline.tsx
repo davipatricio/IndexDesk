@@ -1,61 +1,81 @@
 import { cn } from '@/lib/utils';
 
-const WIDTH = 100;
-const HEIGHT = 32;
-const PAD = 2;
+export interface SparklineProps {
+  /**
+   * Série temporal ordenada antigo → recente.
+   * Valores aceitam array numérico (ex.: últimos 30 pontos de fechamento ou patrimônio).
+   */
+  data?: number[];
+  /** Alias para data (retrocompatibilidade). */
+  values?: number[];
+  width?: number;
+  height?: number;
+  className?: string;
+  strokeWidth?: number;
+}
 
-function buildPath(values: number[]): { line: string; area: string } | null {
-  if (values.length < 2) return null;
+function buildPath(
+  pointsData: number[],
+  width: number,
+  height: number,
+  pad: number,
+): { line: string; area: string } | null {
+  if (pointsData.length < 2) return null;
 
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const min = Math.min(...pointsData);
+  const max = Math.max(...pointsData);
   const span = max - min || 1;
-  const stepX = (WIDTH - PAD * 2) / (values.length - 1);
+  const stepX = (width - pad * 2) / (pointsData.length - 1);
 
-  const points = values.map((value, index) => {
-    const x = PAD + index * stepX;
-    const y = HEIGHT - PAD - ((value - min) / span) * (HEIGHT - PAD * 2);
+  const points = pointsData.map((value, index) => {
+    const x = pad + index * stepX;
+    const y = height - pad - ((value - min) / span) * (height - pad * 2);
     return [Number(x.toFixed(2)), Number(y.toFixed(2))] as const;
   });
 
   const line = points.map(([x, y], index) => `${index === 0 ? 'M' : 'L'}${x} ${y}`).join(' ');
-  // First point sits at x=PAD and last at x=WIDTH-PAD by construction.
-  const area = `${line} L${WIDTH - PAD} ${HEIGHT - PAD} L${PAD} ${HEIGHT - PAD} Z`;
+  const area = `${line} L${width - pad} ${height - pad} L${pad} ${height - pad} Z`;
 
   return { line, area };
 }
 
 /**
- * Inline sparkline for closing-price windows. Pure server-renderable SVG —
- * no chart library. Trend colour: positive when last close >= first.
+ * Sparkline SVG puro, zero-dep, leve para renderizar em lote em tabelas.
+ * Área preenchida com ~10% de opacidade e cor dinâmica conforme a inclinação
+ * (verde para alta, vermelho para baixa, cinza quando flat ou sem dados).
  */
 export function Sparkline({
+  data,
   values,
+  width = 120,
+  height = 28,
   className,
   strokeWidth = 1.5,
-}: {
-  values: number[];
-  className?: string;
-  strokeWidth?: number;
-}) {
-  const path = buildPath(values);
-  const firstValue = values[0];
-  const lastValue = values[values.length - 1];
-  const positive = firstValue !== undefined && lastValue !== undefined && lastValue >= firstValue;
+}: SparklineProps) {
+  const series = data ?? values ?? [];
+  const pad = 2;
+  const path = buildPath(series, width, height, pad);
 
-  if (!path) {
+  const firstValue = series[0];
+  const lastValue = series[series.length - 1];
+  const isFlat = firstValue !== undefined && lastValue !== undefined && firstValue === lastValue;
+  const isUp = firstValue !== undefined && lastValue !== undefined && lastValue > firstValue;
+
+  if (!path || series.length < 2) {
     return (
       <svg
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        viewBox={`0 0 ${width} ${height}`}
+        width={width}
+        height={height}
         preserveAspectRatio="none"
         aria-hidden="true"
-        className={cn('text-muted-foreground/40', className)}
+        className={cn('text-muted-foreground/30', className)}
       >
         <line
-          x1={PAD}
-          x2={WIDTH - PAD}
-          y1={HEIGHT / 2}
-          y2={HEIGHT / 2}
+          x1={pad}
+          x2={width - pad}
+          y1={height / 2}
+          y2={height / 2}
           stroke="currentColor"
           strokeWidth={strokeWidth}
           strokeDasharray="3 3"
@@ -64,14 +84,18 @@ export function Sparkline({
     );
   }
 
+  const trendColor = isFlat ? 'text-muted-foreground' : isUp ? 'text-positive' : 'text-negative';
+
   return (
     <svg
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+      viewBox={`0 0 ${width} ${height}`}
+      width={width}
+      height={height}
       preserveAspectRatio="none"
       aria-hidden="true"
-      className={cn(positive ? 'text-positive' : 'text-negative', className)}
+      className={cn(trendColor, className)}
     >
-      <path d={path.area} fill="currentColor" opacity={0.12} />
+      <path d={path.area} fill="currentColor" opacity={0.1} />
       <path
         d={path.line}
         fill="none"

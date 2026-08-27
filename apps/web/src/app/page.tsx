@@ -83,79 +83,75 @@ export default async function HomePage() {
 
   const moverTickers = [...topGainers, ...topLosers].map((row) => row.ticker.toUpperCase());
   const sparks =
-    moverTickers.length > 0
-      ? await safeFetch(() => fetchQuoteSparks(moverTickers))
-      : undefined;
+    moverTickers.length > 0 ? await safeFetch(() => fetchQuoteSparks(moverTickers)) : undefined;
 
   return (
-      <div className="container mx-auto flex flex-col gap-10 px-4 py-8">
-        <section className="flex flex-col gap-1">
-          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-            Visão geral do mercado
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Indicadores e destaques da B3, atualizados com os dados locais mais recentes.
+    <div className="container mx-auto flex flex-col gap-10 px-4 py-8">
+      <section className="flex flex-col gap-1">
+        <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+          Visão geral do mercado
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Indicadores e destaques da B3, atualizados com os dados locais mais recentes.
+        </p>
+      </section>
+
+      <section aria-label="Indicadores de mercado" className="overflow-x-auto">
+        {indicators && indicators.length > 0 ? (
+          <div className="grid min-w-md grid-cols-1 divide-y rounded-lg border sm:min-w-0 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            {indicators.map((indicator) => (
+              <IndicatorCell key={indicator.code} indicator={indicator} />
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg border p-4 text-sm text-muted-foreground">
+            Indicadores de mercado ainda não disponíveis. Eles aparecem aqui assim que a série do
+            Banco Central for sincronizada.
+          </p>
+        )}
+      </section>
+
+      {hasMovers ? (
+        <section
+          aria-label="Destaques de 12 meses"
+          className="grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-2"
+        >
+          <MoverColumn title="Maiores altas em 12 meses" rows={topGainers} sparks={sparks} />
+          <MoverColumn title="Maiores quedas em 12 meses" rows={topLosers} sparks={sparks} />
+          <p className="text-xs leading-relaxed text-muted-foreground lg:col-span-2">
+            Retornos calculados sobre o histórico local de cotações; ativos sem série suficiente
+            ficam fora da lista. Conteúdo educacional — não é recomendação de investimento.
           </p>
         </section>
-
-        <section aria-label="Indicadores de mercado" className="overflow-x-auto">
-          {indicators && indicators.length > 0 ? (
-            <div className="grid min-w-md grid-cols-1 divide-y rounded-lg border sm:min-w-0 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-              {indicators.map((indicator) => (
-                <IndicatorCell key={indicator.code} indicator={indicator} />
-              ))}
-            </div>
-          ) : (
-            <p className="rounded-lg border p-4 text-sm text-muted-foreground">
-              Indicadores de mercado ainda não disponíveis. Eles aparecem aqui assim que a série do
-              Banco Central for sincronizada.
-            </p>
-          )}
+      ) : (
+        <section aria-label="Destaques de 12 meses">
+          <p className="rounded-lg border p-4 text-sm text-muted-foreground">
+            Os destaques de retorno aparecem quando houver histórico suficiente de cotações. Explore
+            o catálogo completo enquanto isso.
+          </p>
         </section>
+      )}
 
-        {hasMovers ? (
-          <section
-            aria-label="Destaques de 12 meses"
-            className="grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-2"
-          >
-            <MoverColumn title="Maiores altas em 12 meses" rows={topGainers} sparks={sparks} />
-            <MoverColumn title="Maiores quedas em 12 meses" rows={topLosers} sparks={sparks} />
-            <p className="text-xs leading-relaxed text-muted-foreground lg:col-span-2">
-              Retornos calculados sobre o histórico local de cotações; ativos sem série suficiente
-              ficam fora da lista. Conteúdo educacional — não é recomendação de investimento.
-            </p>
-          </section>
-        ) : (
-          <section aria-label="Destaques de 12 meses">
-            <p className="rounded-lg border p-4 text-sm text-muted-foreground">
-              Os destaques de retorno aparecem quando houver histórico suficiente de cotações.
-              Explore o catálogo completo enquanto isso.
-            </p>
-          </section>
-        )}
-
-        <section aria-label="Ferramentas" className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold text-foreground">Ferramentas</h2>
-          <ul className="divide-y divide-border/60 overflow-hidden rounded-lg border">
-            {TOOLS.map((tool) => (
-              <li key={tool.href}>
-                <Link
-                  href={tool.href}
-                  className="group flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:outline-none"
-                >
-                  <span className="flex min-w-0 flex-col gap-0.5">
-                    <span className="text-sm font-medium text-foreground">{tool.name}</span>
-                    <span className="truncate text-xs text-muted-foreground">
-                      {tool.description}
-                    </span>
-                  </span>
-                  <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
+      <section aria-label="Ferramentas" className="flex flex-col gap-2">
+        <h2 className="text-sm font-semibold text-foreground">Ferramentas</h2>
+        <ul className="divide-y divide-border/60 overflow-hidden rounded-lg border">
+          {TOOLS.map((tool) => (
+            <li key={tool.href}>
+              <Link
+                href={tool.href}
+                className="group flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-accent/50 focus-visible:bg-accent/50 focus-visible:outline-none"
+              >
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-sm font-medium text-foreground">{tool.name}</span>
+                  <span className="truncate text-xs text-muted-foreground">{tool.description}</span>
+                </span>
+                <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
   );
 }
 
