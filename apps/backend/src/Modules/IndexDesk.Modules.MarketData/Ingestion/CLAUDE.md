@@ -13,7 +13,10 @@ idempotentes. Subpasta dedicada: [`Holdings/`](Holdings/CLAUDE.md).
 
 - `IDailyCloseSyncService.cs` / `DailyCloseSyncService.cs` — pipeline diário pós-fechamento:
   1 batch Brapi → fila espaçada de proventos → gap fill Yahoo → TV. Cada estágio grava a própria linha
-  em `sync_job_logs`; falha isolada nunca aborta os demais.
+  em `sync_job_logs`; falha isolada nunca aborta os demais. Parâmetro `targetDate` opcional: quando
+  setado para dia passado (catch-up do bootstrap), **pula batch Brapi + fila de proventos** (Brapi free
+  só expõe "hoje") e roda só Yahoo → TV para aquela data — estágios Brapi aparecem como `SUCCESS`
+  zerado em `sync_job_logs` (skip intencional, não erro).
 - `IAssetSyncService.cs` / `AssetSyncService.cs` — legado do gatilho REST `POST /sync/daily`;
   pilotos fixos + invalidação de cache.
 - `IAssetBackfillService.cs` / `AssetBackfillService.cs` — backfill histórico (job manual e CLI
@@ -51,6 +54,15 @@ flowchart TD
     S2 --> S3["Estágio 3 · TradingViewSidecarClient"]
     S3 --> L["DailyCloseChain.StatusFor por estágio<br/>+ Overall em sync_job_logs"]
 ```
+
+## MarketData/Ingestion — serviços (adições da fase Sync Bootstrap)
+
+- `BusinessDayCalculator.cs` — puro, sem I/O: `IsBusinessDay`, `PreviousBusinessDay`,
+  `BusinessDaysBetween(from, to)`. Feriado = `HashSet<DateOnly>`; tabela vazia degrada pra
+  filtro só de fim de semana. Testado em `BusinessDayCalculatorTests` (13 casos).
+- `MarketHolidayQueries.cs` — adaptadores I/O de `market_holidays`:
+  `GetLatestBusinessDayOnOrBeforeAsync` / `GetBusinessDaysBetweenAsync` (1 round trip, `AsNoTracking`,
+  filtra `Exchange = 'B3'`).
 
 ## Regras locais
 

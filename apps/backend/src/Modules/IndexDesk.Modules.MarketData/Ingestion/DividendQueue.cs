@@ -10,6 +10,10 @@ internal sealed record DividendQueueOutcome(
 )
 {
     public bool AnyFailure => FirstErrorCode is not null || AnyHardFailure;
+
+    /// <summary>No-op outcome for catch-up runs where the dividend queue is
+    /// intentionally skipped (Brapi budget rule: only "today" runs touch it).</summary>
+    public static readonly DividendQueueOutcome Empty = new(0, null, null, false);
 }
 
 /// <summary>

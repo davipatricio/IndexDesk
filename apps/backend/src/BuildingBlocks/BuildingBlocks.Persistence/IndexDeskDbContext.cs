@@ -15,6 +15,7 @@ public class IndexDeskDbContext : DbContext
     public DbSet<MacroEconomicSeriesEntity> MacroEconomicSeries => Set<MacroEconomicSeriesEntity>();
     public DbSet<FxRateEntity> FxRates => Set<FxRateEntity>();
     public DbSet<EtfHoldingEntity> EtfHoldings => Set<EtfHoldingEntity>();
+    public DbSet<MarketHolidayEntity> MarketHolidays => Set<MarketHolidayEntity>();
 
     public DbSet<UserEntity> Users => Set<UserEntity>();
     public DbSet<RoleEntity> Roles => Set<RoleEntity>();
@@ -153,6 +154,15 @@ public class IndexDeskDbContext : DbContext
                 .IsUnique();
             entity.HasIndex(e => new { e.EtfAssetId, e.AsOfDate });
             entity.HasIndex(e => e.HoldingTicker);
+        });
+
+        modelBuilder.Entity<MarketHolidayEntity>(entity =>
+        {
+            entity.ToTable("market_holidays");
+            entity.HasKey(e => e.Date);
+            entity.Property(e => e.Description).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Exchange).HasMaxLength(10).IsRequired();
+            entity.HasIndex(e => e.Exchange);
         });
 
         modelBuilder.Entity<UserEntity>(entity =>

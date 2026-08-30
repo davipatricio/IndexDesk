@@ -3,8 +3,8 @@
 > **Arquivo gerado:** não edite `ROADMAP.md` diretamente. Atualize `.roadmap/**/*.json` e execute `bun run roadmap:generate`.
 > **Estado atual:** requisitos documentados, implementação ainda não scaffoldada.
 
-**Atualizado em:** 2026-08-22 · **Estado:** `scaffolded` · **Progresso:** [███████████░░░░░░░░░] 55% (31/56)
-**Tarefas:** 56 total · 31 concluídas · 3 em andamento · 0 bloqueadas · 22 não iniciadas/deferidas
+**Atualizado em:** 2026-08-22 · **Estado:** `scaffolded` · **Progresso:** [███████████░░░░░░░░░] 56% (32/57)
+**Tarefas:** 57 total · 32 concluídas · 3 em andamento · 0 bloqueadas · 22 não iniciadas/deferidas
 
 ## Estado do projeto
 
@@ -19,7 +19,7 @@
 
 | Fase | Status | Prioridade | Progresso | Dependências |
 | :--- | :--- | :---: | :---: | :--- |
-| **00 — Foundation & Platform Scaffold** | 🔵 `in_progress` | `P0` | 94% (15/16) | — |
+| **00 — Foundation & Platform Scaffold** | 🔵 `in_progress` | `P0` | 94% (16/17) | — |
 | **01 — MVP & Core Market Intelligence** | 🔵 `in_progress` | `P0` | 52% (13/25) | `PHASE-00` |
 | **02 — Growth, Programmatic SEO & Retention** | ⬜ `not_started` | `P2` | 0% (0/6) | `PHASE-01` |
 | **03 — Portfolio, Fixed Income & Tax Automation** | ⬜ `not_started` | `P2` | 33% (3/9) | `PHASE-01`, `PHASE-02` |
@@ -43,7 +43,7 @@ News/reports/storage/RSS -> public hubs + admin publishing
 
 ## Fase 00 — Foundation & Platform Scaffold
 
-**Status:** 🔵 `in_progress` · **Prioridade:** `P0` · **Progresso:** [███████████████████░] 94% (15/16)
+**Status:** 🔵 `in_progress` · **Prioridade:** `P0` · **Progresso:** [███████████████████░] 94% (16/17)
 **Objetivo:** Transformar o repositório de documentação em um monorepo executável, observável e reproduzível.
 **Depende de:** nenhuma fase
 
@@ -169,6 +169,26 @@ _Reproduzir a infraestrutura de desenvolvimento com Docker, dados persistentes e
   - Critérios: Migrations são repetíveis em banco vazio; Hypertables e índices são criados quando Timescale está disponível; Fallback por particionamento é documentado/testável
   - Entregáveis: migrations; scripts de bootstrap Timescale/Postgres; seed mínimo de enums
   - Notas: Não marcar complete sem restaurar banco vazio e aplicar migrations.
+
+</details>
+
+### Sync Resilience & Self-Healing
+
+_Garantir que a pipeline de ingestão se recupere sozinha de reinícios e downtime sem intervenção manual — single-writer entre CLI/API/job/catch-up._
+
+**Status:** 🔵 `in_progress` · **Prioridade:** `P0` · **Progresso:** [████████████] 100% (1/1)
+
+| ID | Tarefa | Prioridade | Dificuldade | Status | Dependências |
+| :--- | :--- | :---: | :---: | :--- | :--- | 
+| `OPS-018` | Auto-retomada de sincronização diária (Sync Bootstrap) | `P1` | `hard` | ✅ `complete` | `FND-013` |
+
+<details>
+<summary>Critérios e entregáveis</summary>
+
+- **OPS-018 — Auto-retomada de sincronização diária (Sync Bootstrap)**
+  - Critérios: Worker sem quotes do dia anterior roda catch-up de 1 dia automaticamente; Worker com 30 dias de gap respeita MaxBacklogDays (não trava em loop infinito); CLI --backfill iniciado em paralelo com catch-up recebe erro e aborta sem pisar em dados; Endpoints /sync/daily e /sync/backfill retornam 409 Conflict se lock ocupado; Postgres auto-libera lock se processo for killed -9; Suíte de testes unitários cobre BusinessDayCalculator e DividendQueueOutcome (28+ casos)
+  - Entregáveis: BuildingBlocks.Persistence/Services/AdvisoryLockExtensions.cs; Entities/MarketHolidayEntity.cs + DbSet + mapeamento; MarketData/Ingestion/BusinessDayCalculator.cs + MarketHolidayQueries.cs; IndexDesk.Worker/Services/SyncBootstrapService.cs + DI no Program.cs; Lock no CLI --backfill; Lock nos endpoints /sync/daily e /sync/backfill; Tabela market_holidays seedada com 24 feriados B3 (2025+2026); Config Sync:CatchUp:* no appsettings.json; DEC-008 (Sync Bootstrap) no skill .agents/skills/indexdesk
+  - Notas: Plano completo em plans/auto-retomada-sync.md. Implementado em 2026-08-30; decisão aceita DEC-008.
 
 </details>
 

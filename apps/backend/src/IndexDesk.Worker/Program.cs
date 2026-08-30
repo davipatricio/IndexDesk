@@ -1,10 +1,12 @@
 using IndexDesk.BuildingBlocks.Cache;
 using IndexDesk.BuildingBlocks.Observability;
 using IndexDesk.BuildingBlocks.Persistence;
+using IndexDesk.BuildingBlocks.Persistence.Services;
 using IndexDesk.Modules.MarketData;
 using IndexDesk.Modules.MarketData.Ingestion;
 using IndexDesk.Modules.Portfolio;
 using IndexDesk.Worker.Jobs;
+using IndexDesk.Worker.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -123,6 +125,12 @@ builder.Services.AddQuartz(q =>
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
+// Sync catch-up bootstrap: runs once at boot BEFORE Quartz's hosted service starts
+// scheduling, closing any gap left by downtime (RAMJobStore loses missed triggers).
+// Registered after Quartz so Quartz's scheduler is already configured; execution
+// order is guaranteed by the hosted-service registration sequence.
+builder.Services.AddHostedService<SyncBootstrapService>();
+
 var host = builder.Build();
 
 // CLI Backfill execution handling:
@@ -179,61 +187,79 @@ if (backfillIndex >= 0)
     using var scope = host.Services.CreateScope();
     var backfillService = scope.ServiceProvider.GetRequiredService<IAssetBackfillService>();
 
-    if (providerArg is not null && !SidecarProviderDirectory.TryNormalize(providerArg, out _))
+    // Single-writer gate: the CLI shares the same advisory lock as the daily-close
+    // job and the boot catch-up (AdvisoryLockExtensions.BackfillSyncLockId), so a
+    // manual backfill can never race a scheduled sync into double rate-limit hits.
+    var backfillDbContext = scope.ServiceProvider.GetRequiredService<IndexDeskDbContext>();
+    var backfillLock = await backfillDbContext.TryAcquireAdvisoryLockAsync(
+        AdvisoryLockExtensions.BackfillSyncLockId
+    );
+    if (backfillLock is null)
     {
         Console.WriteLine(
-            $"[IndexDesk.Worker:CLI] Unknown provider '{providerArg}'. Supported: {SidecarProviderDirectory.SupportedNames}"
+            "[IndexDesk.Worker:CLI] Another sync holds the advisory lock (daily job / catch-up bootstrap / other CLI). Aborting."
         );
         return;
     }
 
-    Console.WriteLine(
-        $"[IndexDesk.Worker:CLI] Running on-demand historical backfill for '{targetArg}'"
-            + (providerArg is null ? "" : $" via {providerArg}")
-            + (daysWindow is { } window ? $", rolling {window}d window" : "")
-            + "..."
-    );
-
-    var tickers = targetArg.Split(
-        ',',
-        StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-    );
-    foreach (var ticker in tickers)
+    await using (backfillLock)
     {
-        var endDate = DateOnly.FromDateTime(DateTime.UtcNow);
-        var startDate = daysWindow is { } days
-            ? endDate.AddDays(-days)
-            : ticker.ToUpperInvariant() switch
-            {
-                "MXRF11" => new DateOnly(2015, 1, 1),
-                "VWRA11" => new DateOnly(2021, 1, 1),
-                "GOLD11" => new DateOnly(2020, 1, 1),
-                "WRLD11" => new DateOnly(2021, 1, 1),
-                // Benchmark indices: full depth for IBOV; IFIX is forward-only (Yahoo
-                // exposes no history) so the window starts around "now".
-                "IBOV" => new DateOnly(2015, 1, 1),
-                "IFIX" => endDate.AddDays(-7),
-                _ => new DateOnly(2021, 1, 1),
-            };
-
-        var result = await backfillService.BackfillAssetAsync(
-            ticker,
-            startDate,
-            endDate,
-            preferredProvider: providerArg
-        );
-        if (result.IsSuccess)
+        if (providerArg is not null && !SidecarProviderDirectory.TryNormalize(providerArg, out _))
         {
-            var s = result.Value;
             Console.WriteLine(
-                $"[IndexDesk.Worker:CLI] SUCCESS for {s.Ticker}: {s.QuotesIngested} quotes, {s.DividendsIngested} dividends via {s.SourceProvider} in {s.ElapsedMilliseconds}ms."
+                $"[IndexDesk.Worker:CLI] Unknown provider '{providerArg}'. Supported: {SidecarProviderDirectory.SupportedNames}"
             );
+            return;
         }
-        else
+
+        Console.WriteLine(
+            $"[IndexDesk.Worker:CLI] Running on-demand historical backfill for '{targetArg}'"
+                + (providerArg is null ? "" : $" via {providerArg}")
+                + (daysWindow is { } window ? $", rolling {window}d window" : "")
+                + "..."
+        );
+
+        var tickers = targetArg.Split(
+            ',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+        );
+        foreach (var ticker in tickers)
         {
-            Console.WriteLine(
-                $"[IndexDesk.Worker:CLI] FAILED for {ticker}: {result.Error.Message}"
+            var endDate = DateOnly.FromDateTime(DateTime.UtcNow);
+            var startDate = daysWindow is { } days
+                ? endDate.AddDays(-days)
+                : ticker.ToUpperInvariant() switch
+                {
+                    "MXRF11" => new DateOnly(2015, 1, 1),
+                    "VWRA11" => new DateOnly(2021, 1, 1),
+                    "GOLD11" => new DateOnly(2020, 1, 1),
+                    "WRLD11" => new DateOnly(2021, 1, 1),
+                    // Benchmark indices: full depth for IBOV; IFIX is forward-only (Yahoo
+                    // exposes no history) so the window starts around "now".
+                    "IBOV" => new DateOnly(2015, 1, 1),
+                    "IFIX" => endDate.AddDays(-7),
+                    _ => new DateOnly(2021, 1, 1),
+                };
+
+            var result = await backfillService.BackfillAssetAsync(
+                ticker,
+                startDate,
+                endDate,
+                preferredProvider: providerArg
             );
+            if (result.IsSuccess)
+            {
+                var s = result.Value;
+                Console.WriteLine(
+                    $"[IndexDesk.Worker:CLI] SUCCESS for {s.Ticker}: {s.QuotesIngested} quotes, {s.DividendsIngested} dividends via {s.SourceProvider} in {s.ElapsedMilliseconds}ms."
+                );
+            }
+            else
+            {
+                Console.WriteLine(
+                    $"[IndexDesk.Worker:CLI] FAILED for {ticker}: {result.Error.Message}"
+                );
+            }
         }
     }
 

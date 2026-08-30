@@ -14,8 +14,8 @@ Detalhes/contratos: [`../../../../apps/backend/src/Modules/IndexDesk.Modules.Aut
 ### `/api/v1/assets` (módulo MarketData)
 | Rota | Nome | Função |
 | :--- | :--- | :--- |
-| `POST /sync/daily` | TriggerDailySync | dispara sincronização diária de cotações/dividendos |
-| `POST /sync/backfill` | TriggerPilotBackfill | backfill dos pilotos + benchmarks (MXRF11, VWRA11, GOLD11, WRLD11, IBOV, IFIX) |
+| `POST /sync/daily` | TriggerDailySync | dispara sincronização diária de cotações/dividendos (adquire `BackfillSyncLockId`; `409 Sync.LockBusy` se ocupado) |
+| `POST /sync/backfill` | TriggerPilotBackfill | backfill dos pilotos + benchmarks (MXRF11, VWRA11, GOLD11, WRLD11, IBOV, IFIX) — mesma lock que o job diário; `409 Sync.LockBusy` se ocupado |
 | `POST /sync/macro` | TriggerMacroSync | dispara sync BCB (CDI/Selic/IPCA/IGP-M) |
 | `GET /` | GetAssets | catálogo paginado (exclui `AssetType="INDEX"` salvo `assetType=INDEX` explícito) |
 | `GET /rankings` | GetAssetRankings | ranking por métrica (`retorno12m/30d/6m/ano`, `variacaodia`, `volatilidade`, `sharpe`, `drawdown`, `volume`); sem dados na métrica → última posição; exclui INDEX salvo pedido explícito |
@@ -332,6 +332,26 @@ líquida/CVM informe diário, overlap/tax drag/DARF/aposentadoria/fluxo-CVM, sit
 ## Pendências conhecidas de ambiente
 
 Containers Docker agora **rodando** e migrations aplicadas no banco local (tabelas `assets`,
-`asset_quotes`, `asset_dividends`, `macro_economic_series`, `sync_job_logs` verificadas em 2026-08-22) —
-a task FND-013 segue `not_started` no roadmap (aceite exige restaurar banco vazio); SDK .NET local usa
-`DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1`; advisory NU1902 no pacote OTLP exporter.
+`asset_quotes`, `asset_dividends`, `macro_economic_series`, `sync_job_logs`, `market_holidays`
+verificadas em 2026-08-30) — a task FND-013 segue `not_started` no roadmap (aceite exige restaurar
+banco vazio); SDK .NET local usa `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1`; advisory NU1902 no
+pacote OTLP exporter. `market_holidays` foi seedada fora do EF (FND-013) com ANBIMA 2025/2026
+(24 feriados B3) e é consultada por `SyncBootstrapService`/`MarketHolidayQueries` para
+calcular dias úteis faltantes; tabela vazia ainda funciona (cai pra filtro só fim de semana).
+
+## Auto-retomada de sync (Sync Bootstrap — 2026-08-30)
+
+`apps/backend/src/IndexDesk.Worker/Services/SyncBootstrapService.cs` — `IHostedService` one-shot
+no boot, **antes** do `host.Run()`. Detecta staleness por `max(Date) asset_quotes` vs último
+dia útil B3 (`MarketHolidayQueries` + `BusinessDayCalculator`), pega `BackfillSyncLockId` (advisory
+lock PG, polling até `Sync:CatchUp:LockTimeoutSeconds`) e chama
+`IDailyCloseSyncService.SyncDailyCloseAsync(targetDate: dia)` para cada dia útil faltante
+(do mais antigo ao mais novo, cap `Sync:CatchUp:MaxBacklogDays`, default 30). Para dias passados
+o `DailyCloseSyncService` **pula o batch Brapi + fila de proventos** (Brapi free só expõe "hoje")
+e roda só Yahoo → TV; estágios Brapi aparecem como `SUCCESS` zerado em `sync_job_logs`
+(skip intencional, não erro). Idempotência dos upserts = crash no meio retoma limpo no próximo
+boot. CLI `--backfill` e endpoints `POST /api/v1/assets/sync/{daily,backfill}` compartilham o
+mesmo lock — uma única instância de escrita por vez (resposta `409 Sync.LockBusy` na API, abort
+no CLI). Tabela `market_holidays` + entity + queries vivem em
+`BuildingBlocks.Persistence` e `Modules.MarketData.Ingestion`; planner puro
+`BusinessDayCalculator` em `Ingestion/BusinessDayCalculator.cs` (13 testes unitários).

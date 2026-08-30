@@ -11,8 +11,9 @@
 
 | Arquivo | Conteúdo |
 | :--- | :--- |
-| `IndexDeskDbContext.cs` | Único `DbContext` (13 `DbSet`s: market data + auth/RBAC). Todo mapeamento vive em `OnModelCreating`: tabelas snake_case, PKs compostas, precisões, índices únicos e `SeedRbac`. |
-| `Entities/*.cs` | 13 POCOs com GUID gerado no construtor e `CreatedAt` em UTC. Docs XML citam a seção de `MODELS.md` (ex.: `EtfHoldingEntity` = §etf_holdings, dedupe `(EtfAssetId, AsOfDate, HoldingTicker)`). |
+| `IndexDeskDbContext.cs` | Único `DbContext` (14 `DbSet`s: market data + auth/RBAC). Todo mapeamento vive em `OnModelCreating`: tabelas snake_case, PKs compostas, precisões, índices únicos e `SeedRbac`. |
+| `Entities/*.cs` | 14 POCOs com GUID gerado no construtor e `CreatedAt` em UTC. Docs XML citam a seção de `MODELS.md` (ex.: `EtfHoldingEntity` = §etf_holdings, dedupe `(EtfAssetId, AsOfDate, HoldingTicker)`). |
+| `Services/AdvisoryLockExtensions.cs` | `pg_try_advisory_lock` session-scoped na conexão do `IndexDeskDbContext`; `AdvisoryLockHandle` (`IAsyncDisposable`) solta na `DisposeAsync` e o PG auto-libera se a conexão morrer (`kill -9` seguro). Consumers compartilham o mesmo `BackfillSyncLockId` (hex "BACKFILL"): `SyncBootstrapService` (catch-up de boot), CLI `--backfill`, endpoints `POST /api/v1/assets/sync/*`. `TryAcquire` **não bloqueia** — retorna `null` quando ocupado; esperar é responsabilidade do caller (bootstrap faz polling até `Sync:CatchUp:LockTimeoutSeconds`). |
 
 Dependências: EF Core 9.0.2 · Npgsql.EntityFrameworkCore.PostgreSQL 9.0.3 · Npgsql 9.0.2 ·
 referência apenas para `BuildingBlocks.Common`.
@@ -25,6 +26,10 @@ referência apenas para `BuildingBlocks.Common`.
   `weight_percentage (6,4)` — armazenado como fração (`0.0850` = 8.50%).
 - Índice único é a **chave de idempotência** da ingestão: `etf_holdings (EtfAssetId, AsOfDate, HoldingTicker)`,
   `asset_dividends (AssetId, ComDate, Rate)` — upserts re-executáveis nunca duplicam linha.
+- `market_holidays` (`Date` PK, `Description`, `Exchange` default 'B3') — calendário ANBIMA/B3.
+  Consumida por `MarketHolidayQueries` (módulo MarketData) para o catch-up de boot e futuras
+  normalizações de dia útil (base 252). Seed manual/job próprio (FND-013); tabela vazia degrada
+  para filtro só de fim de semana (nunca quebra).
 - Extensões Postgres: `uuid-ossp` + `pgcrypto`. `SeedRbac` (roles Admin/Pro/User + 9 permissões) é dado
   estático de aplicação — mercado só entra via ingestão, nunca via seed.
 - Códigos SGS em `MacroEconomicSeriesEntity`: 12 CDI · 11 Selic · 433 IPCA · 189 IGP-M.

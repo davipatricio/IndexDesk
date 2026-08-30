@@ -13,6 +13,7 @@ Snapshot do roadmap (2026-08-22). Estado atual: `.roadmap/**/decisions.json` e `
 | **DEC-005** (P1) | TanStack DB + biblioteca primária de gráficos | open | Lightweight Charts p/ séries longas; spike TanStack DB × Store × IndexedDB p/ camada offline; Recharts para agregados. |
 | **DEC-007** (P0) | Toolchain de qualidade frontend/C# | open | Oxlint/Oxfmt latest; TS moderno (preserve/bundler/noEmit); fixar TS 7 só quando publicado e validado com Next/Turbopack; CSharpier + dotnet format analyzers/style. |
 | **DEC-006** (P0) | Local-first estrito nas calculadoras | **accepted** | Calculadoras/páginas públicas leem só Postgres/Redis; Worker ingere tudo em background. |
+| **DEC-008** (P1) | Auto-retomada de sync pós-downtime (Sync Bootstrap) | **accepted** | `IHostedService` no boot do Worker detecta gap por `max(Date) asset_quotes` vs último dia útil B3 (`market_holidays`+`BusinessDayCalculator`) e roda `IDailyCloseSyncService.SyncDailyCloseAsync(targetDate: dia)` dia-a-dia, do mais antigo ao mais novo (cap `Sync:CatchUp:MaxBacklogDays`, default 30). Para dias passados o `DailyCloseSyncService` pula batch Brapi + fila de proventos (Brapi free só expõe "hoje") e roda só Yahoo→TV. Single-writer: advisory lock PG `BackfillSyncLockId` (`0x4241434B46494C4C` = "BACKFILL") compartilhado com CLI `--backfill` e endpoints `POST /api/v1/assets/sync/{daily,backfill}` — uma única instância de escrita por vez (resposta `409 Sync.LockBusy` na API, abort no CLI). Idempotência dos upserts garante retomada limpa após crash. |
 
 ### Iniciativa provider-sync (plans/provider-sync-scrapers.md) — decisões de implementação
 
@@ -39,6 +40,7 @@ para não colidir com a numeração do roadmap; refinam o eixo "provedores" de D
 | RISK-006 | Segurança backoffice/uploads | med×critical | RBAC forte, auditoria, sanitização, MIME/tamanho, storage privado, URLs assinadas, override por campo. |
 | RISK-007 | SEO programático duplicado/fino | med×high | Whitelist de pares, canonical, sitemap segmentado, noindex em páginas finas, monitorar Search Console. |
 | RISK-008 | Entrega notificações/storage editorial | med×med | Conversão opcional, consentimento na Phase 02, abstrações com retry e opt-out imediato. |
+| RISK-009 | Backlog de catch-up do bootstrap (Yahoo rate-limit) | med×med | `MaxBacklogDays` default 30 + throttle 200 ms do `DailyCloseSyncService` (~5 req/s); operacionais longos viram `PARTIAL_WARNING` e o ciclo seguinte completa; Brapi não usado no catch-up (orçamento diário). |
 
 ## Como decidir
 

@@ -539,6 +539,74 @@
         ]
       },
       {
+        "id": "RESILIENCE",
+        "name": "Sync Resilience & Self-Healing",
+        "description": "Garantir que a pipeline de ingestão se recupere sozinha de reinícios e downtime sem intervenção manual — single-writer entre CLI/API/job/catch-up.",
+        "status": "in_progress",
+        "priority": "P0",
+        "depends_on": ["FND-013"],
+        "source_refs": [
+          {
+            "file": "plans/auto-retomada-sync.md",
+            "section": "Plano de implementação"
+          }
+        ],
+        "acceptance_criteria": [
+          "Worker detecta gap no boot e roda catch-up via Yahoo/TV sem chamar CLI",
+          "Lock advisory PG impede corrida entre CLI --backfill, job diário, API e catch-up",
+          "Tabela market_holidays populada com ANBIMA B3 e consultada por BusinessDayCalculator",
+          "Falha de catch-up nunca derruba o host (quartz 22:00 UTC segue intacto)"
+        ],
+        "tasks": [
+          {
+            "id": "OPS-018",
+            "title": "Auto-retomada de sincronização diária (Sync Bootstrap)",
+            "description": "IHostedService SyncBootstrapService roda no boot do Worker, detecta max(Date) de asset_quotes vs último dia útil B3 (market_holidays + BusinessDayCalculator) e roda IDailyCloseSyncService.SyncDailyCloseAsync(targetDate: dia) para cada dia útil pendente. Advisory lock PG BackfillSyncLockId (0x4241434B46494C4C = 'BACKFILL') compartilhado com CLI --backfill e endpoints POST /api/v1/assets/sync/* (resposta 409 Sync.LockBusy). DailyCloseSyncService pula batch Brapi + fila de proventos quando targetDate != hoje (catch-up usa Yahoo → TV). Config: Sync:CatchUp:{Enabled,MaxBacklogDays=30,LockTimeoutSeconds=30}.",
+            "status": "complete",
+            "priority": "P1",
+            "difficulty": "hard",
+            "kind": "operations",
+            "phase_id": "PHASE-00",
+            "epic_id": "RESILIENCE",
+            "depends_on": ["FND-013"],
+            "blocks": [],
+            "source_refs": [
+              {
+                "file": "plans/auto-retomada-sync.md",
+                "section": "Plano completo"
+              }
+            ],
+            "acceptance_criteria": [
+              "Worker sem quotes do dia anterior roda catch-up de 1 dia automaticamente",
+              "Worker com 30 dias de gap respeita MaxBacklogDays (não trava em loop infinito)",
+              "CLI --backfill iniciado em paralelo com catch-up recebe erro e aborta sem pisar em dados",
+              "Endpoints /sync/daily e /sync/backfill retornam 409 Conflict se lock ocupado",
+              "Postgres auto-libera lock se processo for killed -9",
+              "Suíte de testes unitários cobre BusinessDayCalculator e DividendQueueOutcome (28+ casos)"
+            ],
+            "deliverables": [
+              "BuildingBlocks.Persistence/Services/AdvisoryLockExtensions.cs",
+              "Entities/MarketHolidayEntity.cs + DbSet + mapeamento",
+              "MarketData/Ingestion/BusinessDayCalculator.cs + MarketHolidayQueries.cs",
+              "IndexDesk.Worker/Services/SyncBootstrapService.cs + DI no Program.cs",
+              "Lock no CLI --backfill",
+              "Lock nos endpoints /sync/daily e /sync/backfill",
+              "Tabela market_holidays seedada com 24 feriados B3 (2025+2026)",
+              "Config Sync:CatchUp:* no appsettings.json",
+              "DEC-008 (Sync Bootstrap) no skill .agents/skills/indexdesk"
+            ],
+            "risks": [
+              "Backlog grande pode demorar horas; MaxBacklogDays = 30 cobre o pior cenário aceitável",
+              "market_holidays vazia deprecia para filtro só fim de semana; documentar como configurar job ANBIMA (FND-013 complementar)"
+            ],
+            "notes": "Plano completo em plans/auto-retomada-sync.md. Implementado em 2026-08-30; decisão aceita DEC-008.",
+            "estimated_hours": 6,
+            "assignee": null,
+            "completed_at": "2026-08-30"
+          }
+        ]
+      },
+      {
         "id": "PLATFORM",
         "name": "Security, Observability & Engineering Baseline",
         "description": "Estabelecer autenticação, RBAC, tracing, health checks e qualidade mínima antes do MVP.",

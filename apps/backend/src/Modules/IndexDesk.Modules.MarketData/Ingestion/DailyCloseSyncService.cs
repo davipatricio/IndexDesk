@@ -44,14 +44,19 @@ public class DailyCloseSyncService : IDailyCloseSyncService
     public async Task<Result<DailyCloseSummary>> SyncDailyCloseAsync(
         IReadOnlyList<string>? targetTickers = null,
         int lookbackDays = 5,
+        DateOnly? targetDate = null,
         CancellationToken cancellationToken = default
     )
     {
         var sw = Stopwatch.StartNew();
         await _dbContext.Database.EnsureCreatedAsync(cancellationToken);
 
-        var tradeDate = DateOnly.FromDateTime(DateTime.UtcNow);
+        var tradeDate = targetDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var windowStart = tradeDate.AddDays(-Math.Max(1, lookbackDays));
+        // Brapi free exposes today's snapshot only; for catch-up of past dates we
+        // skip the batch stage entirely and let the sidecar chain do the work.
+        var brapiBatchEligible = tradeDate == today;
 
         var tickers = targetTickers is { Count: > 0 }
             ? targetTickers
@@ -88,7 +93,26 @@ public class DailyCloseSyncService : IDailyCloseSyncService
         var coveredTickers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var eligibleForBrapi = tickers.Where(_brapiClient.SupportsTicker).ToList();
-        if (eligibleForBrapi.Count > 0)
+        if (!brapiBatchEligible)
+        {
+            // Catch-up of a historical date: Brapi batch cannot serve it. Log a clean
+            // SKIP row so the stage shows up in sync_job_logs as intentionally absent.
+            stages.Add(
+                new StageSummary("BrapiBatch", "BRAPI", DailyCloseChain.Success, 0, 0, null)
+            );
+            await LogStageAsync(
+                "DailyClose_BrapiBatch",
+                "BRAPI",
+                DailyCloseChain.Success,
+                processed: 0,
+                updated: 0,
+                error: null,
+                timeMs: 0,
+                startedAt: batchStartedAt,
+                cancellationToken: cancellationToken
+            );
+        }
+        else if (eligibleForBrapi.Count > 0)
         {
             var batch = await _brapiClient.GetDailyBatchQuotesAsync(
                 eligibleForBrapi,
@@ -161,38 +185,43 @@ public class DailyCloseSyncService : IDailyCloseSyncService
 
         // Spacing/classification live in DividendQueue (pure, unit-tested); this lambda
         // carries the DB-bound work: fetch via the pool-backed client + idempotent upsert.
-        var divOutcome = await DividendQueue.RunAsync(
-            eligibleForBrapi.Where(t => assetsByTicker.ContainsKey(t)).ToList(),
-            async (ticker, token) =>
-            {
-                var dividends = await _brapiClient.GetDividendsAsync(ticker, token);
-                if (dividends.IsFailure)
+        // Dividends are only served for "today" runs too (same budget rule as batch).
+        var divOutcome = brapiBatchEligible
+            ? await DividendQueue.RunAsync(
+                eligibleForBrapi.Where(t => assetsByTicker.ContainsKey(t)).ToList(),
+                async (ticker, token) =>
                 {
-                    return Result<int>.Failure(dividends.Error);
-                }
+                    var dividends = await _brapiClient.GetDividendsAsync(ticker, token);
+                    if (dividends.IsFailure)
+                    {
+                        return Result<int>.Failure(dividends.Error);
+                    }
 
-                if (!assetsByTicker.TryGetValue(ticker, out var asset))
-                {
-                    return Result<int>.Success(0);
-                }
+                    if (!assetsByTicker.TryGetValue(ticker, out var asset))
+                    {
+                        return Result<int>.Success(0);
+                    }
 
-                divTouched++;
-                var count = await IngestionUpserts.DividendsAsync(
-                    _dbContext,
-                    asset.Id,
-                    dividends.Value,
-                    token
-                );
-                divUpserts += count;
-                return Result<int>.Success(count);
-            },
-            ms => Task.Delay(ms, cancellationToken),
-            dividendSpacingMs,
-            cancellationToken
-        );
+                    divTouched++;
+                    var count = await IngestionUpserts.DividendsAsync(
+                        _dbContext,
+                        asset.Id,
+                        dividends.Value,
+                        token
+                    );
+                    divUpserts += count;
+                    return Result<int>.Success(count);
+                },
+                ms => Task.Delay(ms, cancellationToken),
+                dividendSpacingMs,
+                cancellationToken
+            )
+            : DividendQueueOutcome.Empty;
         divError = divOutcome.AnyFailure ? divOutcome.FirstErrorMessage : null;
 
-        var divExpected = eligibleForBrapi.Count(t => assetsByTicker.ContainsKey(t));
+        var divExpected = brapiBatchEligible
+            ? eligibleForBrapi.Count(t => assetsByTicker.ContainsKey(t))
+            : 0;
         var dividendStatus =
             divExpected == 0
                 ? DailyCloseChain.Success

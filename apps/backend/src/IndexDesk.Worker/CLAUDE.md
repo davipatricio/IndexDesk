@@ -12,6 +12,23 @@
 4. `AddMarketDataModule(configuration)` — a lógica de ingestão vive no **módulo**
    (`Modules/IndexDesk.Modules.MarketData/Ingestion/`), não aqui.
 5. Quartz jobs/triggers + `AddQuartzHostedService(WaitForJobsToComplete = true)`.
+6. `AddHostedService<SyncBootstrapService>()` — catch-up de boot (registrado **depois** do Quartz;
+   roda no `StartAsync` antes do `host.Run()`, não sobe scheduler). Config:
+   `Sync:CatchUp:{Enabled,MaxBacklogDays,LockTimeoutSeconds}` (defaults `true/30/30`).
+
+## Sync Bootstrap (auto-retomada pós-downtime)
+
+`Worker/Services/SyncBootstrapService.cs` — `IHostedService` one-shot no boot:
+1. `max(Date) asset_quotes` vs último dia útil B3 (`MarketHolidayQueries` + `BusinessDayCalculator`).
+2. Pendente? Pega advisory lock (`BackfillSyncLockId`) com polling até `LockTimeoutSeconds`.
+3. Loop dia-a-dia (mais antigo → mais novo, cap `MaxBacklogDays`): chama
+   `IDailyCloseSyncService.SyncDailyCloseAsync(targetDate: dia)` — Brapi skip p/ dia passado,
+   Yahoo → TV cobrem histórico. Upserts idempotentes = crash no meio retoma no próximo boot.
+4. Falha de bootstrap **nunca derruba o host** (try/catch no `StartAsync`).
+
+CLI `--backfill` também pega o mesmo lock (aborta se ocupado), igual aos endpoints
+`POST /api/v1/assets/sync/{daily,backfill}` (respondem `409 Sync.LockBusy`). Uma única instância
+de escrita por vez — job diário, catch-up, CLI e API nunca correm em paralelo.
 
 ## Jobs registrados
 
@@ -36,6 +53,8 @@ dotnet run --project src/IndexDesk.Worker -- -b MXRF11,IBOV --days 365    # jane
 ```
 
 - Roda antes de `host.Run()` e **encerra o processo** ao terminar (não sobe schedulers).
+- Adquire `BackfillSyncLockId` antes do loop — se job diário/catch-up/outro CLI estiver rodando,
+  imprime `[IndexDesk.Worker:CLI] Another sync holds the advisory lock` e aborta (retry depois).
 - `--provider` (`-p`) força uma fonte única via `SidecarProviderDirectory`; upsert idempotente = seguro reiniciar.
 - Datas iniciais por ticker num switch em Program.cs (MXRF11 2015; VWRA11/WRLD11 2021; GOLD11 2020;
   default 2021) — atualizar o switch ao adicionar piloto novo. `--days N` sobrescreve o switch com

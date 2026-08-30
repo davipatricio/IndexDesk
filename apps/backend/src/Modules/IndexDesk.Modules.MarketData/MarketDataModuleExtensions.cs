@@ -1,3 +1,6 @@
+using IndexDesk.BuildingBlocks.Common.Results;
+using IndexDesk.BuildingBlocks.Persistence;
+using IndexDesk.BuildingBlocks.Persistence.Services;
 using IndexDesk.Modules.MarketData.Clients;
 using IndexDesk.Modules.MarketData.Ingestion;
 using IndexDesk.Modules.MarketData.Ingestion.Holdings;
@@ -225,12 +228,33 @@ public static class MarketDataModuleExtensions
         group
             .MapPost(
                 "/sync/daily",
-                async (IAssetSyncService syncService, CancellationToken ct) =>
+                async (IAssetSyncService syncService, IndexDeskDbContext db, CancellationToken ct) =>
                 {
-                    var result = await syncService.SyncDailyQuotesAsync(cancellationToken: ct);
-                    return result.IsSuccess
-                        ? Results.Ok(result.Value)
-                        : Results.BadRequest(result.Error);
+                    // Same advisory lock as the Quartz job / CLI / boot catch-up: an API
+                    // trigger never races another writer into double provider hits.
+                    var lockHandle = await db.TryAcquireAdvisoryLockAsync(
+                        AdvisoryLockExtensions.BackfillSyncLockId,
+                        ct
+                    );
+                    if (lockHandle is null)
+                    {
+                        return Results.Conflict(
+                            Error.Failure(
+                                "Sync.LockBusy",
+                                "Another sync is already running (daily job, CLI backfill or boot catch-up)."
+                            )
+                        );
+                    }
+
+                    await using (lockHandle)
+                    {
+                        var result = await syncService.SyncDailyQuotesAsync(
+                            cancellationToken: ct
+                        );
+                        return result.IsSuccess
+                            ? Results.Ok(result.Value)
+                            : Results.BadRequest(result.Error);
+                    }
                 }
             )
             .WithName("TriggerDailySync")
@@ -244,39 +268,57 @@ public static class MarketDataModuleExtensions
                     string? startDate,
                     string? provider,
                     IAssetBackfillService backfillService,
+                    IndexDeskDbContext db,
                     CancellationToken ct
                 ) =>
                 {
-                    if (!string.IsNullOrWhiteSpace(ticker))
+                    var lockHandle = await db.TryAcquireAdvisoryLockAsync(
+                        AdvisoryLockExtensions.BackfillSyncLockId,
+                        ct
+                    );
+                    if (lockHandle is null)
                     {
-                        var start = DateOnly.TryParse(startDate, out var parsedStart)
-                            ? parsedStart
-                            : new DateOnly(2021, 1, 1);
-                        var end = DateOnly.FromDateTime(DateTime.UtcNow);
-
-                        var singleResult = await backfillService.BackfillAssetAsync(
-                            ticker,
-                            start,
-                            end,
-                            ct,
-                            preferredProvider: provider
+                        return Results.Conflict(
+                            Error.Failure(
+                                "Sync.LockBusy",
+                                "Another sync is already running (daily job, CLI backfill or boot catch-up)."
+                            )
                         );
-                        if (singleResult.IsSuccess)
-                        {
-                            return Results.Ok(singleResult.Value);
-                        }
-
-                        return singleResult.Error.Code == "Asset.Metadata.NotFound"
-                            ? Results.NotFound(singleResult.Error)
-                            : Results.BadRequest(singleResult.Error);
                     }
 
-                    var result = await backfillService.BackfillPilotAssetsAsync(
-                        cancellationToken: ct
-                    );
-                    return result.IsSuccess
-                        ? Results.Ok(result.Value)
-                        : Results.BadRequest(result.Error);
+                    await using (lockHandle)
+                    {
+                        if (!string.IsNullOrWhiteSpace(ticker))
+                        {
+                            var start = DateOnly.TryParse(startDate, out var parsedStart)
+                                ? parsedStart
+                                : new DateOnly(2021, 1, 1);
+                            var end = DateOnly.FromDateTime(DateTime.UtcNow);
+
+                            var singleResult = await backfillService.BackfillAssetAsync(
+                                ticker,
+                                start,
+                                end,
+                                ct,
+                                preferredProvider: provider
+                            );
+                            if (singleResult.IsSuccess)
+                            {
+                                return Results.Ok(singleResult.Value);
+                            }
+
+                            return singleResult.Error.Code == "Asset.Metadata.NotFound"
+                                ? Results.NotFound(singleResult.Error)
+                                : Results.BadRequest(singleResult.Error);
+                        }
+
+                        var result = await backfillService.BackfillPilotAssetsAsync(
+                            cancellationToken: ct
+                        );
+                        return result.IsSuccess
+                            ? Results.Ok(result.Value)
+                            : Results.BadRequest(result.Error);
+                    }
                 }
             )
             .WithName("TriggerPilotBackfill")
