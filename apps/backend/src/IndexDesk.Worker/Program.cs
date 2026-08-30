@@ -125,10 +125,10 @@ builder.Services.AddQuartz(q =>
 
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 
-// Sync catch-up bootstrap: runs once at boot BEFORE Quartz's hosted service starts
-// scheduling, closing any gap left by downtime (RAMJobStore loses missed triggers).
-// Registered after Quartz so Quartz's scheduler is already configured; execution
-// order is guaranteed by the hosted-service registration sequence.
+// Sync catch-up bootstrap: one-shot IHostedService registered after Quartz so
+// the scheduler is configured. Runs at Worker startup (before host.Run blocks),
+// closes any gap left by downtime/restarts (RAMJobStore loses missed triggers).
+// Idempotent upserts + per-day catch-up loop (oldest first).
 builder.Services.AddHostedService<SyncBootstrapService>();
 
 var host = builder.Build();

@@ -128,28 +128,41 @@ public sealed class SyncBootstrapService(
         if (missingDays.Count > maxBacklogDays)
         {
             logger.LogWarning(
-                "[SyncBootstrap] {Count} business days missing but MaxBacklogDays={Max}; catching up only the newest {Max}.",
+                "[SyncBootstrap] {Count} business days missing but MaxBacklogDays={Max}; catching up the oldest {Max} days first (next boot progresses forward).",
                 missingDays.Count,
                 maxBacklogDays,
                 maxBacklogDays
             );
-            missingDays = missingDays.Skip(missingDays.Count - maxBacklogDays).ToList();
+            missingDays = missingDays.Take(maxBacklogDays).ToList();
         }
 
+        // Rate-limit mitigation (spec §2.1): for past-day catch-up, narrow the
+        // universe to tickers that had local quotes around the gap start rather than
+        // walking all 2,163 catalog entries (which triggers sidecar fetches for
+        // illiquid/ghost BDRs). Fresh DB = full catalog resolution as fallback.
+        var gapUniverseStart = resumeFrom.AddDays(-7);
+        var activeTickers = await dbContext
+            .AssetQuotes.Where(q => q.Date >= gapUniverseStart && q.Date <= latestBusinessDay)
+            .Select(q => q.Asset!.Ticker)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        IReadOnlyList<string>? targetUniverse = activeTickers.Count > 0 ? activeTickers : null;
+
         logger.LogInformation(
-            "[SyncBootstrap] {Count} business day(s) pending ({First}..{Last}). Acquiring sync lock (wait up to {Timeout}s)...",
+            "[SyncBootstrap] {Count} business day(s) pending ({First}..{Last}), universe: {UniverseSize} tickers. Acquiring sync lock (wait up to {Timeout}s)...",
             missingDays.Count,
             missingDays[0],
             missingDays[^1],
+            targetUniverse?.Count.ToString() ?? "full",
             lockTimeoutSeconds
         );
 
-        var lockAcquired = await WaitAndAcquireLockAsync(
+        var lockHandle = await WaitAndAcquireLockAsync(
             dbContext,
             lockTimeoutSeconds,
             cancellationToken
         );
-        if (!lockAcquired || _lockHandle is null)
+        if (lockHandle is null)
         {
             logger.LogWarning(
                 "[SyncBootstrap] Sync lock busy for {Timeout}s (CLI/API/another instance). Yielding — next boot or the 22:00 UTC job covers the gap.",
@@ -161,18 +174,15 @@ public sealed class SyncBootstrapService(
         try
         {
             var dailyClose = scope.ServiceProvider.GetRequiredService<IDailyCloseSyncService>();
-            await CatchUpDaysAsync(dailyClose, missingDays, cancellationToken);
+            await CatchUpDaysAsync(dailyClose, missingDays, targetUniverse, cancellationToken);
         }
         finally
         {
-            await _lockHandle.DisposeAsync();
-            _lockHandle = null;
+            await lockHandle.DisposeAsync();
         }
     }
 
-    private AdvisoryLockHandle? _lockHandle;
-
-    private async Task<bool> WaitAndAcquireLockAsync(
+    private static async Task<AdvisoryLockHandle?> WaitAndAcquireLockAsync(
         IndexDeskDbContext dbContext,
         int timeoutSeconds,
         CancellationToken cancellationToken
@@ -190,19 +200,19 @@ public sealed class SyncBootstrapService(
             );
             if (handle is not null)
             {
-                _lockHandle = handle;
-                return true;
+                return handle;
             }
 
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
         }
 
-        return false;
+        return null;
     }
 
     private async Task CatchUpDaysAsync(
         IDailyCloseSyncService dailyClose,
         IReadOnlyList<DateOnly> missingDays,
+        IReadOnlyList<string>? targetUniverse,
         CancellationToken cancellationToken
     )
     {
@@ -222,13 +232,16 @@ public sealed class SyncBootstrapService(
             {
                 // targetDate != today makes DailyCloseSyncService skip the Brapi
                 // batch + dividend queue (budget rule) and run Yahoo → TV only.
+                // targetUniverse restricts the per-ticker sidecar gap-fill to assets
+                // that actually traded around the gap start.
                 var result = await dailyClose.SyncDailyCloseAsync(
+                    targetTickers: targetUniverse,
                     targetDate: day,
                     cancellationToken: cancellationToken
                 );
                 if (result.IsSuccess)
                 {
-                    if (result.Value.Status == "SUCCESS")
+                    if (result.Value.Status == DailyCloseChain.Success)
                     {
                         succeeded++;
                     }

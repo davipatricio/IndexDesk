@@ -14,4 +14,5 @@ public class MarketHolidayEntity
     public DateOnly Date { get; set; }
     public string Description { get; set; } = string.Empty;
     public string Exchange { get; set; } = "B3";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

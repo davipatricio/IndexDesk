@@ -1,7 +1,9 @@
 # Plano: Auto-Retomada de Sincronização Diária (Sync Bootstrap)
 
-> **Data:** 2026-08-30 · **Grill:** [`plans/auto-retomada-sync-grill.md`] (conversa)
+> **Data:** 2026-08-30 · **Status:** Implementado (DEC-008, commits `dc6df7f`, `c2ff6dc`)
+> **Grill:** [`plans/auto-retomada-sync-grill.md`] (conversa)
 > **Decisões do grill:** catch-up custom via `IHostedService` · backlog completo · `max(Date) asset_quotes` vs `market_holidays` · `pg_advisory_lock` p/ evitar conflito CLI + job
+> **Ajustes pós-review:** `WithSyncLockAsync` nos endpoints (DRY); lock por chamada; universe narrowing no catch-up para economia de rate-limit; seed SQL versionado em `apps/backend/sql/seed-market-holidays.sql`.
 
 ## Problema
 

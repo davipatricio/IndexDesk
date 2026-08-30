@@ -228,10 +228,13 @@ Essencial para cálculo exato de retorno acumulado (base 252 dias úteis) e CDI 
 
 ```sql
 CREATE TABLE market_holidays (
-    date DATE PRIMARY KEY,
-    description VARCHAR(100) NOT NULL,           -- Ex: 'Carnaval', 'Tiradentes', 'Confraternização Universal'
-    exchange VARCHAR(10) NOT NULL DEFAULT 'B3'   -- 'B3', 'US'
+    "Date" DATE PRIMARY KEY,
+    "Description" VARCHAR(100) NOT NULL,           -- Ex: 'Carnaval', 'Tiradentes', 'Confraternização Universal'
+    "Exchange" VARCHAR(10) NOT NULL DEFAULT 'B3',  -- 'B3', 'US'
+    "CreatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX idx_market_holidays_exchange ON market_holidays("Exchange");
 ```
 
 #### `asset_corporate_actions` (Splits, Inplits e Desdobramentos)

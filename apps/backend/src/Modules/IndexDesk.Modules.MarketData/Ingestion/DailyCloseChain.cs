@@ -11,7 +11,7 @@ namespace IndexDesk.Modules.MarketData.Ingestion;
 /// an *expected* degradation — the chain falls through to the next source — so it marks
 /// the stage <c>PARTIAL_WARNING</c>, never <c>FAILED</c> (which would sink the whole job).
 /// </summary>
-internal static class DailyCloseChain
+public static class DailyCloseChain
 {
     public const string Success = "SUCCESS";
     public const string PartialWarning = "PARTIAL_WARNING";

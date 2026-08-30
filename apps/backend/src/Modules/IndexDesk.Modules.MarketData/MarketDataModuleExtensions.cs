@@ -229,33 +229,19 @@ public static class MarketDataModuleExtensions
             .MapPost(
                 "/sync/daily",
                 async (IAssetSyncService syncService, IndexDeskDbContext db, CancellationToken ct) =>
-                {
-                    // Same advisory lock as the Quartz job / CLI / boot catch-up: an API
-                    // trigger never races another writer into double provider hits.
-                    var lockHandle = await db.TryAcquireAdvisoryLockAsync(
-                        AdvisoryLockExtensions.BackfillSyncLockId,
-                        ct
-                    );
-                    if (lockHandle is null)
-                    {
-                        return Results.Conflict(
-                            Error.Failure(
-                                "Sync.LockBusy",
-                                "Another sync is already running (daily job, CLI backfill or boot catch-up)."
-                            )
-                        );
-                    }
-
-                    await using (lockHandle)
-                    {
-                        var result = await syncService.SyncDailyQuotesAsync(
-                            cancellationToken: ct
-                        );
-                        return result.IsSuccess
-                            ? Results.Ok(result.Value)
-                            : Results.BadRequest(result.Error);
-                    }
-                }
+                    await WithSyncLockAsync(
+                        db,
+                        ct,
+                        async () =>
+                        {
+                            var result = await syncService.SyncDailyQuotesAsync(
+                                cancellationToken: ct
+                            );
+                            return result.IsSuccess
+                                ? Results.Ok(result.Value)
+                                : Results.BadRequest(result.Error);
+                        }
+                    )
             )
             .WithName("TriggerDailySync")
             .WithSummary("Trigger incremental daily quote synchronization for pilot assets");
@@ -271,55 +257,43 @@ public static class MarketDataModuleExtensions
                     IndexDeskDbContext db,
                     CancellationToken ct
                 ) =>
-                {
-                    var lockHandle = await db.TryAcquireAdvisoryLockAsync(
-                        AdvisoryLockExtensions.BackfillSyncLockId,
-                        ct
-                    );
-                    if (lockHandle is null)
-                    {
-                        return Results.Conflict(
-                            Error.Failure(
-                                "Sync.LockBusy",
-                                "Another sync is already running (daily job, CLI backfill or boot catch-up)."
-                            )
-                        );
-                    }
-
-                    await using (lockHandle)
-                    {
-                        if (!string.IsNullOrWhiteSpace(ticker))
+                    await WithSyncLockAsync(
+                        db,
+                        ct,
+                        async () =>
                         {
-                            var start = DateOnly.TryParse(startDate, out var parsedStart)
-                                ? parsedStart
-                                : new DateOnly(2021, 1, 1);
-                            var end = DateOnly.FromDateTime(DateTime.UtcNow);
-
-                            var singleResult = await backfillService.BackfillAssetAsync(
-                                ticker,
-                                start,
-                                end,
-                                ct,
-                                preferredProvider: provider
-                            );
-                            if (singleResult.IsSuccess)
+                            if (!string.IsNullOrWhiteSpace(ticker))
                             {
-                                return Results.Ok(singleResult.Value);
+                                var start = DateOnly.TryParse(startDate, out var parsedStart)
+                                    ? parsedStart
+                                    : new DateOnly(2021, 1, 1);
+                                var end = DateOnly.FromDateTime(DateTime.UtcNow);
+
+                                var singleResult = await backfillService.BackfillAssetAsync(
+                                    ticker,
+                                    start,
+                                    end,
+                                    ct,
+                                    preferredProvider: provider
+                                );
+                                if (singleResult.IsSuccess)
+                                {
+                                    return Results.Ok(singleResult.Value);
+                                }
+
+                                return singleResult.Error.Code == "Asset.Metadata.NotFound"
+                                    ? Results.NotFound(singleResult.Error)
+                                    : Results.BadRequest(singleResult.Error);
                             }
 
-                            return singleResult.Error.Code == "Asset.Metadata.NotFound"
-                                ? Results.NotFound(singleResult.Error)
-                                : Results.BadRequest(singleResult.Error);
+                            var result = await backfillService.BackfillPilotAssetsAsync(
+                                cancellationToken: ct
+                            );
+                            return result.IsSuccess
+                                ? Results.Ok(result.Value)
+                                : Results.BadRequest(result.Error);
                         }
-
-                        var result = await backfillService.BackfillPilotAssetsAsync(
-                            cancellationToken: ct
-                        );
-                        return result.IsSuccess
-                            ? Results.Ok(result.Value)
-                            : Results.BadRequest(result.Error);
-                    }
-                }
+                    )
             )
             .WithName("TriggerPilotBackfill")
             .WithSummary(
@@ -635,5 +609,31 @@ public static class MarketDataModuleExtensions
             );
 
         return app;
+    }
+
+    private static async Task<IResult> WithSyncLockAsync(
+        IndexDeskDbContext db,
+        CancellationToken cancellationToken,
+        Func<Task<IResult>> action
+    )
+    {
+        var lockHandle = await db.TryAcquireAdvisoryLockAsync(
+            AdvisoryLockExtensions.BackfillSyncLockId,
+            cancellationToken
+        );
+        if (lockHandle is null)
+        {
+            return Results.Conflict(
+                Error.Failure(
+                    "Sync.LockBusy",
+                    "Another sync is already running (daily job, CLI backfill or boot catch-up)."
+                )
+            );
+        }
+
+        await using (lockHandle)
+        {
+            return await action();
+        }
     }
 }

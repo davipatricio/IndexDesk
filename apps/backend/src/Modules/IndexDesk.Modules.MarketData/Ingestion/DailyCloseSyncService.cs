@@ -85,100 +85,14 @@ public class DailyCloseSyncService : IDailyCloseSyncService
         var stages = new List<StageSummary>();
 
         // ---- Stage 1: the single allowed Brapi batch call -------------------------
-        var batchStartedAt = DateTimeOffset.UtcNow;
-        var batchSw = Stopwatch.StartNew();
-        var brapiQuotes = 0;
-        string? brapiError = null;
-        string? brapiErrorCode = null;
-        var coveredTickers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        var eligibleForBrapi = brapiBatchEligible
-            ? tickers.Where(_brapiClient.SupportsTicker).ToList()
-            : [];
-        if (!brapiBatchEligible)
-        {
-            // Catch-up of a historical date: Brapi batch cannot serve it. Log a clean
-            // SKIP row so the stage shows up in sync_job_logs as intentionally absent.
-            stages.Add(
-                new StageSummary("BrapiBatch", "BRAPI", DailyCloseChain.Success, 0, 0, null)
-            );
-            await LogStageAsync(
-                "DailyClose_BrapiBatch",
-                "BRAPI",
-                DailyCloseChain.Success,
-                processed: 0,
-                updated: 0,
-                error: null,
-                timeMs: 0,
-                startedAt: batchStartedAt,
-                cancellationToken: cancellationToken
-            );
-        }
-        else
-        {
-            if (eligibleForBrapi.Count > 0)
-            {
-                var batch = await _brapiClient.GetDailyBatchQuotesAsync(
-                    eligibleForBrapi,
-                    tradeDate,
-                    cancellationToken
-                );
-                if (batch.IsSuccess)
-                {
-                    brapiQuotes = await UpsertPerAssetAsync(
-                        batch.Value,
-                        assetsByTicker,
-                        cancellationToken
-                    );
-                    coveredTickers.UnionWith(batch.Value.Select(q => q.Ticker));
-                    _logger.LogInformation(
-                        "[DailyClose] Brapi batch covered {Covered}/{Requested} tickers.",
-                        coveredTickers.Count,
-                        eligibleForBrapi.Count
-                    );
-                }
-                else
-                {
-                    brapiError = batch.Error.Message;
-                    brapiErrorCode = batch.Error.Code;
-                    // Pool exhausted / breaker open = expected degradation, not a hard failure.
-                    _logger.LogWarning(
-                        "[DailyClose] Brapi batch failed: [{Code}] {Error}",
-                        brapiErrorCode,
-                        brapiError
-                    );
-                }
-            }
-
-            var batchStatus = DailyCloseChain.StatusFor(
-                brapiErrorCode,
-                anyHardFailure: false,
-                touched: coveredTickers.Count,
-                expected: eligibleForBrapi.Count
-            );
-
-            stages.Add(
-                new StageSummary(
-                    "BrapiBatch",
-                    "BRAPI",
-                    batchStatus,
-                    brapiQuotes,
-                    coveredTickers.Count,
-                    brapiError
-                )
-            );
-            await LogStageAsync(
-                "DailyClose_BrapiBatch",
-                "BRAPI",
-                batchStatus,
-                processed: eligibleForBrapi.Count,
-                updated: brapiQuotes,
-                error: brapiError,
-                timeMs: (int)batchSw.ElapsedMilliseconds,
-                startedAt: batchStartedAt,
-                cancellationToken: cancellationToken
-            );
-        }
+        var (batchStage, coveredTickers) = await RunBrapiBatchStageAsync(
+            brapiBatchEligible,
+            tickers,
+            tradeDate,
+            assetsByTicker,
+            cancellationToken
+        );
+        stages.Add(batchStage);
 
         // ---- Stage 2: Brapi dividend queue (spaced ≥ 7 s, budget rule) ------------
         var divSw = Stopwatch.StartNew();
@@ -191,6 +105,9 @@ public class DailyCloseSyncService : IDailyCloseSyncService
         // Spacing/classification live in DividendQueue (pure, unit-tested); this lambda
         // carries the DB-bound work: fetch via the pool-backed client + idempotent upsert.
         // Dividends are only served for "today" runs too (same budget rule as batch).
+        var eligibleForBrapi = brapiBatchEligible
+            ? tickers.Where(_brapiClient.SupportsTicker).ToList()
+            : [];
         var divOutcome = brapiBatchEligible
             ? await DividendQueue.RunAsync(
                 eligibleForBrapi.Where(t => assetsByTicker.ContainsKey(t)).ToList(),
@@ -543,5 +460,107 @@ public class DailyCloseSyncService : IDailyCloseSyncService
         {
             _logger.LogWarning(ex, "[DailyClose] Failed to write sync_job_logs entry.");
         }
+    }
+
+    private async Task<(StageSummary Stage, HashSet<string> CoveredTickers)> RunBrapiBatchStageAsync(
+        bool brapiBatchEligible,
+        IReadOnlyList<string> tickers,
+        DateOnly tradeDate,
+        IReadOnlyDictionary<string, AssetEntity> assetsByTicker,
+        CancellationToken cancellationToken
+    )
+    {
+        var batchStartedAt = DateTimeOffset.UtcNow;
+        var batchSw = Stopwatch.StartNew();
+        var coveredTickers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (!brapiBatchEligible)
+        {
+            await LogStageAsync(
+                "DailyClose_BrapiBatch",
+                "BRAPI",
+                DailyCloseChain.Success,
+                processed: 0,
+                updated: 0,
+                error: null,
+                timeMs: 0,
+                startedAt: batchStartedAt,
+                cancellationToken: cancellationToken
+            );
+
+            return (
+                new StageSummary("BrapiBatch", "BRAPI", DailyCloseChain.Success, 0, 0, null),
+                coveredTickers
+            );
+        }
+
+        var eligibleForBrapi = tickers.Where(_brapiClient.SupportsTicker).ToList();
+        var brapiQuotes = 0;
+        string? brapiError = null;
+        string? brapiErrorCode = null;
+
+        if (eligibleForBrapi.Count > 0)
+        {
+            var batch = await _brapiClient.GetDailyBatchQuotesAsync(
+                eligibleForBrapi,
+                tradeDate,
+                cancellationToken
+            );
+            if (batch.IsSuccess)
+            {
+                brapiQuotes = await UpsertPerAssetAsync(
+                    batch.Value,
+                    assetsByTicker,
+                    cancellationToken
+                );
+                coveredTickers.UnionWith(batch.Value.Select(q => q.Ticker));
+                _logger.LogInformation(
+                    "[DailyClose] Brapi batch covered {Covered}/{Requested} tickers.",
+                    coveredTickers.Count,
+                    eligibleForBrapi.Count
+                );
+            }
+            else
+            {
+                brapiError = batch.Error.Message;
+                brapiErrorCode = batch.Error.Code;
+                _logger.LogWarning(
+                    "[DailyClose] Brapi batch failed: [{Code}] {Error}",
+                    brapiErrorCode,
+                    brapiError
+                );
+            }
+        }
+
+        var batchStatus = DailyCloseChain.StatusFor(
+            brapiErrorCode,
+            anyHardFailure: false,
+            touched: coveredTickers.Count,
+            expected: eligibleForBrapi.Count
+        );
+
+        await LogStageAsync(
+            "DailyClose_BrapiBatch",
+            "BRAPI",
+            batchStatus,
+            processed: eligibleForBrapi.Count,
+            updated: brapiQuotes,
+            error: brapiError,
+            timeMs: (int)batchSw.ElapsedMilliseconds,
+            startedAt: batchStartedAt,
+            cancellationToken: cancellationToken
+        );
+
+        return (
+            new StageSummary(
+                "BrapiBatch",
+                "BRAPI",
+                batchStatus,
+                brapiQuotes,
+                coveredTickers.Count,
+                brapiError
+            ),
+            coveredTickers
+        );
     }
 }
