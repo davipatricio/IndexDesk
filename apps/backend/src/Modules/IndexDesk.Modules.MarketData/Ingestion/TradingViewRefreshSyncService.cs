@@ -43,7 +43,7 @@ public class TradingViewRefreshSyncService : ITradingViewRefreshSyncService
     {
         var sw = Stopwatch.StartNew();
         var startedAt = DateTimeOffset.UtcNow;
-        await _dbContext.Database.EnsureCreatedAsync(cancellationToken);
+        await DatabaseInitializer.MigrateAsync(_dbContext, cancellationToken);
 
         var tickers = targetTickers is { Count: > 0 }
             ? targetTickers

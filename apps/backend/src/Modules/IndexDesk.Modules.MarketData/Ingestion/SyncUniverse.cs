@@ -46,7 +46,7 @@ public static class SyncUniverse
             return fromConfig;
         }
 
-        await dbContext.Database.EnsureCreatedAsync(cancellationToken);
+        await DatabaseInitializer.MigrateAsync(dbContext, cancellationToken);
 
         var query = dbContext.Assets.Where(a => a.IsActive);
         if (excludeBenchmarks)

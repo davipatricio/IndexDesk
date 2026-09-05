@@ -55,7 +55,10 @@
             "phase_id": "PHASE-00",
             "epic_id": "BOOTSTRAP",
             "depends_on": [],
-            "blocks": ["FND-002", "FND-003"],
+            "blocks": [
+              "FND-002",
+              "FND-003"
+            ],
             "source_refs": [
               {
                 "file": "STACK_SETUP.md",
@@ -67,8 +70,14 @@
               "O workspace declara somente apps previstos",
               "Scripts raiz apontam para Turbo"
             ],
-            "deliverables": ["package.json", "bun.lock", "configuração de workspace"],
-            "risks": ["Versões atuais de Bun e Next.js podem exigir ajustes de compatibilidade"],
+            "deliverables": [
+              "package.json",
+              "bun.lock",
+              "configuração de workspace"
+            ],
+            "risks": [
+              "Versões atuais de Bun e Next.js podem exigir ajustes de compatibilidade"
+            ],
             "notes": "Registrar versões exatas após o scaffold. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 3,
             "assignee": null,
@@ -84,8 +93,14 @@
             "kind": "infrastructure",
             "phase_id": "PHASE-00",
             "epic_id": "BOOTSTRAP",
-            "depends_on": ["FND-001"],
-            "blocks": ["FND-004", "FND-005", "FND-006"],
+            "depends_on": [
+              "FND-001"
+            ],
+            "blocks": [
+              "FND-004",
+              "FND-005",
+              "FND-006"
+            ],
             "source_refs": [
               {
                 "file": "STACK_SETUP.md",
@@ -97,8 +112,13 @@
               "Saídas bin/obj do .NET são cacheáveis",
               "Variáveis de ambiente usadas por cada task são declaradas"
             ],
-            "deliverables": ["turbo.json", "scripts raiz documentados"],
-            "risks": ["Cache de bin/obj pode capturar artefatos dependentes do ambiente"],
+            "deliverables": [
+              "turbo.json",
+              "scripts raiz documentados"
+            ],
+            "risks": [
+              "Cache de bin/obj pode capturar artefatos dependentes do ambiente"
+            ],
             "notes": "Validar cache local antes de configurar cache remoto. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 6,
             "assignee": null,
@@ -114,8 +134,12 @@
             "kind": "operations",
             "phase_id": "PHASE-00",
             "epic_id": "BOOTSTRAP",
-            "depends_on": ["FND-001"],
-            "blocks": ["FND-006"],
+            "depends_on": [
+              "FND-001"
+            ],
+            "blocks": [
+              "FND-006"
+            ],
             "source_refs": [
               {
                 "file": "CLAUDE.md",
@@ -159,7 +183,9 @@
         "description": "Scaffoldar o frontend em apps/web com App Router, src e componentes locais.",
         "status": "complete",
         "priority": "P0",
-        "depends_on": ["FND-001"],
+        "depends_on": [
+          "FND-001"
+        ],
         "source_refs": [
           {
             "file": "STACK_SETUP.md",
@@ -182,8 +208,14 @@
             "kind": "frontend",
             "phase_id": "PHASE-00",
             "epic_id": "WEBFOUND",
-            "depends_on": ["FND-001", "FND-002"],
-            "blocks": ["FND-007", "MVP-011"],
+            "depends_on": [
+              "FND-001",
+              "FND-002"
+            ],
+            "blocks": [
+              "FND-007",
+              "MVP-011"
+            ],
             "source_refs": [
               {
                 "file": "STACK_SETUP.md",
@@ -218,8 +250,12 @@
             "kind": "frontend",
             "phase_id": "PHASE-00",
             "epic_id": "WEBFOUND",
-            "depends_on": ["FND-004"],
-            "blocks": ["MVP-011"],
+            "depends_on": [
+              "FND-004"
+            ],
+            "blocks": [
+              "MVP-011"
+            ],
             "source_refs": [
               {
                 "file": "STACK_SETUP.md",
@@ -231,8 +267,13 @@
               "Tema claro/escuro base funciona",
               "Tailwind v4 compila no build"
             ],
-            "deliverables": ["apps/web/src/components/ui", "tokens e estilos globais"],
-            "risks": ["Shadcn depende de decisões de acessibilidade e tema ainda não definidas"],
+            "deliverables": [
+              "apps/web/src/components/ui",
+              "tokens e estilos globais"
+            ],
+            "risks": [
+              "Shadcn depende de decisões de acessibilidade e tema ainda não definidas"
+            ],
             "notes": "Manter componentes simples até o design system ser fechado. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 6,
             "assignee": null,
@@ -248,8 +289,13 @@
             "kind": "frontend",
             "phase_id": "PHASE-00",
             "epic_id": "WEBFOUND",
-            "depends_on": ["FND-003", "FND-004"],
-            "blocks": ["MVP-011"],
+            "depends_on": [
+              "FND-003",
+              "FND-004"
+            ],
+            "blocks": [
+              "MVP-011"
+            ],
             "source_refs": [
               {
                 "file": "STACK_SETUP.md",
@@ -261,8 +307,13 @@
               "turbo run test --filter=web funciona",
               "Falha de typecheck impede o build"
             ],
-            "deliverables": ["configuração de testes", "primeiro teste de renderização"],
-            "risks": ["Escolha entre Bun test, Vitest e Playwright ainda é uma decisão aberta"],
+            "deliverables": [
+              "configuração de testes",
+              "primeiro teste de renderização"
+            ],
+            "risks": [
+              "Escolha entre Bun test, Vitest e Playwright ainda é uma decisão aberta"
+            ],
             "notes": "Registrar decisão quando houver spike. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 6,
             "assignee": null,
@@ -278,8 +329,13 @@
             "kind": "architecture",
             "phase_id": "PHASE-00",
             "epic_id": "WEBFOUND",
-            "depends_on": ["FND-004"],
-            "blocks": ["MVP-011", "MVP-012"],
+            "depends_on": [
+              "FND-004"
+            ],
+            "blocks": [
+              "MVP-011",
+              "MVP-012"
+            ],
             "source_refs": [
               {
                 "file": "STACK_SETUP.md",
@@ -291,8 +347,13 @@
               "Client Components são usados apenas onde há interatividade",
               "Política de cache é documentada"
             ],
-            "deliverables": ["convenção de data fetching", "página SSR de exemplo"],
-            "risks": ["Cache incorreto pode servir dados financeiros antigos"],
+            "deliverables": [
+              "convenção de data fetching",
+              "página SSR de exemplo"
+            ],
+            "risks": [
+              "Cache incorreto pode servir dados financeiros antigos"
+            ],
             "notes": "Validar headers e invalidação com dados fictícios antes de dados reais. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 8,
             "assignee": null,
@@ -306,7 +367,10 @@
         "description": "Criar a solução .NET única com API, Worker, módulos delimitados e REST/OpenAPI.",
         "status": "complete",
         "priority": "P0",
-        "depends_on": ["FND-001", "FND-002"],
+        "depends_on": [
+          "FND-001",
+          "FND-002"
+        ],
         "source_refs": [
           {
             "file": "STACK_SETUP.md",
@@ -329,8 +393,14 @@
             "kind": "backend",
             "phase_id": "PHASE-00",
             "epic_id": "BACKFOUND",
-            "depends_on": ["FND-002"],
-            "blocks": ["FND-009", "FND-010", "MVP-001"],
+            "depends_on": [
+              "FND-002"
+            ],
+            "blocks": [
+              "FND-009",
+              "FND-010",
+              "MVP-001"
+            ],
             "source_refs": [
               {
                 "file": "STACK_SETUP.md",
@@ -348,7 +418,9 @@
               "IndexDesk.Worker",
               "projetos de módulos"
             ],
-            "risks": ["Compatibilidade entre SDK .NET escolhido e Turborepo"],
+            "risks": [
+              "Compatibilidade entre SDK .NET escolhido e Turborepo"
+            ],
             "notes": "Não recriar microserviços separados nem YARP no MVP. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 12,
             "assignee": null,
@@ -364,8 +436,12 @@
             "kind": "backend",
             "phase_id": "PHASE-00",
             "epic_id": "BACKFOUND",
-            "depends_on": ["FND-008"],
-            "blocks": ["MVP-006"],
+            "depends_on": [
+              "FND-008"
+            ],
+            "blocks": [
+              "MVP-006"
+            ],
             "source_refs": [
               {
                 "file": "STACK_SETUP.md",
@@ -377,8 +453,13 @@
               "Cliente tipado pode chamar um endpoint de health/demo",
               "oRPC e Elysia não entram no MVP"
             ],
-            "deliverables": ["configuração OpenAPI", "cliente gerado ou typed fetch"],
-            "risks": ["Geração de cliente pode criar arquivos não determinísticos"],
+            "deliverables": [
+              "configuração OpenAPI",
+              "cliente gerado ou typed fetch"
+            ],
+            "risks": [
+              "Geração de cliente pode criar arquivos não determinísticos"
+            ],
             "notes": "Escolher @hey-api/openapi-ts ou typed fetch em decisão técnica. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 8,
             "assignee": null,
@@ -394,8 +475,13 @@
             "kind": "architecture",
             "phase_id": "PHASE-00",
             "epic_id": "BACKFOUND",
-            "depends_on": ["FND-008"],
-            "blocks": ["FND-013", "MVP-001"],
+            "depends_on": [
+              "FND-008"
+            ],
+            "blocks": [
+              "FND-013",
+              "MVP-001"
+            ],
             "source_refs": [
               {
                 "file": "STACK_SETUP.md",
@@ -415,7 +501,9 @@
               "Messaging",
               "Observability"
             ],
-            "risks": ["BuildingBlocks podem virar um pacote acoplado demais"],
+            "risks": [
+              "BuildingBlocks podem virar um pacote acoplado demais"
+            ],
             "notes": "Manter apenas abstrações realmente compartilhadas. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 16,
             "assignee": null,
@@ -453,7 +541,9 @@
             "phase_id": "PHASE-00",
             "epic_id": "LOCALINFRA",
             "depends_on": [],
-            "blocks": ["FND-013"],
+            "blocks": [
+              "FND-013"
+            ],
             "source_refs": [
               {
                 "file": "STACK_SETUP.md",
@@ -465,8 +555,13 @@
               "Healthchecks detectam indisponibilidade",
               "Jaeger recebe OTLP"
             ],
-            "deliverables": ["docker-compose.yml", "volumes e healthchecks"],
-            "risks": ["Imagem TimescaleDB PostgreSQL 18 pode não estar disponível/estável"],
+            "deliverables": [
+              "docker-compose.yml",
+              "volumes e healthchecks"
+            ],
+            "risks": [
+              "Imagem TimescaleDB PostgreSQL 18 pode não estar disponível/estável"
+            ],
             "notes": "Validar versão da imagem antes de fixar o tag. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 8,
             "assignee": null,
@@ -483,7 +578,10 @@
             "phase_id": "PHASE-00",
             "epic_id": "LOCALINFRA",
             "depends_on": [],
-            "blocks": ["FND-013", "MVP-001"],
+            "blocks": [
+              "FND-013",
+              "MVP-001"
+            ],
             "source_refs": [
               {
                 "file": "PROVIDERS.md",
@@ -495,8 +593,13 @@
               "Segredos ficam fora do repositório",
               "API e Worker usam a mesma convenção de configuração"
             ],
-            "deliverables": [".env.example", "documentação de configuração"],
-            "risks": ["Chaves opcionais podem ser confundidas com obrigatórias"],
+            "deliverables": [
+              ".env.example",
+              "documentação de configuração"
+            ],
+            "risks": [
+              "Chaves opcionais podem ser confundidas com obrigatórias"
+            ],
             "notes": "Separar providers essenciais do MVP de contingências futuras. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 3,
             "assignee": null,
@@ -506,14 +609,21 @@
             "id": "FND-013",
             "title": "Criar migrations e inicialização do banco",
             "description": "Implementar migrations EF Core/SQL para o modelo inicial, extensões Timescale e estratégia PostgreSQL puro.",
-            "status": "not_started",
+            "status": "in_progress",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "database",
             "phase_id": "PHASE-00",
             "epic_id": "LOCALINFRA",
-            "depends_on": ["FND-010", "FND-011"],
-            "blocks": ["MVP-001", "MVP-002", "MVP-003"],
+            "depends_on": [
+              "FND-010",
+              "FND-011"
+            ],
+            "blocks": [
+              "MVP-001",
+              "MVP-002",
+              "MVP-003"
+            ],
             "source_refs": [
               {
                 "file": "MODELS.md",
@@ -530,8 +640,10 @@
               "scripts de bootstrap Timescale/Postgres",
               "seed mínimo de enums"
             ],
-            "risks": ["Timescale e EF Core podem exigir SQL específico fora do provider padrão"],
-            "notes": "Não marcar complete sem restaurar banco vazio e aplicar migrations.",
+            "risks": [
+              "Timescale e EF Core podem exigir SQL específico fora do provider padrão"
+            ],
+            "notes": "WIP 2026-09-05: InitialCreate gerada + DatabaseInitializer (MigrateAsync) + troca EnsureCreated x8 + AddTimescaleAndSeed (hypertables c/ guarda + seed 24 feriados). Pendente: migration manual sem atributos EF (não descoberta pelo ef list), baseline no banco dev c/ dados, validação banco zerado, fallback PG puro.",
             "estimated_hours": 16,
             "assignee": null,
             "completed_at": null
@@ -544,7 +656,9 @@
         "description": "Garantir que a pipeline de ingestão se recupere sozinha de reinícios e downtime sem intervenção manual — single-writer entre CLI/API/job/catch-up.",
         "status": "in_progress",
         "priority": "P0",
-        "depends_on": ["FND-013"],
+        "depends_on": [
+          "FND-013"
+        ],
         "source_refs": [
           {
             "file": "plans/auto-retomada-sync.md",
@@ -568,7 +682,9 @@
             "kind": "operations",
             "phase_id": "PHASE-00",
             "epic_id": "RESILIENCE",
-            "depends_on": ["FND-013"],
+            "depends_on": [
+              "FND-013"
+            ],
             "blocks": [],
             "source_refs": [
               {
@@ -612,7 +728,11 @@
         "description": "Estabelecer autenticação, RBAC, tracing, health checks e qualidade mínima antes do MVP.",
         "status": "complete",
         "priority": "P0",
-        "depends_on": ["FND-008", "FND-010", "FND-011"],
+        "depends_on": [
+          "FND-008",
+          "FND-010",
+          "FND-011"
+        ],
         "source_refs": [
           {
             "file": "STACK_SETUP.md",
@@ -635,8 +755,14 @@
             "kind": "security",
             "phase_id": "PHASE-00",
             "epic_id": "PLATFORM",
-            "depends_on": ["FND-013"],
-            "blocks": ["MVP-009", "GROW-001", "PORT-001"],
+            "depends_on": [
+              "FND-013"
+            ],
+            "blocks": [
+              "MVP-009",
+              "GROW-001",
+              "PORT-001"
+            ],
             "source_refs": [
               {
                 "file": "MODELS.md",
@@ -648,8 +774,14 @@
               "Rotas admin exigem role adequada",
               "Revogação e expiração são testadas"
             ],
-            "deliverables": ["Auth module", "policies RBAC", "testes de autenticação"],
-            "risks": ["Erro de cookie/CORS pode quebrar SSR e segurança"],
+            "deliverables": [
+              "Auth module",
+              "policies RBAC",
+              "testes de autenticação"
+            ],
+            "risks": [
+              "Erro de cookie/CORS pode quebrar SSR e segurança"
+            ],
             "notes": "Usar Argon2id ou BCrypt conforme decisão de segurança. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 20,
             "assignee": null,
@@ -665,8 +797,14 @@
             "kind": "operations",
             "phase_id": "PHASE-00",
             "epic_id": "PLATFORM",
-            "depends_on": ["FND-010", "FND-011"],
-            "blocks": ["MVP-001", "MVP-009"],
+            "depends_on": [
+              "FND-010",
+              "FND-011"
+            ],
+            "blocks": [
+              "MVP-001",
+              "MVP-009"
+            ],
             "source_refs": [
               {
                 "file": "STACK_SETUP.md",
@@ -683,7 +821,9 @@
               "health endpoints",
               "dashboards/logging mínimo"
             ],
-            "risks": ["Cardinalidade alta em métricas financeiras"],
+            "risks": [
+              "Cardinalidade alta em métricas financeiras"
+            ],
             "notes": "Nunca registrar tokens ou dados financeiros pessoais nos spans. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 16,
             "assignee": null,
@@ -699,8 +839,15 @@
             "kind": "operations",
             "phase_id": "PHASE-00",
             "epic_id": "PLATFORM",
-            "depends_on": ["FND-002", "FND-006", "FND-008", "FND-013"],
-            "blocks": ["MVP-001"],
+            "depends_on": [
+              "FND-002",
+              "FND-006",
+              "FND-008",
+              "FND-013"
+            ],
+            "blocks": [
+              "MVP-001"
+            ],
             "source_refs": [
               {
                 "file": "CLAUDE.md",
@@ -712,8 +859,14 @@
               "CI testa build/lint/test sem segredos",
               "Teste de integração sobe dependências isoladas ou usa containers efêmeros"
             ],
-            "deliverables": ["workflow CI", "fixtures de integração", "documentação de comandos"],
-            "risks": ["CI pode ficar pesado com Timescale/RabbitMQ/Jaeger"],
+            "deliverables": [
+              "workflow CI",
+              "fixtures de integração",
+              "documentação de comandos"
+            ],
+            "risks": [
+              "CI pode ficar pesado com Timescale/RabbitMQ/Jaeger"
+            ],
             "notes": "Adicionar somente depois que os comandos reais estiverem scaffoldados. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session. Scaffolded in initial IndexDesk setup; validation runs are recorded in the session.",
             "estimated_hours": 16,
             "assignee": null,

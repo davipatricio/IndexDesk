@@ -40,7 +40,7 @@ public class FxRateSyncService : IFxRateSyncService
     {
         var sw = Stopwatch.StartNew();
         var startedAt = DateTimeOffset.UtcNow;
-        await _dbContext.Database.EnsureCreatedAsync(cancellationToken);
+        await DatabaseInitializer.MigrateAsync(_dbContext, cancellationToken);
 
         var pairs = SyncUniverse.FromList(_configuration[SyncUniverse.AwesomeApiPairsConfigKey]);
         if (pairs.Count == 0)
@@ -98,7 +98,7 @@ public class FxRateSyncService : IFxRateSyncService
     {
         var sw = Stopwatch.StartNew();
         var startedAt = DateTimeOffset.UtcNow;
-        await _dbContext.Database.EnsureCreatedAsync(cancellationToken);
+        await DatabaseInitializer.MigrateAsync(_dbContext, cancellationToken);
 
         var result = await _awesomeApiClient.GetDailyAsync(
             pair,

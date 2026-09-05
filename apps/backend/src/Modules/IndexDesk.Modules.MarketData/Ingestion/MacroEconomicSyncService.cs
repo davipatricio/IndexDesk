@@ -30,7 +30,7 @@ public class MacroEconomicSyncService : IMacroEconomicSyncService
         CancellationToken cancellationToken = default
     )
     {
-        await _dbContext.Database.EnsureCreatedAsync(cancellationToken);
+        await DatabaseInitializer.MigrateAsync(_dbContext, cancellationToken);
 
         var sw = Stopwatch.StartNew();
         var start = startDate ?? new DateOnly(2015, 1, 1);

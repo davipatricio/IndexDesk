@@ -4,7 +4,7 @@
 > **Estado atual:** requisitos documentados, implementação ainda não scaffoldada.
 
 **Atualizado em:** 2026-08-22 · **Estado:** `scaffolded` · **Progresso:** [███████████░░░░░░░░░] 56% (32/57)
-**Tarefas:** 57 total · 32 concluídas · 3 em andamento · 0 bloqueadas · 22 não iniciadas/deferidas
+**Tarefas:** 57 total · 32 concluídas · 4 em andamento · 0 bloqueadas · 21 não iniciadas/deferidas
 
 ## Estado do projeto
 
@@ -152,7 +152,7 @@ _Reproduzir a infraestrutura de desenvolvimento com Docker, dados persistentes e
 | :--- | :--- | :---: | :---: | :--- | :--- | 
 | `FND-011` | Criar Docker Compose local | `P0` | `medium` | ✅ `complete` | — |
 | `FND-012` | Criar .env.example e configuração local | `P0` | `easy` | ✅ `complete` | — |
-| `FND-013` | Criar migrations e inicialização do banco | `P0` | `hard` | ⬜ `not_started` | `FND-010`, `FND-011` |
+| `FND-013` | Criar migrations e inicialização do banco | `P0` | `hard` | 🔵 `in_progress` | `FND-010`, `FND-011` |
 
 <details>
 <summary>Critérios e entregáveis</summary>
@@ -168,7 +168,7 @@ _Reproduzir a infraestrutura de desenvolvimento com Docker, dados persistentes e
 - **FND-013 — Criar migrations e inicialização do banco**
   - Critérios: Migrations são repetíveis em banco vazio; Hypertables e índices são criados quando Timescale está disponível; Fallback por particionamento é documentado/testável
   - Entregáveis: migrations; scripts de bootstrap Timescale/Postgres; seed mínimo de enums
-  - Notas: Não marcar complete sem restaurar banco vazio e aplicar migrations.
+  - Notas: WIP 2026-09-05: InitialCreate gerada + DatabaseInitializer (MigrateAsync) + troca EnsureCreated x8 + AddTimescaleAndSeed (hypertables c/ guarda + seed 24 feriados). Pendente: migration manual sem atributos EF (não descoberta pelo ef list), baseline no banco dev c/ dados, validação banco zerado, fallback PG puro.
 
 </details>
 

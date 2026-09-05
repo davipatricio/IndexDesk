@@ -71,7 +71,9 @@ public sealed class AuthWebApplicationFactory : WebApplicationFactory<Program>
 
         using var scope = host.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IndexDeskDbContext>();
-        db.Database.EnsureCreated();
+        // Sync-over-async is acceptable here: test bootstrap must complete before any
+        // request is served, and the signature is fixed by WebApplicationFactory.
+        DatabaseInitializer.MigrateAsync(db).GetAwaiter().GetResult();
 
         return host;
     }

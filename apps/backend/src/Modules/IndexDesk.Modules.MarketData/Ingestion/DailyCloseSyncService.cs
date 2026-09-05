@@ -49,7 +49,7 @@ public class DailyCloseSyncService : IDailyCloseSyncService
     )
     {
         var sw = Stopwatch.StartNew();
-        await _dbContext.Database.EnsureCreatedAsync(cancellationToken);
+        await DatabaseInitializer.MigrateAsync(_dbContext, cancellationToken);
 
         var tradeDate = targetDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);

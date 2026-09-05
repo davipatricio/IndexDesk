@@ -106,13 +106,11 @@ builder.Services.AddOpenApi(options =>
 
 var app = builder.Build();
 
-// Development databases do not have migrations yet; create the local schema before
-// serving the first request. Market data is populated only by ingestion jobs.
-if (app.Environment.IsDevelopment())
+// Schema bootstrap: apply EF migrations (FND-013). Idempotent; also safe when the
+// database was previously created via EnsureCreated (baseline) or by the init scripts.
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 {
-    await using var scope = app.Services.CreateAsyncScope();
-    var dbContext = scope.ServiceProvider.GetRequiredService<IndexDeskDbContext>();
-    await dbContext.Database.EnsureCreatedAsync();
+    await DatabaseInitializer.MigrateAsync(app.Services);
 }
 
 // Configure Middleware Pipeline

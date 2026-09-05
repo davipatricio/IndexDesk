@@ -47,7 +47,7 @@ public class EtfHoldingsSyncService : IEtfHoldingsSyncService
     )
     {
         var sw = Stopwatch.StartNew();
-        await _dbContext.Database.EnsureCreatedAsync(cancellationToken);
+        await DatabaseInitializer.MigrateAsync(_dbContext, cancellationToken);
 
         var sources = new List<HoldingsSourceSummary>();
 

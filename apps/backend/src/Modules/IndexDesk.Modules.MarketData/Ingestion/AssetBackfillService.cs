@@ -262,7 +262,7 @@ public class AssetBackfillService : IAssetBackfillService
         CancellationToken cancellationToken
     )
     {
-        await _dbContext.Database.EnsureCreatedAsync(cancellationToken);
+        await DatabaseInitializer.MigrateAsync(_dbContext, cancellationToken);
 
         var existing = await _dbContext.Assets.FirstOrDefaultAsync(
             a => a.Ticker == ticker,
