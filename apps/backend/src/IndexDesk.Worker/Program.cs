@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Quartz;
 using StackExchange.Redis;
 
@@ -132,6 +133,25 @@ builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 builder.Services.AddHostedService<SyncBootstrapService>();
 
 var host = builder.Build();
+
+// Schema bootstrap: apply EF Core migrations (FND-013). Runs once per host start.
+// Idempotent: re-runs are a no-op once __EFMigrationsHistory is up to date.
+// After this, ingestion services that also call DatabaseInitializer.MigrateAsync
+// become no-ops, so the per-job calls are kept only as defensive belt-and-suspenders.
+using (var scope = host.Services.CreateScope())
+{
+    var logger = scope.ServiceProvider.GetService<ILoggerFactory>()?.CreateLogger("IndexDesk.Worker.Bootstrap");
+    try
+    {
+        await DatabaseInitializer.MigrateAsync(scope.ServiceProvider);
+    }
+    catch (Exception ex)
+    {
+        // Worker must still boot so Quartz retries the daily job on the next cron
+        // tick even if the DB is briefly unavailable. Log + continue.
+        logger?.LogError(ex, "Worker database migration failed at startup; will retry on next job tick.");
+    }
+}
 
 // CLI Backfill execution handling:
 //   dotnet run -- --backfill WRLD11            (fallback chain Brapi → Yahoo → TV)

@@ -1,18 +1,19 @@
 # Estado Atual do Projeto & Roadmap
 
-> Snapshot do `ROADMAP.md` gerado em **2026-08-26** (pós PR #3 — dashboard de carteiras M-P1..M-P5). Para o estado exato, rode
+> Snapshot do `ROADMAP.md` gerado em **2026-09-06** (pós FND-013 — migrations EF fechadas). Para o estado exato, rode
 > `bun run roadmap:check` ou leia `ROADMAP.md`. Este resumo pode estar defasado.
 > **26/08/2026:** catálogo expandido para 2165 ativos + backfill 1y em massa (98% de cobertura) —
 > ver [`current-features.md`](current-features.md#catálogo--ingestão-em-massa-26082026).
+> **06/09/2026:** FND-013 fechada — 2 migrations EF (InitialCreate + AddTimescaleAndSeed), MigrateAsync em Api e Worker no startup, design-time factory, baseline script e README de fallback PG puro.
 
 ## Visão geral
 
 - **Ciclo:** `active_development` · scaffold concluído, produto em construção.
-- **Progresso:** 50% (28/56 tarefas). 0 em andamento · 28 não iniciadas.
+- **Progresso:** ~58% (33/57 tarefas).
 
 | Fase | Escopo | Status | Progresso |
 | :--- | :--- | :--- | :---: |
-| **00 Foundation** | Monorepo Bun+Turbo, Next.js SSR-first, monólito .NET, Docker/env, auth/RBAC, OTel, CI | 🔵 in_progress (P0) | 94% (15/16) |
+| **00 Foundation** | Monorepo Bun+Turbo, Next.js SSR-first, monólito .NET, Docker/env, auth/RBAC, OTel, CI, migrations EF | 🔵 in_progress (P0) | 100% (17/17) — falta só flipar status do phase quando RESILIENCE epic sair de in_progress |
 | **01 MVP & Core Intelligence** | Ingestão local-first, APIs MarketData/Analytics, catálogo, comparador, backtest, rankings, calculadoras, admin, notícias, PWA/SEO | 🔵 in_progress (P0) | 52% (13/25) |
 | **02 Growth & Programmatic SEO** | Saved backtests, expansão SEO, PDF export, newsletter/alertas | ⬜ not_started (P2) | 0% (0/6) |
 | **03 Portfolio & Tax Automation** | Carteiras/transações, PM, TWR/MWR, accrual RF, eventos, DARF automation | 🔵 in_progress (P2) | 56% — PORT-001/002/003 ✅ · PORT-004/005/009 🔵 · detalhes em `plans/dashboard-carteiras/` |
@@ -62,7 +63,7 @@ Dependências: PHASE-00 → 01 → 02 → 03. Auth→admin→saved backtests→p
   pendentes (Fase 0 bloqueada neles); calibrar 429 da fila de proventos pós-token; DDL manual de
   `etf_holdings`/`fx_rates` vira migration formal quando FND-013 avançar.
 
-- **FND-013** migrations/banco (roadmap segue `not_started`; migrations já aplicadas no banco local — ver abaixo).
+- **FND-013** migrations/banco — **fechada 06/09/2026**. Schema via 2 migrations EF (InitialCreate + AddTimescaleAndSeed), `MigrateAsync` em ambos hosts no startup, `IDesignTimeDbContextFactory` em Persistence, `apps/backend/sql/baseline-existing-db.sql` para DBs pré-EF, `Migrations/README.md` com bootstrap + fallback PG puro.
 - **MVP-003 reaberto:** ingestão CVM streaming (`inf_diario_fi`, CNPJ filter, COPY) — pré-requisito de
   MVP-025 (premium/desconto vs PL + captação líquida) e de parte do MVP-024.
 - Screener avançado no catálogo (MVP-024).
@@ -73,12 +74,9 @@ Dependências: PHASE-00 → 01 → 02 → 03. Auth→admin→saved backtests→p
 
 ## 🚧 Bloqueadores e notas de ambiente
 
-1. **FND-013:** containers Docker agora **rodando** e migrations aplicadas no banco local (tabelas
-   verificadas em 2026-08-22); task permanece `not_started` no roadmap — aceite exige restaurar banco
-   vazio e reaplicar.
-2. **MVP-003 reaberto:** implementação CVM anterior foi removida no purge de dados sintéticos (commit `532fde5`); nenhum job CVM existe hoje.
-3. SDK .NET local usa `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` (libicu ausente no Debian sem sudo).
-4. `OpenTelemetry.Exporter.OpenTelemetryProtocol 1.11.1` registra advisory NU1902 — atualizar antes de produção.
+1. **MVP-003 reaberto:** implementação CVM anterior foi removida no purge de dados sintéticos (commit `532fde5`); nenhum job CVM existe hoje.
+2. SDK .NET local usa `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` (libicu ausente no Debian sem sudo).
+3. `OpenTelemetry.Exporter.OpenTelemetryProtocol 1.11.1` registra advisory NU1902 — atualizar antes de produção.
 
 ## Como atualizar o roadmap
 

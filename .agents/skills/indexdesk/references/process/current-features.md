@@ -331,13 +331,25 @@ líquida/CVM informe diário, overlap/tax drag/DARF/aposentadoria/fluxo-CVM, sit
 
 ## Pendências conhecidas de ambiente
 
-Containers Docker agora **rodando** e migrations aplicadas no banco local (tabelas `assets`,
-`asset_quotes`, `asset_dividends`, `macro_economic_series`, `sync_job_logs`, `market_holidays`
-verificadas em 2026-08-30) — a task FND-013 segue `not_started` no roadmap (aceite exige restaurar
-banco vazio); SDK .NET local usa `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1`; advisory NU1902 no
-pacote OTLP exporter. `market_holidays` foi seedada fora do EF (FND-013) com ANBIMA 2025/2026
-(24 feriados B3) e é consultada por `SyncBootstrapService`/`MarketHolidayQueries` para
-calcular dias úteis faltantes; tabela vazia ainda funciona (cai pra filtro só fim de semana).
+SDK .NET local usa `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1`; advisory NU1902 no pacote OTLP exporter.
+
+## Migrations EF Core (FND-013 — fechada 2026-09-06)
+
+Duas migrations em `BuildingBlocks.Persistence/Migrations/`:
+- `20260905125533_InitialCreate` — schema completo + RBAC seed + `CREATE EXTENSION IF NOT EXISTS` p/ `pgcrypto`/`uuid-ossp`.
+- `20260905130000_AddTimescaleAndSeed` — `create_hypertable` em `asset_quotes` (1 a), `macro_economic_series` (5 a), `portfolio_daily_snapshots` (1 a) sob DO-block guard `IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'timescaledb')`; seed `market_holidays` 2025–2026 B3 (24 feriados, `ON CONFLICT DO NOTHING`).
+
+Hosts aplicam schema no startup:
+- `IndexDesk.Api/Program.cs` — `await DatabaseInitializer.MigrateAsync(app.Services)` em Dev/Testing.
+- `IndexDesk.Worker/Program.cs` — mesmo, dentro de `using var scope = host.Services.CreateScope()` antes de `host.Run()`; falha loga + segue (Worker deve bootar mesmo se DB estiver offline, Quartz retenta no próximo tick).
+
+Serviços de ingestão (`Modules.MarketData.Ingestion/*`) mantêm `DatabaseInitializer.MigrateAsync` defensivo (custo zero após startup).
+
+Operação:
+- `IDesignTimeDbContextFactory` em Persistence p/ `dotnet ef migrations add` sem subir host (`IDX_DESIGNTIME_CONNECTION` opcional).
+- `apps/backend/sql/baseline-existing-db.sql` marca DBs pré-EF (`EnsureCreated`) como up-to-date em `__EFMigrationsHistory` (idempotente).
+- `Migrations/README.md` documenta bootstrap, baseline e fallback PG puro (tabelas viram heaps sem chunk-pruning).
+- Plain PostgreSQL sem Timescale funciona (DO-block) — `Migrations/README.md` §"Plain PostgreSQL fallback".
 
 ## Auto-retomada de sync (Sync Bootstrap — 2026-08-30)
 

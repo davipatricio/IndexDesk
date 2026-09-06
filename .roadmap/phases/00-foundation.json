@@ -609,7 +609,7 @@
             "id": "FND-013",
             "title": "Criar migrations e inicialização do banco",
             "description": "Implementar migrations EF Core/SQL para o modelo inicial, extensões Timescale e estratégia PostgreSQL puro.",
-            "status": "in_progress",
+            "status": "complete",
             "priority": "P0",
             "difficulty": "hard",
             "kind": "database",
@@ -643,10 +643,10 @@
             "risks": [
               "Timescale e EF Core podem exigir SQL específico fora do provider padrão"
             ],
-            "notes": "WIP 2026-09-05: InitialCreate gerada + DatabaseInitializer (MigrateAsync) + troca EnsureCreated x8 + AddTimescaleAndSeed (hypertables c/ guarda + seed 24 feriados). Pendente: migration manual sem atributos EF (não descoberta pelo ef list), baseline no banco dev c/ dados, validação banco zerado, fallback PG puro.",
+            "notes": "Fechada 2026-09-06. Duas migrations (InitialCreate + AddTimescaleAndSeed) com DO-block guard p/ Timescale; DatabaseInitializer.MigrateAsync chamado em Api e Worker no startup; IDesignTimeDbContextFactory em Persistence p/ `dotnet ef migrations add` sem subir host; apps/backend/sql/baseline-existing-db.sql marca DBs pré-EF; Migrations/README.md documenta bootstrap, baseline e fallback PG puro. Ingestion services mantêm chamadas defensivas (no-op após startup).",
             "estimated_hours": 16,
             "assignee": null,
-            "completed_at": null
+            "completed_at": "2026-09-06"
           }
         ]
       },

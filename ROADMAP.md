@@ -3,8 +3,8 @@
 > **Arquivo gerado:** não edite `ROADMAP.md` diretamente. Atualize `.roadmap/**/*.json` e execute `bun run roadmap:generate`.
 > **Estado atual:** requisitos documentados, implementação ainda não scaffoldada.
 
-**Atualizado em:** 2026-08-22 · **Estado:** `scaffolded` · **Progresso:** [███████████░░░░░░░░░] 56% (32/57)
-**Tarefas:** 57 total · 32 concluídas · 4 em andamento · 0 bloqueadas · 21 não iniciadas/deferidas
+**Atualizado em:** 2026-09-06 · **Estado:** `scaffolded` · **Progresso:** [████████████░░░░░░░░] 58% (33/57)
+**Tarefas:** 57 total · 33 concluídas · 3 em andamento · 0 bloqueadas · 21 não iniciadas/deferidas
 
 ## Estado do projeto
 
@@ -12,14 +12,14 @@
 - **Tracking do roadmap scaffoldado:** `true`
 - **Código do produto scaffoldado:** `true`
 - **Commits registrados no snapshot:** `1`
-- **Bloqueadores:** FND-013 permanece pendente: migrations não foram aplicadas porque containers Docker não foram iniciados, conforme solicitado. MVP-003 (ingestão CVM) reaberto: a implementação anterior foi removida no purge de dados sintéticos e nenhum job CVM existe no Worker. O SDK .NET local usa DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 porque libicu não está instalado no Debian sem sudo. OpenTelemetry.Exporter.OpenTelemetryProtocol 1.11.1 registra o advisory NU1902 e deve ser atualizado antes de produção.
-- **Nota:** Setup inicial e fundamentação concluídos. Phase 01: ingestão Brapi/Yahoo/BCB, APIs MarketData/Analytics, catálogo com painel fiscal, páginas de ativo, comparador (≤6 ativos), backtest público, suite TanStack + gráficos e hub de rankings (/rankings + GET /api/v1/assets/rankings, MVP-023). MVP-003 reaberto após purge; screener avançado (MVP-024) e premium/desconto vs PL via CVM (MVP-025) planejados.
+- **Bloqueadores:** MVP-003 (ingestão CVM) reaberto: a implementação anterior foi removida no purge de dados sintéticos e nenhum job CVM existe no Worker. O SDK .NET local usa DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 porque libicu não está instalado no Debian sem sudo. OpenTelemetry.Exporter.OpenTelemetryProtocol 1.11.1 registra o advisory NU1902 e deve ser atualizado antes de produção.
+- **Nota:** Setup inicial e fundamentação concluídos. Phase 01: ingestão Brapi/Yahoo/BCB, APIs MarketData/Analytics, catálogo com painel fiscal, páginas de ativo, comparador (≤6 ativos), backtest público, suite TanStack + gráficos e hub de rankings (/rankings + GET /api/v1/assets/rankings, MVP-023). MVP-003 reaberto após purge; screener avançado (MVP-024) e premium/desconto vs PL via CVM (MVP-025) planejados. FND-013 fechada 2026-09-06: migrations EF (InitialCreate + AddTimescaleAndSeed), MigrateAsync em Api/Worker, design-time factory, baseline script e README de fallback PG puro.
 
 ## Visão por fase
 
 | Fase | Status | Prioridade | Progresso | Dependências |
 | :--- | :--- | :---: | :---: | :--- |
-| **00 — Foundation & Platform Scaffold** | 🔵 `in_progress` | `P0` | 94% (16/17) | — |
+| **00 — Foundation & Platform Scaffold** | 🔵 `in_progress` | `P0` | 100% (17/17) | — |
 | **01 — MVP & Core Market Intelligence** | 🔵 `in_progress` | `P0` | 52% (13/25) | `PHASE-00` |
 | **02 — Growth, Programmatic SEO & Retention** | ⬜ `not_started` | `P2` | 0% (0/6) | `PHASE-01` |
 | **03 — Portfolio, Fixed Income & Tax Automation** | ⬜ `not_started` | `P2` | 33% (3/9) | `PHASE-01`, `PHASE-02` |
@@ -43,7 +43,7 @@ News/reports/storage/RSS -> public hubs + admin publishing
 
 ## Fase 00 — Foundation & Platform Scaffold
 
-**Status:** 🔵 `in_progress` · **Prioridade:** `P0` · **Progresso:** [███████████████████░] 94% (16/17)
+**Status:** 🔵 `in_progress` · **Prioridade:** `P0` · **Progresso:** [████████████████████] 100% (17/17)
 **Objetivo:** Transformar o repositório de documentação em um monorepo executável, observável e reproduzível.
 **Depende de:** nenhuma fase
 
@@ -146,13 +146,13 @@ _Criar a solução .NET única com API, Worker, módulos delimitados e REST/Open
 
 _Reproduzir a infraestrutura de desenvolvimento com Docker, dados persistentes e segredos fora do Git._
 
-**Status:** 🔵 `in_progress` · **Prioridade:** `P0` · **Progresso:** [████████░░░░] 67% (2/3)
+**Status:** 🔵 `in_progress` · **Prioridade:** `P0` · **Progresso:** [████████████] 100% (3/3)
 
 | ID | Tarefa | Prioridade | Dificuldade | Status | Dependências |
 | :--- | :--- | :---: | :---: | :--- | :--- | 
 | `FND-011` | Criar Docker Compose local | `P0` | `medium` | ✅ `complete` | — |
 | `FND-012` | Criar .env.example e configuração local | `P0` | `easy` | ✅ `complete` | — |
-| `FND-013` | Criar migrations e inicialização do banco | `P0` | `hard` | 🔵 `in_progress` | `FND-010`, `FND-011` |
+| `FND-013` | Criar migrations e inicialização do banco | `P0` | `hard` | ✅ `complete` | `FND-010`, `FND-011` |
 
 <details>
 <summary>Critérios e entregáveis</summary>
@@ -168,7 +168,7 @@ _Reproduzir a infraestrutura de desenvolvimento com Docker, dados persistentes e
 - **FND-013 — Criar migrations e inicialização do banco**
   - Critérios: Migrations são repetíveis em banco vazio; Hypertables e índices são criados quando Timescale está disponível; Fallback por particionamento é documentado/testável
   - Entregáveis: migrations; scripts de bootstrap Timescale/Postgres; seed mínimo de enums
-  - Notas: WIP 2026-09-05: InitialCreate gerada + DatabaseInitializer (MigrateAsync) + troca EnsureCreated x8 + AddTimescaleAndSeed (hypertables c/ guarda + seed 24 feriados). Pendente: migration manual sem atributos EF (não descoberta pelo ef list), baseline no banco dev c/ dados, validação banco zerado, fallback PG puro.
+  - Notas: Fechada 2026-09-06. Duas migrations (InitialCreate + AddTimescaleAndSeed) com DO-block guard p/ Timescale; DatabaseInitializer.MigrateAsync chamado em Api e Worker no startup; IDesignTimeDbContextFactory em Persistence p/ `dotnet ef migrations add` sem subir host; apps/backend/sql/baseline-existing-db.sql marca DBs pré-EF; Migrations/README.md documenta bootstrap, baseline e fallback PG puro. Ingestion services mantêm chamadas defensivas (no-op após startup).
 
 </details>
 

@@ -55,16 +55,16 @@
       "MVP-010",
       "MVP-019",
       "MVP-020",
-      "MVP-023"
+      "MVP-023",
+      "FND-013"
     ],
     "blockers": [
-      "FND-013 permanece pendente: migrations não foram aplicadas porque containers Docker não foram iniciados, conforme solicitado.",
       "MVP-003 (ingestão CVM) reaberto: a implementação anterior foi removida no purge de dados sintéticos e nenhum job CVM existe no Worker.",
       "O SDK .NET local usa DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 porque libicu não está instalado no Debian sem sudo.",
       "OpenTelemetry.Exporter.OpenTelemetryProtocol 1.11.1 registra o advisory NU1902 e deve ser atualizado antes de produção."
     ],
-    "notes": "Setup inicial e fundamentação concluídos. Phase 01: ingestão Brapi/Yahoo/BCB, APIs MarketData/Analytics, catálogo com painel fiscal, páginas de ativo, comparador (≤6 ativos), backtest público, suite TanStack + gráficos e hub de rankings (/rankings + GET /api/v1/assets/rankings, MVP-023). MVP-003 reaberto após purge; screener avançado (MVP-024) e premium/desconto vs PL via CVM (MVP-025) planejados."
+    "notes": "Setup inicial e fundamentação concluídos. Phase 01: ingestão Brapi/Yahoo/BCB, APIs MarketData/Analytics, catálogo com painel fiscal, páginas de ativo, comparador (≤6 ativos), backtest público, suite TanStack + gráficos e hub de rankings (/rankings + GET /api/v1/assets/rankings, MVP-023). MVP-003 reaberto após purge; screener avançado (MVP-024) e premium/desconto vs PL via CVM (MVP-025) planejados. FND-013 fechada 2026-09-06: migrations EF (InitialCreate + AddTimescaleAndSeed), MigrateAsync em Api/Worker, design-time factory, baseline script e README de fallback PG puro."
   },
   "phase_order": ["PHASE-00", "PHASE-01", "PHASE-02", "PHASE-03"],
-  "updated_at": "2026-08-22"
+  "updated_at": "2026-09-06"
 }
