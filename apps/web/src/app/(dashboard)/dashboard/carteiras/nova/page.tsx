@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createPortfolio, type PortfolioDto } from '@/lib/api-client';
 import { useSession } from '@/hooks/use-session';
 import { Button } from '@/components/ui/button';
@@ -31,6 +31,7 @@ const profiles = [
 /** Wizard de criação de carteira (título/descrição/perfil — visibilidade fica pra M-P5). */
 export default function NovaCarteiraPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { isAuthenticated, isReady } = useSession();
 
   const [title, setTitle] = React.useState('');
@@ -45,10 +46,11 @@ export default function NovaCarteiraPage() {
   const mutation = useMutation({
     mutationFn: createPortfolio,
     onSuccess: (portfolio: PortfolioDto) => {
+      void queryClient.invalidateQueries({ queryKey: ['portfolios'] });
       toast.success('Carteira criada!');
       router.push(`/dashboard/c/${portfolio.id}`);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: () => toast.error('Não foi possível criar a carteira. Tente novamente.'),
   });
 
   return (
@@ -56,7 +58,7 @@ export default function NovaCarteiraPage() {
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Nova carteira</h1>
         <p className="text-sm text-muted-foreground">
-          Dê um nome, descreva o objetivo e escolha o perfil. Você pode editar depois.
+          Dê um nome, descreva seu objetivo e escolha o perfil da carteira.
         </p>
       </header>
 

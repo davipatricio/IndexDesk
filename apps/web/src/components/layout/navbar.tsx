@@ -25,7 +25,8 @@ const NAV_GROUPS = [
   {
     label: 'Mercado',
     items: [
-      { href: '/ativos', label: 'Explorar Ativos' },
+      { href: '/dashboard', label: 'Minhas carteiras' },
+      { href: '/ativos', label: 'Explorar ativos' },
       { href: '/rankings', label: 'Rankings' },
     ],
   },

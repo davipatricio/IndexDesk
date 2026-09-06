@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { usePathname } from 'next/navigation';
 import { parseAsString, useQueryState } from 'nuqs';
 import { Search, Menu, Eye, EyeOff } from 'lucide-react';
 import { usePrivacyStore } from '@/stores/privacy-store';
@@ -20,6 +21,7 @@ const Q_PARSER = parseAsString.withDefault('');
  * privacidade, theme-toggle e account-menu.
  */
 export function DashboardHeader() {
+  const pathname = usePathname();
   const [q, setQ] = useQueryState('q', Q_PARSER);
   const hideValues = usePrivacyStore((s) => s.hideValues);
   const hydrated = usePrivacyStore((s) => s.hydrated);
@@ -56,16 +58,18 @@ export function DashboardHeader() {
         </SheetContent>
       </Sheet>
 
-      <div className="relative w-56 shrink-0 sm:w-64">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={q}
-          onChange={(e) => void setQ(e.target.value)}
-          placeholder="Buscar carteira…"
-          aria-label="Buscar carteira por nome"
-          className="h-8 pl-8 text-sm"
-        />
-      </div>
+      {pathname === '/dashboard' && (
+        <div className="relative min-w-0 flex-1 sm:max-w-64">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={q}
+            onChange={(e) => void setQ(e.target.value)}
+            placeholder="Buscar carteira…"
+            aria-label="Buscar carteira por nome"
+            className="h-8 pl-8 text-sm"
+          />
+        </div>
+      )}
 
       <div className="ml-auto flex items-center gap-1">
         <Tooltip>

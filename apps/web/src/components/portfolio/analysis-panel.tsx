@@ -1,8 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { fetchPortfolioPerformance } from '@/lib/api-client';
+import { usePortfolioPerformance } from '@/hooks/use-portfolio-performance';
 import { MaskedValue } from '@/components/privacy/masked-value';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,11 +19,7 @@ interface DailyMove {
  * derivados da mesma série diária do painel de rentabilidade.
  */
 export function AnalysisPanel({ portfolioId }: { portfolioId: string }) {
-  const query = useQuery({
-    queryKey: ['portfolio', portfolioId, 'performance', 'analysis'],
-    queryFn: () => fetchPortfolioPerformance(portfolioId),
-    staleTime: 5 * 60 * 1000,
-  });
+  const { query, invalidRange } = usePortfolioPerformance(portfolioId);
 
   const moves = React.useMemo<DailyMove[]>(() => {
     const series = query.data?.series;
@@ -40,12 +35,21 @@ export function AnalysisPanel({ portfolioId }: { portfolioId: string }) {
     return out;
   }, [query.data]);
 
+  if (invalidRange)
+    return (
+      <p role="alert">
+        Confira as datas na aba Rentabilidade. A data inicial deve ser anterior à final.
+      </p>
+    );
   if (query.isLoading) return <Skeleton className="h-48 w-full" />;
   if (query.isError)
     return (
       <Card>
         <CardContent className="py-8 text-center text-sm text-muted-foreground">
-          Sem dados suficientes para análise.
+          Não foi possível carregar a análise.{' '}
+          <button className="underline" onClick={() => void query.refetch()}>
+            Tentar novamente
+          </button>
         </CardContent>
       </Card>
     );
@@ -101,8 +105,8 @@ export function AnalysisPanel({ portfolioId }: { portfolioId: string }) {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Métricas educacionais calculadas com preços locais de fechamento. Não constituem
-        recomendação de investimento.
+        Métricas educacionais calculadas com preços de fechamento. Não constituem recomendação de
+        investimento.
       </p>
     </div>
   );

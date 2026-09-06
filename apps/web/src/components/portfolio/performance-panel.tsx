@@ -1,8 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { useQueryStates, parseAsIsoDate, parseAsString } from 'nuqs';
+import { usePortfolioPerformance } from '@/hooks/use-portfolio-performance';
 import {
   Area,
   CartesianGrid,
@@ -14,7 +13,6 @@ import {
   YAxis,
 } from 'recharts';
 import { MaskedValue, BlurChart } from '@/components/privacy/masked-value';
-import { fetchPortfolioPerformance } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { chartColor } from '@/lib/chart-colors';
@@ -33,21 +31,11 @@ const PERIODS = [
   { value: 'TUDO', label: 'Tudo' },
 ] as const;
 
-type Period = (typeof PERIODS)[number]['value'];
-
 const BENCHMARK_LABELS: Record<string, string> = {
   CDI: 'CDI',
   IPCA: 'IPCA',
   IBOV: 'Ibovespa',
 };
-
-function periodToDate(period: Period): string | undefined {
-  if (period === 'TUDO') return undefined;
-  const days = { '1M': 30, '3M': 91, '6M': 182, '1A': 365 }[period];
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  return d.toISOString().slice(0, 10);
-}
 
 const seriesColor = (index: number) =>
   chartColor(`--chart-${index + 1}`, ['#16a34a', '#2563eb', '#d97706'][index] ?? '#71717a');
@@ -57,26 +45,8 @@ const seriesColor = (index: number) =>
  * sobrepostos (base 100 → R$ inicial) e cards de métricas. Período via nuqs.
  */
 export function PerformancePanel({ portfolioId }: { portfolioId: string }) {
-  const [periodParams, setPeriodParams] = useQueryStates({
-    p: parseAsString.withDefault('TUDO'),
-    de: parseAsIsoDate,
-    ate: parseAsIsoDate,
-  });
-
-  const from =
-    periodParams.de?.toISOString().slice(0, 10) ??
-    periodToDate((periodParams.p || 'TUDO') as Period);
-
-  const query = useQuery({
-    queryKey: ['portfolio', portfolioId, 'performance', from, periodParams.ate],
-    queryFn: () =>
-      fetchPortfolioPerformance(portfolioId, {
-        from,
-        to: periodParams.ate?.toISOString().slice(0, 10),
-        benchmarks: 'CDI,IBOV',
-      }),
-    staleTime: 5 * 60 * 1000,
-  });
+  const { query, periodParams, setPeriodParams, invalidRange } =
+    usePortfolioPerformance(portfolioId);
 
   const data = React.useMemo(() => {
     const perf = query.data;
@@ -108,7 +78,7 @@ export function PerformancePanel({ portfolioId }: { portfolioId: string }) {
     <Card>
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <CardTitle className="text-base">Rentabilidade</CardTitle>
+          <CardTitle className="text-base">Evolução do patrimônio</CardTitle>
           <div className="flex flex-wrap gap-1" role="group" aria-label="Período">
             {PERIODS.map((p) => (
               <button
@@ -154,11 +124,16 @@ export function PerformancePanel({ portfolioId }: { portfolioId: string }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {query.isLoading ? (
+        {invalidRange ? (
+          <p role="alert">A data inicial deve ser anterior ou igual à data final.</p>
+        ) : query.isLoading ? (
           <Skeleton className="h-64 w-full" />
         ) : query.isError ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            Sem dados suficientes para o período selecionado.
+            Não foi possível carregar o período.{' '}
+            <button className="underline" onClick={() => void query.refetch()}>
+              Tentar novamente
+            </button>
           </p>
         ) : data ? (
           <>
@@ -170,9 +145,13 @@ export function PerformancePanel({ portfolioId }: { portfolioId: string }) {
                 accent
                 masked
               />
-              <Metric label="TWR período" value={fmtPct(data.perf.twrPercentPeriod)} masked />
               <Metric
-                label="MWR a.a."
+                label="Retorno sem efeito dos aportes"
+                value={fmtPct(data.perf.twrPercentPeriod)}
+                masked
+              />
+              <Metric
+                label="Seu retorno anualizado"
                 masked
                 value={
                   data.perf.mwrPercentAnnualized !== null
@@ -250,8 +229,9 @@ export function PerformancePanel({ portfolioId }: { portfolioId: string }) {
             </BlurChart>
 
             <p className="text-[11px] text-muted-foreground">
-              Linhas tracejadas: benchmarks normalizados ao valor inicial da carteira. Métricas
-              calculadas com preços locais (fechamento); TWR neutraliza aportes e resgates.
+              O patrimônio inclui aportes e resgates. As linhas tracejadas mostram o valor inicial
+              aplicado nos índices, sem novos aportes: não representam uma comparação direta de
+              retorno. O retorno sem efeito dos aportes (TWR) mede a estratégia.
             </p>
           </>
         ) : null}

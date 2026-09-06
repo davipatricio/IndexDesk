@@ -20,6 +20,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { useQueryState, parseAsStringLiteral } from 'nuqs';
+import { DeleteConfirmation } from '@/components/portfolio/delete-confirmation';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -33,6 +35,17 @@ const TODAY_ISO = new Date().toISOString().slice(0, 10);
 /** Detalhe da carteira (M-P1): patrimônio + tabela de posições por custódia. */
 export default function CarteiraPage() {
   const router = useRouter();
+  const [deleting, setDeleting] = React.useState(false);
+  const [tab, setTab] = useQueryState(
+    'aba',
+    parseAsStringLiteral([
+      'posicoes',
+      'rentabilidade',
+      'analise',
+      'fiscal',
+      'metas',
+    ] as const).withDefault('posicoes'),
+  );
   const params = useParams<{ id: string }>();
   const id = params.id;
   const queryClient = useQueryClient();
@@ -56,14 +69,13 @@ export default function CarteiraPage() {
   }, [isReady, isAuthenticated, router]);
 
   const handleDelete = async () => {
-    if (!window.confirm('Excluir esta carteira e todas as suas transações?')) return;
     try {
       await deletePortfolio(id);
       toast.success('Carteira excluída.');
       await queryClient.invalidateQueries({ queryKey: ['portfolios'] });
       router.push('/dashboard');
-    } catch (error) {
-      toast.error((error as Error).message);
+    } catch {
+      toast.error('Não foi possível excluir a carteira. Tente novamente.');
     }
   };
 
@@ -73,7 +85,12 @@ export default function CarteiraPage() {
   if (summaryQuery.isError) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-16 text-center">
-        <p className="text-sm text-muted-foreground">Carteira não encontrada.</p>
+        <p className="text-sm text-muted-foreground">
+          Não foi possível carregar esta carteira.{' '}
+          <Button variant="link" onClick={() => void summaryQuery.refetch()}>
+            Tentar novamente
+          </Button>
+        </p>
         <Button variant="link" render={<Link href="/dashboard" />}>
           Voltar ao dashboard
         </Button>
@@ -85,6 +102,16 @@ export default function CarteiraPage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
+      {deleting && (
+        <DeleteConfirmation
+          title={s.portfolio.title}
+          onConfirm={handleDelete}
+          onClose={() => setDeleting(false)}
+        />
+      )}
+      <Link href="/dashboard" className="text-sm text-muted-foreground hover:underline">
+        Minhas carteiras
+      </Link>
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -97,8 +124,9 @@ export default function CarteiraPage() {
             <p className="text-sm text-muted-foreground">{s.portfolio.description}</p>
           ) : null}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleDelete}>
+        <div className="flex flex-wrap gap-2">
+          <ShareControls portfolioId={id} initial={{ visibility: s.portfolio.visibility }} />
+          <Button variant="outline" onClick={() => setDeleting(true)}>
             Excluir
           </Button>
           <Button render={<Link href={`/dashboard/c/${id}/transacoes/nova`} />}>
@@ -106,8 +134,6 @@ export default function CarteiraPage() {
           </Button>
         </div>
       </header>
-
-      <ShareControls portfolioId={id} initial={{ visibility: s.portfolio.visibility }} />
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
@@ -132,7 +158,7 @@ export default function CarteiraPage() {
         </Card>
         <Card>
           <CardHeader className="pb-1">
-            <CardDescription>Não realizado</CardDescription>
+            <CardDescription>Resultado das posições abertas</CardDescription>
           </CardHeader>
           <CardContent>
             <p
@@ -148,8 +174,12 @@ export default function CarteiraPage() {
 
       <TimelineCard items={timelineQuery.data ?? []} />
 
-      <Tabs defaultValue="posicoes" className="space-y-4">
-        <TabsList>
+      <Tabs
+        value={tab}
+        onValueChange={(value) => void setTab(value as typeof tab)}
+        className="space-y-4"
+      >
+        <TabsList className="max-w-full overflow-x-auto">
           <TabsTrigger value="posicoes">Posições</TabsTrigger>
           <TabsTrigger value="rentabilidade">Rentabilidade</TabsTrigger>
           <TabsTrigger value="analise">Análise</TabsTrigger>
@@ -162,7 +192,8 @@ export default function CarteiraPage() {
             <CardHeader>
               <CardTitle className="text-base">Posições</CardTitle>
               <CardDescription>
-                Agrupadas por corretora. Preços do último fechamento local.
+                Agrupadas por corretora. Preços do último fechamento. Sem cotação, o valor é
+                estimado pelo custo.
               </CardDescription>
             </CardHeader>
             <CardContent>

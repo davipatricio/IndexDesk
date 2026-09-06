@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 import {
   fetchAssetRankings,
@@ -79,7 +80,7 @@ export default async function HomePage() {
     .filter((row) => row.metricValue !== null)
     .slice(0, MOVERS_COUNT);
   const topLosers = (losers ?? []).filter((row) => row.metricValue !== null).slice(0, MOVERS_COUNT);
-  const hasMovers = topGainers.length > 0 && topLosers.length > 0;
+  const hasMovers = topGainers.length > 0 || topLosers.length > 0;
 
   const moverTickers = [...topGainers, ...topLosers].map((row) => row.ticker.toUpperCase());
   const sparks =
@@ -89,24 +90,31 @@ export default async function HomePage() {
     <div className="container mx-auto flex flex-col gap-10 px-4 py-8">
       <section className="flex flex-col gap-1">
         <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-          Visão geral do mercado
+          Entenda seus investimentos.
         </h1>
         <p className="text-sm text-muted-foreground">
-          Indicadores e destaques da B3, atualizados com os dados locais mais recentes.
+          Explore ativos da B3, compare estratégias e acompanhe suas carteiras em um só lugar.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button render={<Link href="/ativos" />}>Explorar ativos</Button>
+          <Button variant="outline" render={<Link href="/dashboard" />}>
+            Minhas carteiras
+          </Button>
+        </div>
       </section>
 
       <section aria-label="Indicadores de mercado" className="overflow-x-auto">
         {indicators && indicators.length > 0 ? (
-          <div className="grid min-w-md grid-cols-1 divide-y rounded-lg border sm:min-w-0 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div className="grid grid-cols-1 divide-y rounded-lg border sm:min-w-0 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             {indicators.map((indicator) => (
               <IndicatorCell key={indicator.code} indicator={indicator} />
             ))}
           </div>
         ) : (
           <p className="rounded-lg border p-4 text-sm text-muted-foreground">
-            Indicadores de mercado ainda não disponíveis. Eles aparecem aqui assim que a série do
-            Banco Central for sincronizada.
+            {indicators === null
+              ? 'Não foi possível carregar os indicadores agora. Recarregue a página para tentar novamente.'
+              : 'Os indicadores ainda não estão disponíveis. Explore os ativos enquanto isso.'}
           </p>
         )}
       </section>
@@ -116,11 +124,20 @@ export default async function HomePage() {
           aria-label="Destaques de 12 meses"
           className="grid grid-cols-1 gap-x-8 gap-y-6 lg:grid-cols-2"
         >
-          <MoverColumn title="Maiores altas em 12 meses" rows={topGainers} sparks={sparks} />
-          <MoverColumn title="Maiores quedas em 12 meses" rows={topLosers} sparks={sparks} />
+          {topGainers.length > 0 && (
+            <MoverColumn title="Maiores retornos em 12 meses" rows={topGainers} sparks={sparks} />
+          )}
+          {topLosers.length > 0 && (
+            <MoverColumn title="Menores retornos em 12 meses" rows={topLosers} sparks={sparks} />
+          )}
+          {(gainers === null || losers === null) && (
+            <p role="alert">
+              Parte dos destaques não pôde ser carregada. Recarregue a página para tentar novamente.
+            </p>
+          )}
           <p className="text-xs leading-relaxed text-muted-foreground lg:col-span-2">
-            Retornos calculados sobre o histórico local de cotações; ativos sem série suficiente
-            ficam fora da lista. Conteúdo educacional — não é recomendação de investimento.
+            Retornos calculados com preços de fechamento; ativos sem histórico suficiente ficam fora
+            da lista. Conteúdo educacional — não é recomendação de investimento.
           </p>
         </section>
       ) : (
@@ -143,7 +160,7 @@ export default async function HomePage() {
               >
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-sm font-medium text-foreground">{tool.name}</span>
-                  <span className="truncate text-xs text-muted-foreground">{tool.description}</span>
+                  <span className="text-xs text-muted-foreground">{tool.description}</span>
                 </span>
                 <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
               </Link>
@@ -165,8 +182,8 @@ function IndicatorCell({ indicator }: { indicator: MarketIndicatorDto }) {
         {formatPercent(indicator.accum12mPercent ?? indicator.latestValue)}
       </span>
       <span className="text-xs text-muted-foreground">
-        acumulado em 12 meses · dado de{' '}
-        {new Date(`${indicator.latestDate}T12:00:00`).toLocaleDateString('pt-BR')}
+        {indicator.accum12mPercent == null ? 'último valor disponível' : 'acumulado em 12 meses'} ·
+        dado de {new Date(`${indicator.latestDate}T12:00:00`).toLocaleDateString('pt-BR')}
       </span>
     </div>
   );

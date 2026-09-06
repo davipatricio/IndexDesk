@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { type PositionDto } from '@/lib/api-client';
 import {
   Table,
@@ -44,7 +45,16 @@ export function PositionsTable({ positions }: { positions: PositionDto[] }) {
         {positions.map((p) => (
           <TableRow key={`${p.ticker}-${p.broker}-${p.assetId ?? 'na'}`}>
             <TableCell>
-              <span className="font-medium">{p.ticker}</span>
+              {p.assetId ? (
+                <Link
+                  href={`/ativos/${encodeURIComponent(p.ticker.toLowerCase())}`}
+                  className="font-medium hover:underline"
+                >
+                  {p.ticker}
+                </Link>
+              ) : (
+                <span className="font-medium">{p.ticker}</span>
+              )}
               <span className="block text-xs text-muted-foreground">{p.name}</span>
             </TableCell>
             <TableCell>{p.broker}</TableCell>
@@ -78,7 +88,9 @@ export function PositionsTable({ positions }: { positions: PositionDto[] }) {
             >
               <MaskedValue>{brl.format(p.unrealizedPnl)}</MaskedValue>
               {!p.hasMarketPrice ? (
-                <span className="block text-[10px] text-muted-foreground">sem cotação</span>
+                <span className="block text-[10px] text-muted-foreground">
+                  Sem cotação: valor estimado pelo custo
+                </span>
               ) : null}
             </TableCell>
           </TableRow>

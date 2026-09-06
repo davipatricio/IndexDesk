@@ -1,7 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Input } from '@/components/ui/input';
 import {
   regenerateShareLink,
   revokeShareLink,
@@ -27,7 +29,11 @@ export function ShareControls({
   portfolioId: string;
   initial: { visibility: VisibilityResultDto['visibility'] };
 }) {
-  const router = useRouter();
+  const queryClient = useQueryClient();
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: ['portfolio', portfolioId] });
+    void queryClient.invalidateQueries({ queryKey: ['portfolios'] });
+  };
   const [visibility, setVisibility] = React.useState(initial.visibility);
   const [slug, setSlug] = React.useState<string | null>(null);
   const [shareUrl, setShareUrl] = React.useState<string | null>(null);
@@ -41,6 +47,7 @@ export function ShareControls({
     try {
       const result = await updateVisibility(portfolioId, value);
       setVisibility(result.visibility);
+      refresh();
       setSlug(result.slug);
       setHasActiveLink(result.hasShareToken);
       toast.success(
@@ -50,12 +57,11 @@ export function ShareControls({
             ? 'Carteira pública — indexável em buscadores.'
             : 'Visível só pelo link restrito.',
       );
-      router.refresh();
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setBusy(false);
+      refresh();
+    } catch {
+      toast.error('Não foi possível atualizar o compartilhamento. Tente novamente.');
     }
+    setBusy(false);
   };
 
   const generateLink = async () => {
@@ -63,16 +69,16 @@ export function ShareControls({
     try {
       const result = await regenerateShareLink(portfolioId, 30);
       setVisibility(result.visibility);
+      refresh();
       setSlug(result.slug);
       const origin = typeof window !== 'undefined' ? window.location.origin : '';
       setShareUrl(`${origin}/c/${result.slug}?t=${result.shareToken}`);
       setHasActiveLink(true);
       toast.success('Link gerado — copie agora, ele não será exibido de novo.');
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setBusy(false);
+    } catch {
+      toast.error('Não foi possível atualizar o compartilhamento. Tente novamente.');
     }
+    setBusy(false);
   };
 
   const revoke = async () => {
@@ -82,12 +88,11 @@ export function ShareControls({
       setShareUrl(null);
       setHasActiveLink(false);
       toast.success('Link revogado.');
-      router.refresh();
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setBusy(false);
+      refresh();
+    } catch {
+      toast.error('Não foi possível atualizar o compartilhamento. Tente novamente.');
     }
+    setBusy(false);
   };
 
   const copyLink = async () => {
@@ -102,70 +107,90 @@ export function ShareControls({
   };
 
   return (
-    <div className="space-y-2 rounded-lg border p-3">
-      <p className="text-xs font-medium">Compartilhamento</p>
-      <div className="flex flex-wrap gap-1">
-        {options.map((o) => (
-          <button
-            key={o.value}
-            type="button"
-            disabled={busy}
-            onClick={() => void change(o.value)}
-            className={`rounded-md px-2 py-1 text-xs transition-colors ${
-              visibility === o.value
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted'
-            }`}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-
-      {visibility === 'public' && slug ? (
-        <p className="text-[11px] text-muted-foreground">
-          Público em{' '}
-          <a
-            href={`/c/${slug}`}
-            target="_blank"
-            rel="noreferrer"
-            className="text-primary hover:underline"
-          >
-            /c/{slug}
-          </a>
-        </p>
-      ) : null}
-
-      {visibility === 'link' ? (
-        <div className="space-y-2">
-          <Button variant="outline" size="sm" disabled={busy} onClick={() => void generateLink()}>
-            Gerar novo link
-          </Button>
-          <p className="text-[11px] text-muted-foreground">
-            Se já existir um link ativo, gerar um novo invalida o anterior.
+    <Sheet>
+      <SheetTrigger render={<Button variant="outline" />}>Compartilhar</SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>Compartilhar carteira</SheetTitle>
+        </SheetHeader>
+        <div className="flex flex-col gap-3 p-4">
+          <p className="text-sm text-muted-foreground">
+            Uma carteira pública pode aparecer em buscadores. Compartilhe somente informações que
+            deseja tornar acessíveis.
           </p>
-          {shareUrl ? (
-            <div className="space-y-1">
-              <input
-                readOnly
-                aria-label="Link restrito da carteira"
-                value={shareUrl}
-                className="w-full rounded-md border bg-muted/40 px-2 py-1 text-[11px]"
-                onFocus={(e) => e.currentTarget.select()}
-              />
-              <Button size="xs" onClick={() => void copyLink()}>
-                Copiar
+          <div className="flex flex-wrap gap-1">
+            {options.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                disabled={busy}
+                aria-pressed={visibility === o.value}
+                onClick={() => void change(o.value)}
+                className={`rounded-md px-2 py-1 text-xs transition-colors ${
+                  visibility === o.value
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+
+          {visibility === 'public' && slug ? (
+            <p className="text-[11px] text-muted-foreground">
+              Público em{' '}
+              <a
+                href={`/c/${slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary hover:underline"
+              >
+                /c/{slug}
+              </a>
+            </p>
+          ) : null}
+
+          {visibility === 'link' ? (
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => void generateLink()}
+              >
+                Gerar novo link
               </Button>
-              <p className="text-[10px] text-red-600">Este token não será mostrado novamente.</p>
+              <p className="text-[11px] text-muted-foreground">
+                O link expira em 30 dias. Gerar outro invalida o anterior. Qualquer pessoa com o
+                link poderá acessar a carteira.
+              </p>
+              {shareUrl ? (
+                <div className="space-y-1">
+                  <Input
+                    readOnly
+                    aria-label="Link restrito da carteira"
+                    value={shareUrl}
+                    className="w-full rounded-md border bg-muted/40 px-2 py-1 text-[11px]"
+                    onFocus={(e) => e.currentTarget.select()}
+                  />
+                  <Button size="xs" onClick={() => void copyLink()}>
+                    Copiar
+                  </Button>
+                  <p className="text-[10px] text-red-600">
+                    Copie este link agora. Ele não será exibido novamente.
+                  </p>
+                </div>
+              ) : null}
+              {hasActiveLink || shareUrl ? (
+                <Button variant="ghost" size="xs" disabled={busy} onClick={() => void revoke()}>
+                  Revogar link
+                </Button>
+              ) : null}
             </div>
           ) : null}
-          {hasActiveLink || shareUrl ? (
-            <Button variant="ghost" size="xs" disabled={busy} onClick={() => void revoke()}>
-              Revogar link
-            </Button>
-          ) : null}
         </div>
-      ) : null}
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

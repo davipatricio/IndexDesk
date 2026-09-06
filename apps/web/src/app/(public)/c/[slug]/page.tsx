@@ -77,7 +77,7 @@ export default async function PublicPortfolioPage({ params, searchParams }: Page
       <div className="mx-auto w-full max-w-4xl space-y-6 px-4 py-8">
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
         />
 
         <header className="space-y-1">
@@ -92,8 +92,8 @@ export default async function PublicPortfolioPage({ params, searchParams }: Page
             <p className="text-sm text-muted-foreground">{portfolio.description}</p>
           ) : null}
           <p className="text-xs text-muted-foreground">
-            Atualizada em {new Date(portfolio.createdAt).toLocaleDateString('pt-BR')} · dados de
-            fechamento local
+            Criada em {new Date(portfolio.createdAt).toLocaleDateString('pt-BR')} · preços de
+            fechamento
           </p>
         </header>
 
@@ -199,31 +199,11 @@ export default async function PublicPortfolioPage({ params, searchParams }: Page
           </p>
         ) : null}
 
-        <CloneCta slug={slug} />
-
         <p className="text-[11px] text-muted-foreground">
           Conteúdo educacional. Não constitui recomendação de investimento.
         </p>
       </div>
     </MaskedSection>
-  );
-}
-
-function CloneCta({ slug }: { slug: string }) {
-  return (
-    <Card>
-      <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
-        <p className="text-sm text-muted-foreground">
-          Gostou da composição? Importe esta carteira para a sua conta.
-        </p>
-        <Link
-          href={`/dashboard?clonar=${encodeURIComponent(slug)}`}
-          className="rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-muted"
-        >
-          Clonar carteira
-        </Link>
-      </CardContent>
-    </Card>
   );
 }
 

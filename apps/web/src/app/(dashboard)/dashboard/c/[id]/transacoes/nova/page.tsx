@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import { parsePortfolioNumber, validPortfolioDate } from '@/lib/portfolio-input';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -29,7 +30,7 @@ type OperationType = (typeof operationTypes)[number]['value'];
 
 const corpActionKinds = [
   { value: 'split', label: 'Desdobramento (split)', factorLabel: 'Fator (ex.: 2 dobra)' },
-  { value: 'grupamento', label: 'Grupamento (inpc)', factorLabel: 'Fator (ex.: 2 agrupa)' },
+  { value: 'grupamento', label: 'Grupamento', factorLabel: 'Fator (ex.: 2 agrupa)' },
   { value: 'bonificacao', label: 'Bonificação', factorLabel: '' },
   { value: 'subscricao', label: 'Subscrição', factorLabel: '' },
 ] as const;
@@ -85,8 +86,8 @@ function makeInitialState(): WizardState {
 
 /** Total em R$ que a operação movimenta; `null` = evento sem fluxo de caixa. */
 function previewTotal(state: WizardState): number | null {
-  const qty = Number(state.quantity.replace(',', '.')) || 0;
-  const price = Number(state.unitPrice.replace(',', '.')) || 0;
+  const qty = parsePortfolioNumber(state.quantity) || 0;
+  const price = parsePortfolioNumber(state.unitPrice) || 0;
   if (state.type === 'INCOME') return qty;
   if (state.type === 'CORP_ACTION') return state.corpKind === 'subscricao' ? qty * price : null;
   return state.syntheticCode ? qty : qty * price;
@@ -102,10 +103,10 @@ function corpActionLabel(state: WizardState): string {
 function buildCorpActionJson(state: WizardState): string | null {
   if (state.type !== 'CORP_ACTION') return null;
   if (state.corpKind === 'bonificacao') {
-    const pctNum = Number(state.corpPercent.replace(',', '.')) || 0;
+    const pctNum = parsePortfolioNumber(state.corpPercent) || 0;
     return JSON.stringify({ kind: 'bonificacao', percent: pctNum });
   }
-  const factorNum = Number(state.corpFactor.replace(',', '.')) || 1;
+  const factorNum = parsePortfolioNumber(state.corpFactor) || 1;
   return JSON.stringify({ kind: state.corpKind, factor: factorNum });
 }
 
@@ -151,9 +152,11 @@ export default function NovaTransacaoPage() {
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const qty = Number(state.quantity.replace(',', '.')) || 0;
-      const price = Number(state.unitPrice.replace(',', '.')) || 0;
-      const fees = Number(state.fees.replace(',', '.')) || 0;
+      if (!canAdvanceFrom2 || !state.broker.trim() || (!state.syntheticCode && !state.asset))
+        throw new Error('invalid input');
+      const qty = parsePortfolioNumber(state.quantity) || 0;
+      const price = parsePortfolioNumber(state.unitPrice) || 0;
+      const fees = parsePortfolioNumber(state.fees) || 0;
       const targetAssetId = state.syntheticCode ? null : (state.asset?.id ?? null);
 
       let created;
@@ -165,6 +168,7 @@ export default function NovaTransacaoPage() {
           syntheticIndexCode: state.syntheticCode,
           broker: state.broker,
           grossAmount: qty,
+          tradeDate: state.tradeDate,
         });
       } else if (state.type === 'CORP_ACTION') {
         created = await createTransaction(id, {
@@ -200,7 +204,7 @@ export default function NovaTransacaoPage() {
           await attachFixedIncome(id, {
             syntheticIndexCode: state.syntheticCode,
             indexer: state.rfIndexer as FixedIncomeParamDto['indexer'],
-            indexerRate: Number(state.rfRate.replace(',', '.')) || 100,
+            indexerRate: parsePortfolioNumber(state.rfRate),
             principal: qty,
             startDate: state.tradeDate,
             maturityDate: state.rfMaturity,
@@ -217,25 +221,30 @@ export default function NovaTransacaoPage() {
       void queryClient.invalidateQueries({ queryKey: ['portfolios'] });
       router.push(`/dashboard/c/${id}`);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: () =>
+      toast.error('Não foi possível salvar a transação. Confira os campos e tente novamente.'),
   });
 
   const total = previewTotal(state);
 
   const canAdvanceFrom2 =
-    state.type === 'INCOME'
-      ? Number(state.quantity.replace(',', '.')) > 0
+    validPortfolioDate(state.tradeDate) &&
+    (state.type !== 'BUY' || parsePortfolioNumber(state.fees) >= 0) &&
+    (!state.rfMaturity ||
+      (validPortfolioDate(state.rfMaturity) &&
+        state.rfMaturity >= state.tradeDate &&
+        parsePortfolioNumber(state.rfRate) >= 0)) &&
+    (state.type === 'INCOME'
+      ? parsePortfolioNumber(state.quantity) > 0
       : state.type === 'CORP_ACTION'
         ? state.corpKind === 'subscricao'
-          ? Number(state.quantity.replace(',', '.')) > 0 &&
-            Number(state.unitPrice.replace(',', '.')) > 0
+          ? parsePortfolioNumber(state.quantity) > 0 && parsePortfolioNumber(state.unitPrice) > 0
           : state.corpKind === 'bonificacao'
-            ? Number(state.corpPercent.replace(',', '.')) > 0
-            : Number(state.corpFactor.replace(',', '.')) > 1
+            ? parsePortfolioNumber(state.corpPercent) > 0
+            : parsePortfolioNumber(state.corpFactor) > 1
         : state.syntheticCode
-          ? Number(state.quantity.replace(',', '.')) > 0
-          : Number(state.quantity.replace(',', '.')) > 0 &&
-            Number(state.unitPrice.replace(',', '.')) > 0;
+          ? parsePortfolioNumber(state.quantity) > 0
+          : parsePortfolioNumber(state.quantity) > 0 && parsePortfolioNumber(state.unitPrice) > 0);
 
   return (
     <div className="mx-auto w-full max-w-xl space-y-6 px-4 py-8">
@@ -291,7 +300,10 @@ export default function NovaTransacaoPage() {
                 id="ticker"
                 placeholder="Ex.: IVVB11"
                 value={state.ticker}
-                onChange={(e) => patch({ ticker: e.target.value.toUpperCase() })}
+                onChange={(e) => {
+                  patch({ ticker: e.target.value.toUpperCase(), syntheticCode: null, asset: null });
+                  setTickerError(null);
+                }}
                 autoCapitalize="characters"
               />
               {tickerError ? (
@@ -304,7 +316,7 @@ export default function NovaTransacaoPage() {
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Ou caixa sintético</label>
+              <label className="text-sm font-medium">Ou saldo remunerado</label>
               <div className="flex gap-2">
                 {syntheticOptions.map((o) => (
                   <button
@@ -328,8 +340,7 @@ export default function NovaTransacaoPage() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                Para conta remunerada / caixa. ⛔ Tesouro e previdência como classe catalogada:
-                bloqueados (curadoria de ativos pendente).
+                Para saldo em conta remunerada. Tesouro e previdência ainda não estão disponíveis.
               </p>
             </div>
 
@@ -416,7 +427,8 @@ export default function NovaTransacaoPage() {
                 disabled={
                   lookingUp ||
                   (!state.ticker.trim() && !state.syntheticCode) ||
-                  !state.broker.trim()
+                  !state.broker.trim() ||
+                  !validPortfolioDate(state.tradeDate)
                 }
                 onClick={() =>
                   state.syntheticCode
@@ -442,7 +454,10 @@ export default function NovaTransacaoPage() {
           <CardContent className="space-y-4">
             {state.type !== 'INCOME' ? (
               <>
-                <div className="grid grid-cols-2 gap-3">
+                <div
+                  hidden={state.type === 'CORP_ACTION' && state.corpKind !== 'subscricao'}
+                  className="grid grid-cols-2 gap-3"
+                >
                   <div className="space-y-2">
                     <label className="text-sm font-medium" htmlFor="qtd">
                       Quantidade

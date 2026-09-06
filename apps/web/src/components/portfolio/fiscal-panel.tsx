@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { parsePortfolioNumber } from '@/lib/portfolio-input';
 
 const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -30,6 +31,10 @@ export function FiscalPanel({
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <p className="text-sm text-muted-foreground lg:col-span-2">
+        Estimativa educacional, não substitui a apuração fiscal. Confira as premissas e os dados
+        antes de pagar impostos.
+      </p>
       <RedemptionSimulator portfolioId={portfolioId} positions={positions} />
       <DarfCard portfolioId={portfolioId} />
     </div>
@@ -54,10 +59,11 @@ function RedemptionSimulator({
       simulateRedemption(portfolioId, {
         assetId: selected!.assetId!,
         broker: selected!.broker,
-        quantity: quantity.trim() ? Number(quantity.replace(',', '.')) : undefined,
+        quantity: quantity.trim() ? parsePortfolioNumber(quantity) : undefined,
       }),
     onSuccess: () => toast.success('Simulação concluída.'),
-    onError: (e: Error) => toast.error(e.message),
+    onError: () =>
+      toast.error('Não foi possível simular o resgate. Confira a quantidade e tente novamente.'),
   });
 
   if (sellable.length === 0) {
@@ -89,7 +95,10 @@ function RedemptionSimulator({
           <select
             id="sim-ativo"
             value={assetKey}
-            onChange={(e) => setAssetKey(e.target.value)}
+            onChange={(e) => {
+              setAssetKey(e.target.value);
+              mutation.reset();
+            }}
             className="w-full rounded-lg border bg-background px-2 py-1.5 text-sm"
           >
             <option value="">Selecione…</option>
@@ -110,12 +119,23 @@ function RedemptionSimulator({
             inputMode="decimal"
             placeholder={`Até ${selected?.quantity ?? 0}`}
             value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+            onChange={(e) => {
+              setQuantity(e.target.value);
+              mutation.reset();
+            }}
           />
         </div>
 
         <Button
-          disabled={!selected || mutation.isPending}
+          disabled={
+            !selected ||
+            mutation.isPending ||
+            (!!quantity.trim() &&
+              !(
+                parsePortfolioNumber(quantity) > 0 &&
+                parsePortfolioNumber(quantity) <= selected.quantity
+              ))
+          }
           onClick={() => mutation.mutate()}
           className="w-full"
         >
@@ -225,6 +245,13 @@ function DarfCard({ portfolioId }: { portfolioId: string }) {
       <CardContent className="space-y-2 text-sm">
         {query.isLoading ? (
           <p className="text-xs text-muted-foreground">Calculando…</p>
+        ) : query.isError ? (
+          <p role="alert">
+            Não foi possível calcular o imposto.{' '}
+            <Button variant="link" onClick={() => void query.refetch()}>
+              Tentar novamente
+            </Button>
+          </p>
         ) : !d || d.items.length === 0 ? (
           <p className="text-xs text-muted-foreground">
             Nenhuma venda com imposto devido neste mês.

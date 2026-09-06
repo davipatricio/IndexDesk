@@ -4,6 +4,17 @@
 > Este arquivo é atualizado sempre que uma feature entra/sai (ver seção "Skills internas" do CLAUDE.md raiz).
 > Estado macro de fases/tarefas: [`project-state.md`](project-state.md).
 
+## Revisão de UX das carteiras (2026-09-06)
+
+- A página inicial apresenta acesso direto a ativos e carteiras; navegação não anuncia rotas de carteiras/admin ausentes.
+- Listagem usa o rótulo correto de retorno total e links acessíveis nos títulos. Exclusões de carteiras e metas usam AlertDialog com estado pendente.
+- Compartilhamento fica em Sheet; alterações invalidam os caches de resumo/listagem e explicam acesso público e expiração de 30 dias.
+- Aba ativa persiste em `aba`; rentabilidade e análise compartilham período validado e cache. O gráfico de patrimônio explica o efeito de aportes sobre a comparação.
+- Proventos preservam a data selecionada. Entradas numéricas aceitam decimais pt-BR com agrupamento; datas e quantidades recebem validação. Metas distinguem erro, ausência e progresso indisponível.
+- Falhas fiscais não significam ausência de imposto. Alterar os campos invalida a simulação exibida; aviso educacional permanece visível.
+- JSON-LD público escapa `<`; data de criação recebe rótulo correto; CTA de clonagem sem implementação foi removido.
+- Movimento respeita preferência de redução. Auditoria visual em navegador e modernização completa de todos os controles ainda precisam de validação; estas mudanças não representam redesign completo.
+
 ## API .NET (`apps/backend/src/IndexDesk.Api`)
 
 ### `/api/v1/auth` e `/api/v1/users` (módulo Auth)

@@ -85,6 +85,7 @@ export function AccountMenu() {
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem render={<Link href="/dashboard" />}>Minhas carteiras</DropdownMenuItem>
 
         <DropdownMenuItem
           variant="destructive"

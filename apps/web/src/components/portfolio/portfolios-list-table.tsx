@@ -29,6 +29,7 @@ import {
 import { dashboardQParser } from '@/components/layout/dashboard-header';
 import { MaskedValue, BlurChart } from '@/components/privacy/masked-value';
 import { Sparkline } from '@/components/charts/sparkline';
+import { DeleteConfirmation } from '@/components/portfolio/delete-confirmation';
 import { deletePortfolio, type PortfolioDto } from '@/lib/api-client';
 import { useSession } from '@/hooks/use-session';
 import { useQueryClient } from '@tanstack/react-query';
@@ -91,6 +92,7 @@ function getLatestValue(portfolio: PortfolioDto): number {
 
 export function PortfoliosListTable() {
   const router = useRouter();
+  const [deleting, setDeleting] = React.useState<{ id: string; title: string } | null>(null);
   const queryClient = useQueryClient();
   const { isAuthenticated, isReady } = useSession();
   const { portfolios, isLoading, isError, refetch } = usePortfoliosList();
@@ -115,13 +117,16 @@ export function PortfoliosListTable() {
   };
 
   const handleDelete = async (id: string, title: string) => {
-    if (!window.confirm(`Excluir a carteira "${title}" e todas as suas transações?`)) return;
+    if (!deleting) {
+      setDeleting({ id, title });
+      return;
+    }
     try {
       await deletePortfolio(id);
       toast.success('Carteira excluída.');
       await queryClient.invalidateQueries({ queryKey: ['portfolios'] });
-    } catch (error) {
-      toast.error((error as Error).message);
+    } catch {
+      toast.error('Não foi possível excluir a carteira. Tente novamente.');
     }
   };
 
@@ -166,7 +171,7 @@ export function PortfoliosListTable() {
           Erro ao carregar carteiras
         </h3>
         <p className="mt-1.5 max-w-sm text-sm text-muted-foreground">
-          Não foi possível sincronizar suas carteiras locais. Tente recarregar os dados.
+          Não foi possível carregar suas carteiras agora. Tente novamente.
         </p>
         <Button variant="outline" className="mt-6 gap-2" onClick={() => void refetch()}>
           <RefreshCw className="size-4" />
@@ -196,6 +201,13 @@ export function PortfoliosListTable() {
 
   return (
     <div className="space-y-4">
+      {deleting && (
+        <DeleteConfirmation
+          title={deleting.title}
+          onClose={() => setDeleting(null)}
+          onConfirm={() => handleDelete(deleting.id, deleting.title)}
+        />
+      )}
       {/* Header com total e CTA de criar carteira */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -257,7 +269,7 @@ export function PortfoliosListTable() {
                       onClick={() => handleSort('year')}
                       className="group inline-flex items-center justify-end font-medium text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      Rent. 12m
+                      Retorno total
                       {renderSortIcon('year')}
                     </button>
                   </TableHead>
@@ -293,9 +305,13 @@ export function PortfoliosListTable() {
                           </Avatar>
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="truncate font-semibold text-foreground group-hover:text-primary transition-colors">
+                              <Link
+                                href={`/dashboard/c/${portfolio.id}`}
+                                className="truncate font-semibold text-foreground group-hover:text-primary transition-colors"
+                                onClick={(event) => event.stopPropagation()}
+                              >
                                 {portfolio.title}
-                              </span>
+                              </Link>
                               {portfolio.visibility === 'public' ? (
                                 <Badge
                                   variant="outline"
@@ -357,7 +373,7 @@ export function PortfoliosListTable() {
                         </MaskedValue>
                       </TableCell>
 
-                      {/* Rent. 12m % */}
+                      {/* Retorno total % */}
                       <TableCell className="text-right">
                         <MaskedValue>
                           <span
@@ -466,7 +482,12 @@ export function PortfoliosListTable() {
                       </Avatar>
                       <div className="min-w-0">
                         <h3 className="truncate font-semibold text-foreground text-sm">
-                          {portfolio.title}
+                          <Link
+                            href={`/dashboard/c/${portfolio.id}`}
+                            onClick={(event) => event.stopPropagation()}
+                          >
+                            {portfolio.title}
+                          </Link>
                         </h3>
                         <p className="text-[11px] text-muted-foreground">
                           {portfolio.visibility === 'public'
@@ -559,7 +580,7 @@ export function PortfoliosListTable() {
                     </div>
                     <div>
                       <p className="text-[10px] text-muted-foreground uppercase font-medium">
-                        Rent. 12m
+                        Retorno total
                       </p>
                       <MaskedValue>
                         <span

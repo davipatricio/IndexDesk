@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FolderKanban, LayoutDashboard, Plus, Shield, TrendingUp, Wrench } from 'lucide-react';
+import { LayoutDashboard, Plus, TrendingUp, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/hooks/use-session';
 import {
@@ -26,12 +26,9 @@ interface NavItem {
 
 const NAV_ITEMS: readonly NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/carteiras', label: 'Carteiras', icon: FolderKanban },
   { href: '/rankings', label: 'Rankings', icon: TrendingUp },
   { href: '/ferramentas/backtest', label: 'Ferramentas', icon: Wrench },
 ];
-
-const ADMIN_ITEM: NavItem = { href: '/admin', label: 'Administração', icon: Shield };
 
 const COLLAPSED_KEY = 'indexdesk.sidebar.collapsed';
 
@@ -91,7 +88,7 @@ interface SidebarContentProps {
  */
 export function SidebarContent({ collapsed, onNavigate }: SidebarContentProps) {
   const pathname = usePathname();
-  const { account, isAuthenticated, isAdmin, isReady } = useSession();
+  const { account, isAuthenticated, isReady } = useSession();
   const { portfolios, isLoading } = usePortfoliosList();
 
   const isActive = (href: string) =>
@@ -158,13 +155,10 @@ export function SidebarContent({ collapsed, onNavigate }: SidebarContentProps) {
     );
   };
 
-  const showAdmin = isReady && isAdmin;
-
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 p-3">
       <nav aria-label="Navegação principal" className="flex flex-col gap-1">
         {NAV_ITEMS.map((item) => navItem(item))}
-        {showAdmin && navItem(ADMIN_ITEM)}
       </nav>
 
       <div className="flex min-h-0 flex-1 flex-col gap-2">
